@@ -16,6 +16,7 @@ Usage:
 
 import argparse
 import base64
+import collections
 import hashlib
 import logging
 import time
@@ -79,16 +80,51 @@ def capture_screen(monitor_index: int = 1, resize: tuple = (960, 540)) -> tuple[
 
 
 # ---------------------------------------------------------------------------
+# Conversation history
+# ---------------------------------------------------------------------------
+MAX_HISTORY = 10  # number of previous tips to remember
+
+
+class TipHistory:
+    """Keeps a rolling window of previous tips so the LLM can build on them."""
+
+    def __init__(self, maxlen: int = MAX_HISTORY) -> None:
+        self._tips: collections.deque[str] = collections.deque(maxlen=maxlen)
+
+    def add(self, tip: str) -> None:
+        self._tips.append(tip)
+
+    def clear(self) -> None:
+        self._tips.clear()
+
+    def format_for_prompt(self) -> str:
+        """Return previous tips as a numbered list for the LLM prompt."""
+        if not self._tips:
+            return ""
+        lines = [f"  {i}. {t}" for i, t in enumerate(list(self._tips), 1)]
+        return (
+            "\n\nHere are your previous tips from this session (oldest first):\n"
+            + "\n".join(lines)
+            + "\n\nDo NOT repeat any of these tips. Build on them and give a NEW "
+            "insight the player hasn't heard yet."
+        )
+
+
+# ---------------------------------------------------------------------------
 # Ollama analysis
 # ---------------------------------------------------------------------------
-def analyze_screenshot(img_b64: str, host: str, model: str, game_hint: str = "") -> str:
+def analyze_screenshot(
+    img_b64: str, host: str, model: str,
+    game_hint: str = "", history: TipHistory | None = None,
+) -> str:
     """Send screenshot to Ollama and return the tip."""
     game_context = f" The player is playing {game_hint}." if game_hint else ""
+    history_context = history.format_for_prompt() if history else ""
     prompt = (
         f"You are a helpful gaming coach.{game_context} "
         "Look at this game screenshot and give exactly ONE short, "
         "specific, actionable gameplay tip in one sentence. "
-        "No introduction, no emojis, just the tip."
+        f"No introduction, no emojis, just the tip.{history_context}"
     )
 
     response = requests.post(
@@ -177,6 +213,7 @@ def main():
     parser.add_argument("--model",    default="qwen2.5vl",            help="Ollama vision model")
     parser.add_argument("--interval", type=int, default=10,           help="Seconds between analyses")
     parser.add_argument("--monitor",  type=int, default=1,            help="Monitor index (1=primary)")
+    parser.add_argument("--history",  type=int, default=MAX_HISTORY,  help="Number of previous tips to remember (0 to disable)")
     args = parser.parse_args()
 
     log.info("=== Gaming Assistant Worker ===")
@@ -187,7 +224,12 @@ def main():
     client, running = build_mqtt_client(args.broker, args.port, args.user, args.password)
     time.sleep(1)  # Let MQTT connect
 
+    tip_history = TipHistory(maxlen=args.history) if args.history > 0 else None
+    if tip_history:
+        log.info("Tip history enabled (remembering last %d tips)", args.history)
+
     last_hash = ""
+    last_game = ""
     consecutive_errors = 0
     MAX_ERRORS = 5
 
@@ -206,6 +248,12 @@ def main():
                 if game:
                     log.info("Game detected: %s", game)
                     client.publish(TOPIC_MODE, "ON")
+                    # Clear history when switching to a different game
+                    if game != last_game and tip_history:
+                        log.info("Game changed (%s -> %s), clearing tip history",
+                                 last_game or "none", game)
+                        tip_history.clear()
+                    last_game = game
                 else:
                     client.publish(TOPIC_MODE, "OFF")
 
@@ -219,12 +267,18 @@ def main():
                     continue
                 last_hash = img_hash
 
-                # 4. Analyze with Vision LLM
+                # 4. Analyze with Vision LLM (with conversation history)
                 client.publish(TOPIC_STATUS, "analyzing")
-                tip = analyze_screenshot(img_b64, args.ollama, args.model, game)
+                tip = analyze_screenshot(
+                    img_b64, args.ollama, args.model, game, tip_history,
+                )
                 log.info("TIP: %s", tip)
 
-                # 5. Publish tip (retain=True so HA keeps state after restart)
+                # 5. Remember tip for future context
+                if tip_history:
+                    tip_history.add(tip)
+
+                # 6. Publish tip (retain=True so HA keeps state after restart)
                 client.publish(TOPIC_TIP, tip, retain=True)
                 client.publish(TOPIC_MODE, "ON" if game else "OFF", retain=True)
                 client.publish(TOPIC_STATUS, "idle")
