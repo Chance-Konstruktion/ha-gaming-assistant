@@ -1,0 +1,6 @@
+{
+  "name": "Gaming Assistant",
+  "domains": ["gaming_assistant"],
+  "content_in_root": false,
+  "render_readme": true
+}

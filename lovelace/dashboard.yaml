@@ -1,0 +1,56 @@
+################################################################################
+# Gaming Assistant – Lovelace Dashboard
+# Copy this into a manual card or your dashboard YAML
+################################################################################
+
+type: vertical-stack
+cards:
+
+  # ── Header ──────────────────────────────────────────────────────────────────
+  - type: markdown
+    content: |
+      ## 🎮 Gaming Assistant
+      AI-powered coach running locally via Ollama
+
+  # ── Status row ──────────────────────────────────────────────────────────────
+  - type: horizontal-stack
+    cards:
+      - type: entity
+        entity: binary_sensor.gaming_mode
+        name: Gaming Mode
+        icon: mdi:gamepad-variant
+
+      - type: entity
+        entity: sensor.gaming_assistant_status
+        name: Worker Status
+        icon: mdi:robot
+
+  # ── Current tip ─────────────────────────────────────────────────────────────
+  - type: markdown
+    content: |
+      ### 💡 Current Tip
+      > {{ states('sensor.gaming_assistant_tip') }}
+
+  # ── Action buttons ──────────────────────────────────────────────────────────
+  - type: horizontal-stack
+    cards:
+      - type: button
+        name: Analyze Now
+        icon: mdi:camera
+        tap_action:
+          action: call-service
+          service: gaming_assistant.analyze
+
+      - type: button
+        name: Start Worker
+        icon: mdi:play
+        tap_action:
+          action: call-service
+          service: gaming_assistant.start
+
+      - type: button
+        name: Stop Worker
+        icon: mdi:stop
+        tap_action:
+          action: call-service
+          service: gaming_assistant.stop

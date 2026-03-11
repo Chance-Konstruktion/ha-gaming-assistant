@@ -1,0 +1,11 @@
+analyze:
+  name: Analyze Screenshot
+  description: Triggers an immediate screenshot analysis on the worker.
+
+start:
+  name: Start Worker
+  description: Sends a start command to the Gaming Assistant worker.
+
+stop:
+  name: Stop Worker
+  description: Sends a stop command to the Gaming Assistant worker.

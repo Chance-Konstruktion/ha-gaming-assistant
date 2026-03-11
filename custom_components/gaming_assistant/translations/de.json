@@ -1,0 +1,38 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ollama verbinden",
+        "description": "Gib die URL deines Ollama-Servers ein. Die verfügbaren Modelle werden danach automatisch geladen.",
+        "data": {
+          "ollama_host": "Ollama Host"
+        }
+      },
+      "model": {
+        "title": "Modell wählen",
+        "description": "Wähle ein Vision-Modell und das Analyse-Intervall.",
+        "data": {
+          "model": "Vision-Modell",
+          "interval": "Intervall (Sekunden)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Ollama nicht erreichbar – bitte URL prüfen."
+    },
+    "abort": {
+      "single_instance_allowed": "Gaming Assistant ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Einstellungen",
+        "data": {
+          "model": "Vision-Modell",
+          "interval": "Intervall (Sekunden)"
+        }
+      }
+    }
+  }
+}

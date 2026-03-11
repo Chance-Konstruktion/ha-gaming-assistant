@@ -1,0 +1,68 @@
+################################################################################
+# Gaming Assistant – Automation Examples
+# Add these to your automations.yaml or import via the UI
+################################################################################
+
+# ── 1. Read tip aloud when gaming mode is active ─────────────────────────────
+- alias: "Gaming Assistant – Speak Tip"
+  description: "Reads new AI tips aloud while gaming mode is on."
+  trigger:
+    - platform: state
+      entity_id: sensor.gaming_assistant_tip
+  condition:
+    - condition: state
+      entity_id: binary_sensor.gaming_mode
+      state: "on"
+  action:
+    - service: tts.speak
+      target:
+        entity_id: tts.piper  # Change to your TTS provider
+      data:
+        message: "{{ states('sensor.gaming_assistant_tip') }}"
+  mode: single
+
+# ── 2. Change RGB light color when gaming mode starts ────────────────────────
+- alias: "Gaming Assistant – Gaming Lights On"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.gaming_mode
+      to: "on"
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.gaming_desk  # Change to your light entity
+      data:
+        rgb_color: [255, 30, 0]
+        brightness: 200
+  mode: single
+
+# ── 3. Restore lights when gaming stops ──────────────────────────────────────
+- alias: "Gaming Assistant – Gaming Lights Off"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.gaming_mode
+      to: "off"
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.gaming_desk
+      data:
+        rgb_color: [255, 200, 100]
+        brightness: 150
+  mode: single
+
+# ── 4. Send tip as mobile notification ───────────────────────────────────────
+- alias: "Gaming Assistant – Notify Tip"
+  trigger:
+    - platform: state
+      entity_id: sensor.gaming_assistant_tip
+  condition:
+    - condition: state
+      entity_id: binary_sensor.gaming_mode
+      state: "on"
+  action:
+    - service: notify.mobile_app_your_phone  # Change to your notify service
+      data:
+        title: "🎮 Gaming Tip"
+        message: "{{ states('sensor.gaming_assistant_tip') }}"
+  mode: single
