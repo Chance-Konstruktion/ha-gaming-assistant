@@ -1,17 +1,27 @@
 """
-Gaming Assistant Worker
-=======================
-Runs on the Gaming PC. Captures screenshots, analyzes them with a
+Gaming Assistant – Android Worker
+==================================
+Captures screenshots from an Android device via ADB, analyzes them with a
 local Vision LLM (Ollama), and publishes tips to Home Assistant via MQTT.
 
 Requirements:
-    pip install mss pillow requests paho-mqtt
+    pip install -r requirements-android.txt
 
-Optional (game detection on Windows):
-    pip install pywin32
+Prerequisites:
+    - ADB installed and in PATH (comes with Android SDK Platform Tools)
+    - Android device connected via USB or Wi-Fi with USB debugging enabled
+    - Ollama running with a vision model
 
 Usage:
-    python gaming_assistant_worker.py --broker 192.168.1.10 --model qwen2.5vl
+    python android_worker.py --broker 192.168.1.10 --model qwen2.5vl
+
+    # Connect to a specific device (if multiple connected)
+    python android_worker.py --broker 192.168.1.10 --device 192.168.1.42:5555
+
+    # Connect via Wi-Fi ADB (device must be paired first)
+    adb tcpip 5555
+    adb connect 192.168.1.42:5555
+    python android_worker.py --broker 192.168.1.10 --device 192.168.1.42:5555
 """
 
 import argparse
@@ -19,12 +29,12 @@ import base64
 import collections
 import hashlib
 import logging
+import subprocess
 import time
 from io import BytesIO
 
 import paho.mqtt.client as mqtt
 import requests
-from mss import mss
 from PIL import Image
 
 # ---------------------------------------------------------------------------
@@ -35,48 +45,103 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
 )
-log = logging.getLogger("gaming_assistant")
+log = logging.getLogger("gaming_assistant_android")
 
 # ---------------------------------------------------------------------------
-# MQTT Topics
+# MQTT Topics (same as desktop worker)
 # ---------------------------------------------------------------------------
-TOPIC_TIP    = "gaming_assistant/tip"
-TOPIC_MODE   = "gaming_assistant/gaming_mode"
+TOPIC_TIP = "gaming_assistant/tip"
+TOPIC_MODE = "gaming_assistant/gaming_mode"
 TOPIC_STATUS = "gaming_assistant/status"
-TOPIC_CMD    = "gaming_assistant/command"
+TOPIC_CMD = "gaming_assistant/command"
 
 # ---------------------------------------------------------------------------
-# Known games for auto-detection (extend as needed)
+# Known mobile games for auto-detection
 # ---------------------------------------------------------------------------
 KNOWN_GAMES = [
-    "Wolfenstein", "Doom", "Cyberpunk", "Elden Ring",
-    "Dark Souls", "Minecraft", "Counter-Strike", "Valorant",
-    "Overwatch", "Baldur's Gate", "Starfield", "The Witcher",
+    "PUBG", "Call of Duty", "Genshin Impact", "Honkai",
+    "Minecraft", "Brawl Stars", "Clash Royale", "Clash of Clans",
+    "Diablo Immortal", "Wild Rift", "Arena of Valor",
+    "Asphalt", "Mobile Legends", "Free Fire",
 ]
 
 
 # ---------------------------------------------------------------------------
-# Screenshot capture
+# ADB helpers
 # ---------------------------------------------------------------------------
-def capture_screen(monitor_index: int = 1, resize: tuple = (960, 540)) -> tuple[str, str]:
-    """Capture a screenshot and return (base64_string, frame_hash)."""
-    with mss() as sct:
-        monitors = sct.monitors
-        if monitor_index >= len(monitors):
-            monitor_index = 1
-        shot = sct.grab(monitors[monitor_index])
-        img = Image.frombytes("RGB", shot.size, shot.rgb)
+def _adb_cmd(args: list[str], device: str | None = None) -> list[str]:
+    """Build an ADB command list, optionally targeting a specific device."""
+    cmd = ["adb"]
+    if device:
+        cmd.extend(["-s", device])
+    cmd.extend(args)
+    return cmd
 
+
+def check_adb_connection(device: str | None = None) -> bool:
+    """Verify that ADB can reach the target device."""
+    try:
+        result = subprocess.run(
+            _adb_cmd(["shell", "echo", "ok"], device),
+            capture_output=True, text=True, timeout=10,
+        )
+        return result.returncode == 0 and "ok" in result.stdout
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return False
+
+
+def capture_android_screen(
+    device: str | None = None, resize: tuple[int, int] = (960, 540)
+) -> tuple[str, str]:
+    """Capture a screenshot from the Android device via ADB.
+
+    Returns (base64_string, frame_hash).
+    """
+    # screencap -p outputs a PNG directly to stdout
+    result = subprocess.run(
+        _adb_cmd(["exec-out", "screencap", "-p"], device),
+        capture_output=True, timeout=15,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"ADB screencap failed (rc={result.returncode}): "
+            f"{result.stderr.decode(errors='replace')}"
+        )
+
+    img = Image.open(BytesIO(result.stdout)).convert("RGB")
     img = img.resize(resize, Image.LANCZOS)
 
     buffer = BytesIO()
     img.save(buffer, format="JPEG", quality=85)
     raw = buffer.getvalue()
 
-    img_b64  = base64.b64encode(raw).decode("utf-8")
+    img_b64 = base64.b64encode(raw).decode("utf-8")
     img_hash = hashlib.md5(raw).hexdigest()
 
     return img_b64, img_hash
+
+
+def detect_foreground_app(device: str | None = None) -> str:
+    """Detect the foreground app on the Android device.
+
+    Returns the game name if a known game is running, or empty string.
+    """
+    try:
+        result = subprocess.run(
+            _adb_cmd(
+                ["shell", "dumpsys", "activity", "activities",
+                 "|", "grep", "mResumedActivity"],
+                device,
+            ),
+            capture_output=True, text=True, timeout=10,
+        )
+        activity_line = result.stdout.strip()
+        for game in KNOWN_GAMES:
+            if game.lower().replace(" ", "") in activity_line.lower():
+                return game
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -111,17 +176,17 @@ class TipHistory:
 
 
 # ---------------------------------------------------------------------------
-# Ollama analysis
+# Ollama analysis (shared logic with desktop worker)
 # ---------------------------------------------------------------------------
 def analyze_screenshot(
     img_b64: str, host: str, model: str,
     game_hint: str = "", history: TipHistory | None = None,
 ) -> str:
     """Send screenshot to Ollama and return the tip."""
-    game_context = f" The player is playing {game_hint}." if game_hint else ""
+    game_context = f" The player is playing {game_hint} on a mobile device." if game_hint else ""
     history_context = history.format_for_prompt() if history else ""
     prompt = (
-        f"You are a helpful gaming coach.{game_context} "
+        f"You are a helpful mobile gaming coach.{game_context} "
         "Look at this game screenshot and give exactly ONE short, "
         "specific, actionable gameplay tip in one sentence. "
         f"No introduction, no emojis, just the tip.{history_context}"
@@ -146,29 +211,11 @@ def analyze_screenshot(
 
 
 # ---------------------------------------------------------------------------
-# Game detection (Windows only, graceful fallback)
-# ---------------------------------------------------------------------------
-def detect_active_game() -> str:
-    """Return the name of the active game window, or empty string."""
-    try:
-        import win32gui
-        window_title = win32gui.GetWindowText(win32gui.GetForegroundWindow())
-        for game in KNOWN_GAMES:
-            if game.lower() in window_title.lower():
-                return game
-    except ImportError:
-        pass  # pywin32 not available (Linux/macOS)
-    except Exception:
-        pass
-    return ""
-
-
-# ---------------------------------------------------------------------------
 # MQTT setup
 # ---------------------------------------------------------------------------
 def build_mqtt_client(broker: str, port: int, username: str, password: str):
     """Create and connect the MQTT client."""
-    client = mqtt.Client(client_id="gaming_assistant_worker", clean_session=True)
+    client = mqtt.Client(client_id="gaming_assistant_android", clean_session=True)
 
     if username:
         client.username_pw_set(username, password)
@@ -204,22 +251,49 @@ def build_mqtt_client(broker: str, port: int, username: str, password: str):
 # Main loop
 # ---------------------------------------------------------------------------
 def main():
-    parser = argparse.ArgumentParser(description="Gaming Assistant Worker")
-    parser.add_argument("--broker",   default="homeassistant.local", help="MQTT broker IP/hostname")
-    parser.add_argument("--port",     type=int, default=1883,         help="MQTT port")
-    parser.add_argument("--user",     default="",                     help="MQTT username (optional)")
-    parser.add_argument("--password", default="",                     help="MQTT password (optional)")
-    parser.add_argument("--ollama",   default="http://localhost:11434",help="Ollama base URL")
-    parser.add_argument("--model",    default="qwen2.5vl",            help="Ollama vision model")
-    parser.add_argument("--interval", type=int, default=10,           help="Seconds between analyses")
-    parser.add_argument("--monitor",  type=int, default=1,            help="Monitor index (1=primary)")
-    parser.add_argument("--history",  type=int, default=MAX_HISTORY,  help="Number of previous tips to remember (0 to disable)")
+    parser = argparse.ArgumentParser(description="Gaming Assistant – Android Worker")
+    parser.add_argument("--broker", default="homeassistant.local",
+                        help="MQTT broker IP/hostname")
+    parser.add_argument("--port", type=int, default=1883,
+                        help="MQTT port")
+    parser.add_argument("--user", default="",
+                        help="MQTT username (optional)")
+    parser.add_argument("--password", default="",
+                        help="MQTT password (optional)")
+    parser.add_argument("--ollama", default="http://localhost:11434",
+                        help="Ollama base URL")
+    parser.add_argument("--model", default="qwen2.5vl",
+                        help="Ollama vision model")
+    parser.add_argument("--interval", type=int, default=10,
+                        help="Seconds between analyses")
+    parser.add_argument("--device", default=None,
+                        help="ADB device serial or IP:port (optional)")
+    parser.add_argument("--history", type=int, default=MAX_HISTORY,
+                        help="Number of previous tips to remember (0 to disable)")
     args = parser.parse_args()
 
-    log.info("=== Gaming Assistant Worker ===")
+    log.info("=== Gaming Assistant – Android Worker ===")
     log.info("Broker  : %s:%d", args.broker, args.port)
     log.info("Ollama  : %s  model=%s", args.ollama, args.model)
     log.info("Interval: %ds", args.interval)
+    log.info("Device  : %s", args.device or "default (first connected)")
+
+    # Verify ADB connection
+    if not check_adb_connection(args.device):
+        log.error(
+            "Cannot reach Android device via ADB. "
+            "Make sure USB debugging is enabled and the device is connected."
+        )
+        if args.device:
+            log.error("Trying to connect to %s ...", args.device)
+            subprocess.run(["adb", "connect", args.device], timeout=10)
+            if not check_adb_connection(args.device):
+                log.error("Still cannot reach device. Exiting.")
+                return
+        else:
+            return
+
+    log.info("ADB connection verified")
 
     client, running = build_mqtt_client(args.broker, args.port, args.user, args.password)
     time.sleep(1)  # Let MQTT connect
@@ -243,8 +317,8 @@ def main():
                 continue
 
             try:
-                # 1. Detect active game
-                game = detect_active_game()
+                # 1. Detect foreground game
+                game = detect_foreground_app(args.device)
                 if game:
                     log.info("Game detected: %s", game)
                     client.publish(TOPIC_MODE, "ON")
@@ -257,8 +331,8 @@ def main():
                 else:
                     client.publish(TOPIC_MODE, "OFF")
 
-                # 2. Capture screenshot
-                img_b64, img_hash = capture_screen(args.monitor)
+                # 2. Capture screenshot via ADB
+                img_b64, img_hash = capture_android_screen(args.device)
 
                 # 3. Frame change detection – skip if screen hasn't changed
                 if img_hash == last_hash:
@@ -278,7 +352,7 @@ def main():
                 if tip_history:
                     tip_history.add(tip)
 
-                # 6. Publish tip (retain=True so HA keeps state after restart)
+                # 6. Publish tip
                 client.publish(TOPIC_TIP, tip, retain=True)
                 client.publish(TOPIC_MODE, "ON" if game else "OFF", retain=True)
                 client.publish(TOPIC_STATUS, "idle")
@@ -293,6 +367,11 @@ def main():
             except requests.exceptions.ConnectionError:
                 log.error("Cannot reach Ollama at %s", args.ollama)
                 client.publish(TOPIC_STATUS, "ollama_offline")
+                consecutive_errors += 1
+
+            except RuntimeError as e:
+                log.error("ADB error: %s", e)
+                client.publish(TOPIC_STATUS, "adb_error")
                 consecutive_errors += 1
 
             except Exception as e:
@@ -314,7 +393,7 @@ def main():
         client.publish(TOPIC_MODE, "OFF")
         client.loop_stop()
         client.disconnect()
-        log.info("Worker stopped.")
+        log.info("Android worker stopped.")
 
 
 if __name__ == "__main__":

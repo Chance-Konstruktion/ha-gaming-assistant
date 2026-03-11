@@ -132,6 +132,64 @@ To start the worker automatically on Windows boot:
 
 ---
 
+## Android Support
+
+You can also use the Gaming Assistant with Android mobile games. The Android
+worker captures screenshots from a connected Android device via ADB.
+
+### Prerequisites
+
+- **ADB** (Android Debug Bridge) installed on the machine running the worker
+  ([download Platform Tools](https://developer.android.com/tools/releases/platform-tools))
+- **USB Debugging** enabled on the Android device (Settings → Developer Options)
+- Device connected via USB **or** Wi-Fi ADB
+
+### Android Worker Setup
+
+```bash
+# Install dependencies
+pip install -r worker/requirements-android.txt
+
+# Verify ADB sees your device
+adb devices
+
+# Start the Android worker
+python worker/android_worker.py \
+  --broker 192.168.1.10 \
+  --ollama http://localhost:11434 \
+  --model qwen2.5vl \
+  --interval 10
+```
+
+#### Wi-Fi ADB (wireless)
+
+```bash
+# On the PC (device must be connected via USB first)
+adb tcpip 5555
+adb connect 192.168.1.42:5555
+
+# Now start the worker targeting that device
+python worker/android_worker.py \
+  --broker 192.168.1.10 \
+  --device 192.168.1.42:5555
+```
+
+#### Multiple devices
+
+If you have several Android devices connected, specify which one to use:
+
+```bash
+python worker/android_worker.py --broker 192.168.1.10 --device SERIAL_OR_IP
+```
+
+### Detected Mobile Games
+
+The worker auto-detects popular mobile games (PUBG, Genshin Impact, Minecraft,
+Mobile Legends, etc.). Add your game to the `KNOWN_GAMES` list in
+`worker/android_worker.py`.
+
+---
+
 ## Troubleshooting
 
 **Config flow error: 500 Internal Server Error**
@@ -146,13 +204,23 @@ To start the worker automatically on Windows boot:
 → The model may be loading for the first time. Wait 60 s and try again.
 → Reduce image size by lowering the `resize` parameter in the worker.
 
-**No game detection**
+**No game detection (Desktop)**
 → Install `pywin32` on Windows and make sure the game is in the foreground.
 → Add your game's window title to `KNOWN_GAMES` in the worker script.
+
+**ADB screencap fails / "Cannot reach Android device"**
+→ Run `adb devices` and check the device shows as "device" (not "unauthorized").
+→ On the phone, accept the USB debugging prompt if shown.
+→ For Wi-Fi ADB, make sure the PC and phone are on the same network.
 
 ---
 
 ## Changelog
+
+### 0.3.0
+- **Added:** Android worker (`worker/android_worker.py`) – capture mobile game
+  screenshots via ADB and analyze them with the same Ollama + MQTT pipeline.
+- **Added:** `requirements-android.txt` for Android worker dependencies.
 
 ### 0.2.0
 - **Fix:** MQTT subscriptions now retry with exponential backoff (up to 5 attempts)
