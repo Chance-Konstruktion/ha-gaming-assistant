@@ -25,6 +25,7 @@ async def async_setup_entry(
     async_add_entities([
         GamingAssistantTipSensor(coordinator),
         GamingAssistantStatusSensor(coordinator),
+        GamingAssistantHistorySensor(coordinator),
     ])
 
 
@@ -48,6 +49,10 @@ class GamingAssistantTipSensor(CoordinatorEntity, SensorEntity):
         return {
             "gaming_mode": self._coordinator.gaming_mode,
             "worker_status": self._coordinator.status,
+            "game": self._coordinator.current_game,
+            "spoiler_level": self._coordinator.spoiler_manager.get_settings(
+                self._coordinator.current_game or None
+            ),
         }
 
 
@@ -65,3 +70,27 @@ class GamingAssistantStatusSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self) -> str:
         return self._coordinator.status
+
+
+class GamingAssistantHistorySensor(CoordinatorEntity, SensorEntity):
+    """Shows tip history for the current session."""
+
+    _attr_name = "Gaming Assistant History"
+    _attr_unique_id = "gaming_assistant_history"
+    _attr_icon = "mdi:history"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+
+    @property
+    def native_value(self) -> int:
+        return self._coordinator.tip_count
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {
+            "recent_tips": self._coordinator.recent_tips,
+            "current_game": self._coordinator.current_game,
+            "client_id": self._coordinator.current_client_id,
+        }

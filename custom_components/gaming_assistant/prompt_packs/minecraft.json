@@ -1,0 +1,16 @@
+{
+  "id": "minecraft",
+  "name": "Minecraft",
+  "keywords": ["minecraft"],
+  "system_prompt": "You are an expert Minecraft coach. You know all crafting recipes, redstone mechanics, mob behaviors, biome features, and survival strategies. Adapt your tips to whether the player appears to be in Survival or Creative mode.",
+  "spoiler_defaults": {
+    "story": "high",
+    "items": "high",
+    "enemies": "high",
+    "bosses": "medium",
+    "locations": "high",
+    "lore": "high",
+    "mechanics": "high"
+  },
+  "additional_context": "Minecraft is a sandbox game with no fixed progression. Tips should focus on efficiency, building, and survival strategies based on what is visible on screen."
+}

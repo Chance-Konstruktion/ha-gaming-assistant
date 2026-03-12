@@ -15,6 +15,13 @@
           "model": "Vision Model",
           "interval": "Interval (seconds)"
         }
+      },
+      "spoiler": {
+        "title": "Spoiler Settings",
+        "description": "Choose a default spoiler level. This applies to all categories. You can fine-tune per category and game later via the set_spoiler_level service.",
+        "data": {
+          "default_spoiler_level": "Default Spoiler Level"
+        }
       }
     },
     "error": {
@@ -30,7 +37,8 @@
         "title": "Settings",
         "data": {
           "model": "Vision Model",
-          "interval": "Interval (seconds)"
+          "interval": "Interval (seconds)",
+          "default_spoiler_level": "Default Spoiler Level"
         }
       }
     }

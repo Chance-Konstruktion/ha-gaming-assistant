@@ -1,7 +1,9 @@
 """Gaming Assistant – AI-powered gaming coach for Home Assistant."""
 from __future__ import annotations
 
+import base64
 import logging
+from pathlib import Path
 
 from homeassistant.components import mqtt
 from homeassistant.config_entries import ConfigEntry
@@ -53,9 +55,74 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         async def handle_stop(call: ServiceCall) -> None:
             await mqtt.async_publish(hass, "gaming_assistant/command", "stop")
 
+        async def handle_process_image(call: ServiceCall) -> None:
+            """Manually trigger image analysis."""
+            image_bytes = None
+
+            image_path = call.data.get("image_path")
+            image_base64 = call.data.get("image_base64")
+            game_hint = call.data.get("game_hint", "")
+            client_type = call.data.get("client_type", "pc")
+
+            if image_path:
+                path = Path(image_path)
+                if path.exists():
+                    image_bytes = path.read_bytes()
+                else:
+                    _LOGGER.error("Image file not found: %s", image_path)
+                    return
+            elif image_base64:
+                try:
+                    image_bytes = base64.b64decode(image_base64)
+                except Exception as err:
+                    _LOGGER.error("Invalid base64 image data: %s", err)
+                    return
+            else:
+                _LOGGER.error("process_image requires image_path or image_base64")
+                return
+
+            # Find first coordinator
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_process_manual_image(
+                        image_bytes, game_hint, client_type
+                    )
+                    break
+
+        async def handle_set_spoiler_level(call: ServiceCall) -> None:
+            """Change spoiler settings."""
+            category = call.data.get("category", "all")
+            level = call.data.get("level", "medium")
+            game = call.data.get("game")
+
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    coord.spoiler_manager.set_level(category, level, game)
+                    _LOGGER.info(
+                        "Spoiler level set: %s=%s (game=%s)",
+                        category, level, game or "global",
+                    )
+                    break
+
+        async def handle_clear_history(call: ServiceCall) -> None:
+            """Clear tip history."""
+            game = call.data.get("game")
+
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.history_manager.clear(game)
+                    _LOGGER.info(
+                        "History cleared: %s",
+                        game or "all games",
+                    )
+                    break
+
         hass.services.async_register(DOMAIN, "analyze", handle_analyze)
         hass.services.async_register(DOMAIN, "start", handle_start)
         hass.services.async_register(DOMAIN, "stop", handle_stop)
+        hass.services.async_register(DOMAIN, "process_image", handle_process_image)
+        hass.services.async_register(DOMAIN, "set_spoiler_level", handle_set_spoiler_level)
+        hass.services.async_register(DOMAIN, "clear_history", handle_clear_history)
 
     _LOGGER.info("Gaming Assistant integration loaded successfully")
     return True
@@ -76,7 +143,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # Remove services only when last entry is unloaded
         if not hass.data[DOMAIN]:
-            for service in ("analyze", "start", "stop"):
+            for service in (
+                "analyze", "start", "stop",
+                "process_image", "set_spoiler_level", "clear_history",
+            ):
                 hass.services.async_remove(DOMAIN, service)
 
     return unload_ok
