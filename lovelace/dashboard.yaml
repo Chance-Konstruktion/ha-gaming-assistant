@@ -1,18 +1,18 @@
 ################################################################################
-# Gaming Assistant – Lovelace Dashboard
+# Gaming Assistant – Lovelace Dashboard (v0.4)
 # Copy this into a manual card or your dashboard YAML
 ################################################################################
 
 type: vertical-stack
 cards:
 
-  # ── Header ──────────────────────────────────────────────────────────────────
+  # -- Header ----------------------------------------------------------------
   - type: markdown
     content: |
-      ## 🎮 Gaming Assistant
+      ## Gaming Assistant
       AI-powered coach running locally via Ollama
 
-  # ── Status row ──────────────────────────────────────────────────────────────
+  # -- Status row ------------------------------------------------------------
   - type: horizontal-stack
     cards:
       - type: entity
@@ -22,16 +22,81 @@ cards:
 
       - type: entity
         entity: sensor.gaming_assistant_status
-        name: Worker Status
+        name: Status
         icon: mdi:robot
 
-  # ── Current tip ─────────────────────────────────────────────────────────────
+      - type: entity
+        entity: sensor.gaming_assistant_history
+        name: Tips Count
+        icon: mdi:history
+
+  # -- Current tip -----------------------------------------------------------
   - type: markdown
     content: |
-      ### 💡 Current Tip
+      ### Current Tip
       > {{ states('sensor.gaming_assistant_tip') }}
 
-  # ── Action buttons ──────────────────────────────────────────────────────────
+      {% if state_attr('sensor.gaming_assistant_tip', 'game') %}
+      **Game:** {{ state_attr('sensor.gaming_assistant_tip', 'game') }}
+      {% endif %}
+
+  # -- Tip History -----------------------------------------------------------
+  - type: markdown
+    content: |
+      ### Recent Tips
+      {% set tips = state_attr('sensor.gaming_assistant_history', 'recent_tips') %}
+      {% if tips %}
+      {% for entry in tips | reverse %}
+      {{ loop.index }}. {{ entry.tip }}
+      {% endfor %}
+      {% else %}
+      _No tips yet._
+      {% endif %}
+
+  # -- Spoiler Level Controls ------------------------------------------------
+  - type: horizontal-stack
+    cards:
+      - type: button
+        name: "Spoiler: None"
+        icon: mdi:shield-lock
+        tap_action:
+          action: call-service
+          service: gaming_assistant.set_spoiler_level
+          service_data:
+            category: all
+            level: none
+
+      - type: button
+        name: "Spoiler: Low"
+        icon: mdi:shield-half-full
+        tap_action:
+          action: call-service
+          service: gaming_assistant.set_spoiler_level
+          service_data:
+            category: all
+            level: low
+
+      - type: button
+        name: "Spoiler: Medium"
+        icon: mdi:shield-outline
+        tap_action:
+          action: call-service
+          service: gaming_assistant.set_spoiler_level
+          service_data:
+            category: all
+            level: medium
+
+      - type: button
+        name: "Spoiler: High"
+        icon: mdi:shield-off
+        tap_action:
+          action: call-service
+          service: gaming_assistant.set_spoiler_level
+          service_data:
+            category: all
+            level: high
+
+  # -- Action buttons --------------------------------------------------------
   - type: horizontal-stack
     cards:
       - type: button
@@ -42,15 +107,22 @@ cards:
           service: gaming_assistant.analyze
 
       - type: button
-        name: Start Worker
+        name: Start Agent
         icon: mdi:play
         tap_action:
           action: call-service
           service: gaming_assistant.start
 
       - type: button
-        name: Stop Worker
+        name: Stop Agent
         icon: mdi:stop
         tap_action:
           action: call-service
           service: gaming_assistant.stop
+
+      - type: button
+        name: Clear History
+        icon: mdi:delete
+        tap_action:
+          action: call-service
+          service: gaming_assistant.clear_history
