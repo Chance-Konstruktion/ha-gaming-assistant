@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from PIL import Image
 
+from worker import capture_agent_android as android_agent
 from worker import capture_agent_android_tv as tv_agent
 from worker import capture_agent_ipcam as ipcam_agent
 
@@ -43,6 +44,25 @@ class TestIpCamAgent(unittest.TestCase):
             timeout=3,
             auth=("user", "pass"),
         )
+
+
+class TestAndroidAgent(unittest.TestCase):
+    @patch("worker.capture_agent_android.subprocess.run")
+    def test_detect_foreground_app_matches_known_game(self, mock_run):
+        mock_run.return_value = SimpleNamespace(
+            returncode=0,
+            stdout="""
+            mResumedActivity: ActivityRecord{... com.supercell.clashroyale/.GameActivity}
+            """,
+        )
+
+        detected = android_agent.detect_foreground_app("phone-device")
+        self.assertEqual(detected, "Clash Royale")
+
+    @patch("worker.capture_agent_android.subprocess.run")
+    def test_detect_foreground_app_returns_empty_on_error(self, mock_run):
+        mock_run.return_value = SimpleNamespace(returncode=1, stdout="")
+        self.assertEqual(android_agent.detect_foreground_app("phone-device"), "")
 
 
 class TestAndroidTvAgent(unittest.TestCase):
