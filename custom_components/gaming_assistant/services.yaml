@@ -42,6 +42,8 @@ process_image:
           options:
             - "pc"
             - "android"
+            - "android_tv"
+            - "ipcam"
             - "console"
 
 set_spoiler_level:
