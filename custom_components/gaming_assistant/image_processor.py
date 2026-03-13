@@ -1,10 +1,10 @@
 """Central image processing pipeline for Gaming Assistant."""
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import logging
-from typing import Any
 
 import requests
 
@@ -28,7 +28,7 @@ class ImageProcessor:
     1. Receive image (JPEG bytes)
     2. Compute hash
     3. Check deduplication (via HistoryManager)
-    4. Game detection (via metadata or optional Ollama)
+    4. Game detection (via metadata)
     5. Load spoiler settings
     6. Load history
     7. Build prompt
@@ -44,7 +44,7 @@ class ImageProcessor:
         model: str,
         history_manager: HistoryManager,
         spoiler_manager: SpoilerManager,
-        prompt_pack_loader: Any = None,
+        prompt_pack_loader=None,
     ) -> None:
         self._ollama_host = ollama_host.rstrip("/")
         self._model = model
@@ -68,7 +68,7 @@ class ImageProcessor:
         game = metadata.get("window_title", "") or metadata.get("game", "")
         client_type = metadata.get("client_type", "pc")
 
-        # 3. Deduplification check
+        # 3. Deduplication check
         key = game or client_id
         if await self._history.is_duplicate_image(image_hash, key):
             _LOGGER.debug("Duplicate image %s, skipping analysis", image_hash[:8])
@@ -80,7 +80,6 @@ class ImageProcessor:
             prompt_pack = self._pack_loader.find_by_keyword(game)
             if prompt_pack:
                 _LOGGER.debug("Using prompt pack: %s", prompt_pack.get("name"))
-                # Apply pack spoiler defaults
                 if prompt_pack.get("spoiler_defaults"):
                     self._spoiler.apply_pack_defaults(game, prompt_pack["spoiler_defaults"])
 
@@ -172,8 +171,6 @@ class ImageProcessor:
                 "num_predict": OLLAMA_NUM_PREDICT,
             },
         }
-
-        import asyncio
 
         loop = asyncio.get_event_loop()
 

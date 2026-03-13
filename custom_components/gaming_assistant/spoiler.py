@@ -60,9 +60,7 @@ class SpoilerManager:
     """Manages spoiler settings and generates prompt blocks."""
 
     def __init__(self, storage_path: str | None = None) -> None:
-        # Global defaults (all categories start at the configured default level)
         self._global_settings: dict[str, str] = {}
-        # Per-game overrides
         self._game_settings: dict[str, dict[str, str]] = {}
         self._storage_path = Path(storage_path) if storage_path else None
 
@@ -123,10 +121,7 @@ class SpoilerManager:
         self.save()
 
     def apply_pack_defaults(self, game: str, spoiler_defaults: dict[str, str]) -> None:
-        """Apply prompt pack spoiler defaults as a baseline for a game.
-
-        Only sets values that haven't been explicitly overridden by the user.
-        """
+        """Apply prompt pack spoiler defaults as a baseline for a game."""
         if game not in self._game_settings:
             self._game_settings[game] = {}
         for cat, level in spoiler_defaults.items():

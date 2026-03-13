@@ -15,9 +15,6 @@ Prerequisites:
 
 Usage:
     python capture_agent_android.py --broker 192.168.1.10
-
-    # Target a specific device:
-    python capture_agent_android.py --broker 192.168.1.10 --device 192.168.1.42:5555
 """
 
 import argparse
@@ -48,7 +45,7 @@ log = logging.getLogger("capture_agent_android")
 TOPIC_CMD = "gaming_assistant/command"
 
 # ---------------------------------------------------------------------------
-# Known mobile games for auto-detection
+# Known mobile games
 # ---------------------------------------------------------------------------
 KNOWN_GAMES = [
     "PUBG", "Call of Duty", "Genshin Impact", "Honkai",
@@ -62,7 +59,6 @@ KNOWN_GAMES = [
 # ADB helpers
 # ---------------------------------------------------------------------------
 def _adb_cmd(args: list[str], device: str | None = None) -> list[str]:
-    """Build an ADB command list, optionally targeting a specific device."""
     cmd = ["adb"]
     if device:
         cmd.extend(["-s", device])
@@ -71,7 +67,6 @@ def _adb_cmd(args: list[str], device: str | None = None) -> list[str]:
 
 
 def check_adb_connection(device: str | None = None) -> bool:
-    """Verify that ADB can reach the target device."""
     try:
         result = subprocess.run(
             _adb_cmd(["shell", "echo", "ok"], device),
@@ -87,19 +82,12 @@ def capture_android_screen(
     resize: tuple[int, int] = (960, 540),
     quality: int = 75,
 ) -> tuple[bytes, str]:
-    """Capture a screenshot from Android via ADB.
-
-    Returns (jpeg_bytes, frame_hash).
-    """
     result = subprocess.run(
         _adb_cmd(["exec-out", "screencap", "-p"], device),
         capture_output=True, timeout=15,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"ADB screencap failed (rc={result.returncode}): "
-            f"{result.stderr.decode(errors='replace')}"
-        )
+        raise RuntimeError(f"ADB screencap failed: {result.stderr.decode(errors='replace')}")
 
     img = Image.open(BytesIO(result.stdout)).convert("RGB")
     img = img.resize(resize, Image.LANCZOS)
@@ -108,15 +96,10 @@ def capture_android_screen(
     img.save(buffer, format="JPEG", quality=quality)
     jpeg_bytes = buffer.getvalue()
 
-    frame_hash = hashlib.md5(jpeg_bytes).hexdigest()
-    return jpeg_bytes, frame_hash
+    return jpeg_bytes, hashlib.md5(jpeg_bytes).hexdigest()
 
 
 def detect_foreground_app(device: str | None = None) -> str:
-    """Detect the foreground app on the Android device.
-
-    Returns the game name if a known game is running, or empty string.
-    """
     try:
         result = subprocess.run(
             _adb_cmd(["shell", "dumpsys", "activity", "activities"], device),
@@ -145,11 +128,7 @@ def detect_foreground_app(device: str | None = None) -> str:
 # MQTT setup
 # ---------------------------------------------------------------------------
 def build_mqtt_client(broker: str, port: int, username: str, password: str):
-    """Create and connect the MQTT client."""
-    client = mqtt.Client(
-        client_id="gaming_assistant_capture_android", clean_session=True
-    )
-
+    client = mqtt.Client(client_id="gaming_assistant_capture_android", clean_session=True)
     if username:
         client.username_pw_set(username, password)
 
@@ -172,10 +151,8 @@ def build_mqtt_client(broker: str, port: int, username: str, password: str):
 
     client.on_connect = on_connect
     client.on_message = on_message
-
     client.connect(broker, port, keepalive=60)
     client.loop_start()
-
     return client, running
 
 
@@ -190,21 +167,14 @@ def main():
     parser.add_argument("--port", type=int, default=1883, help="MQTT port")
     parser.add_argument("--user", default="", help="MQTT username (optional)")
     parser.add_argument("--password", default="", help="MQTT password (optional)")
-    parser.add_argument(
-        "--client-id", default=f"android-{platform.node()}",
-        help="Unique client ID (default: android-hostname)"
-    )
-    parser.add_argument("--interval", type=int, default=5, help="Seconds between captures")
-    parser.add_argument("--quality", type=int, default=75, help="JPEG quality 1-100")
-    parser.add_argument("--resize", default="960x540", help="Image size WxH")
+    parser.add_argument("--client-id", default=f"android-{platform.node()}")
+    parser.add_argument("--interval", type=int, default=5)
+    parser.add_argument("--quality", type=int, default=75)
+    parser.add_argument("--resize", default="960x540")
     parser.add_argument("--device", default=None, help="ADB device serial or IP:port")
-    parser.add_argument(
-        "--detect-change", action="store_true",
-        help="Skip sending if frame hasn't changed"
-    )
+    parser.add_argument("--detect-change", action="store_true")
     args = parser.parse_args()
 
-    # Parse resize
     try:
         w, h = args.resize.lower().split("x")
         resize = (int(w), int(h))
@@ -219,17 +189,11 @@ def main():
     log.info("=== Gaming Assistant – Android Capture Agent ===")
     log.info("Broker   : %s:%d", args.broker, args.port)
     log.info("Client ID: %s", client_id)
-    log.info("Interval : %ds", args.interval)
-    log.info("Device   : %s", args.device or "default (first connected)")
+    log.info("Device   : %s", args.device or "default")
 
-    # Verify ADB connection
     if not check_adb_connection(args.device):
-        log.error(
-            "Cannot reach Android device via ADB. "
-            "Make sure USB debugging is enabled and the device is connected."
-        )
+        log.error("Cannot reach Android device via ADB.")
         if args.device:
-            log.error("Trying to connect to %s ...", args.device)
             subprocess.run(["adb", "connect", args.device], timeout=10)
             if not check_adb_connection(args.device):
                 log.error("Still cannot reach device. Exiting.")
@@ -237,12 +201,8 @@ def main():
         else:
             return
 
-    log.info("ADB connection verified")
-
-    client, running = build_mqtt_client(
-        args.broker, args.port, args.user, args.password
-    )
-    time.sleep(1)  # Let MQTT connect
+    client, running = build_mqtt_client(args.broker, args.port, args.user, args.password)
+    time.sleep(1)
 
     last_hash = ""
     consecutive_errors = 0
@@ -256,25 +216,17 @@ def main():
                 continue
 
             try:
-                # 1. Detect foreground game
                 game = detect_foreground_app(args.device)
-
-                # 2. Capture screenshot via ADB
                 jpeg_bytes, frame_hash = capture_android_screen(
                     args.device, resize, args.quality
                 )
 
-                # 3. Optional: frame change detection
                 if args.detect_change and frame_hash == last_hash:
-                    log.debug("Frame unchanged, skipping")
                     time.sleep(args.interval)
                     continue
                 last_hash = frame_hash
 
-                # 4. Publish image as raw JPEG bytes
                 client.publish(topic_image, jpeg_bytes)
-
-                # 5. Publish metadata as JSON
                 meta = {
                     "client_type": "android",
                     "window_title": game,
@@ -283,31 +235,21 @@ def main():
                 }
                 client.publish(topic_meta, json.dumps(meta))
 
-                log.info(
-                    "Sent frame (%d KB) game=%s",
-                    len(jpeg_bytes) // 1024,
-                    game or "(unknown)",
-                )
-
+                log.info("Sent frame (%d KB) game=%s", len(jpeg_bytes) // 1024, game or "(unknown)")
                 consecutive_errors = 0
-
-            except RuntimeError as e:
-                log.error("ADB error: %s", e)
-                consecutive_errors += 1
 
             except Exception as e:
                 log.exception("Capture error: %s", e)
                 consecutive_errors += 1
 
             if consecutive_errors >= MAX_ERRORS:
-                log.error("Too many consecutive errors (%d). Exiting.", MAX_ERRORS)
+                log.error("Too many errors (%d). Exiting.", MAX_ERRORS)
                 break
 
             time.sleep(args.interval)
 
     except KeyboardInterrupt:
         log.info("Shutting down...")
-
     finally:
         client.loop_stop()
         client.disconnect()

@@ -17,6 +17,12 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
+_ALL_SERVICES = (
+    "analyze", "start", "stop",
+    "process_image", "set_spoiler_level", "clear_history",
+    "capture_from_camera",
+)
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Gaming Assistant from a config entry."""
@@ -81,7 +87,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 _LOGGER.error("process_image requires image_path or image_base64")
                 return
 
-            # Find first coordinator
             for coord in hass.data[DOMAIN].values():
                 if isinstance(coord, GamingAssistantCoordinator):
                     await coord.async_process_manual_image(
@@ -170,9 +175,39 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             for coord in hass.data[DOMAIN].values():
                 if isinstance(coord, GamingAssistantCoordinator):
                     await coord.history_manager.clear(game)
-                    _LOGGER.info(
-                        "History cleared: %s",
-                        game or "all games",
+                    _LOGGER.info("History cleared: %s", game or "all games")
+                    break
+
+        async def handle_capture_from_camera(call: ServiceCall) -> None:
+            """Grab a snapshot from a HA camera entity and analyze it.
+
+            This allows using any HA camera integration (IP Webcam,
+            Generic Camera, etc.) as an image source -- no external
+            capture agent needed.
+            """
+            entity_id = call.data.get("entity_id", "")
+            game_hint = call.data.get("game_hint", "")
+            client_type = call.data.get("client_type", "console")
+
+            if not entity_id:
+                _LOGGER.error("capture_from_camera requires entity_id")
+                return
+
+            try:
+                from homeassistant.components.camera import async_get_image
+
+                image = await async_get_image(hass, entity_id)
+                image_bytes = image.content
+            except Exception as err:
+                _LOGGER.error(
+                    "Failed to capture image from %s: %s", entity_id, err
+                )
+                return
+
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_process_manual_image(
+                        image_bytes, game_hint, client_type
                     )
                     break
 
@@ -184,6 +219,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "set_spoiler_level", handle_set_spoiler_level)
         hass.services.async_register(DOMAIN, "set_spoiler_profile", handle_set_spoiler_profile)
         hass.services.async_register(DOMAIN, "clear_history", handle_clear_history)
+        hass.services.async_register(DOMAIN, "capture_from_camera", handle_capture_from_camera)
 
     _LOGGER.info("Gaming Assistant integration loaded successfully")
     return True
@@ -204,10 +240,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # Remove services only when last entry is unloaded
         if not hass.data[DOMAIN]:
-            for service in (
-                "analyze", "start", "stop",
-                "process_image", "ask", "set_spoiler_level", "set_spoiler_profile", "clear_history",
-            ):
+            for service in _ALL_SERVICES:
                 hass.services.async_remove(DOMAIN, service)
 
     return unload_ok

@@ -28,25 +28,19 @@ FALLBACK_MODELS = ["qwen2.5vl", "llava", "llava:13b", "bakllava", "llama3.2-visi
 
 
 def _fetch_ollama_models(host: str) -> list[str] | None:
-    """Fetch available models from Ollama (blocking – run in executor).
-
-    Returns a sorted list of model names, or *None* if the server is
-    unreachable (so the config flow can show a proper error).
-    """
+    """Fetch available models from Ollama (blocking – run in executor)."""
     try:
-        import requests  # noqa: C0415
+        import requests
 
         resp = requests.get(f"{host.rstrip('/')}/api/tags", timeout=5)
         resp.raise_for_status()
         data = resp.json()
         models = [m["name"] for m in data.get("models", [])]
         if models:
-            _LOGGER.debug("Fetched %d models from Ollama: %s", len(models), models)
             return sorted(models)
-        # Server reachable but no models pulled yet – return fallback list
         _LOGGER.warning("Ollama reachable but no models found – using fallback list")
         return FALLBACK_MODELS
-    except Exception as err:  # pylint: disable=broad-except
+    except Exception as err:
         _LOGGER.warning("Could not reach Ollama at %s: %s", host, err)
         return None
 

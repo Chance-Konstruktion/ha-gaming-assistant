@@ -167,3 +167,32 @@ clear_history:
       required: false
       selector:
         text:
+
+capture_from_camera:
+  name: Capture from Camera
+  description: Grab a snapshot from a Home Assistant camera entity (e.g. IP Webcam, Generic Camera) and analyze it. Perfect for console gaming without a dedicated capture agent.
+  fields:
+    entity_id:
+      name: Camera Entity
+      description: The camera entity to capture from (e.g. camera.ip_webcam)
+      required: true
+      selector:
+        entity:
+          domain: camera
+    game_hint:
+      name: Game Hint
+      description: Optional game name hint for better tips
+      required: false
+      selector:
+        text:
+    client_type:
+      name: Client Type
+      description: Client type (pc, android, console)
+      required: false
+      default: "console"
+      selector:
+        select:
+          options:
+            - "pc"
+            - "android"
+            - "console"

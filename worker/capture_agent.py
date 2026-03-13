@@ -19,15 +19,6 @@ Linux/X11 note:
 
 Usage:
     python capture_agent.py --broker 192.168.1.10
-
-    # With all options:
-    python capture_agent.py \
-      --broker 192.168.1.10 \
-      --client-id gaming-pc \
-      --interval 5 \
-      --quality 75 \
-      --resize 960x540 \
-      --detect-change
 """
 
 import argparse
@@ -59,7 +50,7 @@ log = logging.getLogger("capture_agent")
 TOPIC_CMD = "gaming_assistant/command"
 
 # ---------------------------------------------------------------------------
-# Known games for window title detection (extend as needed)
+# Known games for window title detection
 # ---------------------------------------------------------------------------
 KNOWN_GAMES = [
     "Wolfenstein", "Doom", "Cyberpunk", "Elden Ring",
@@ -252,12 +243,11 @@ def main():
     log.info("Quality  : %d", args.quality)
     log.info("Resize   : %s", args.resize)
     log.info("Monitor  : %d", args.monitor)
-    log.info("Change detection: %s", "ON" if args.detect_change else "OFF")
 
     client, running = build_mqtt_client(
         args.broker, args.port, args.user, args.password
     )
-    time.sleep(1)  # Let MQTT connect
+    time.sleep(1)
 
     last_hash = ""
     consecutive_errors = 0
@@ -271,12 +261,10 @@ def main():
                 continue
 
             try:
-                # 1. Capture screenshot
                 jpeg_bytes, frame_hash = capture_screen(
                     args.monitor, resize, args.quality
                 )
 
-                # 2. Optional: frame change detection
                 if args.detect_change and frame_hash == last_hash:
                     log.debug("Frame unchanged, skipping")
                     time.sleep(args.interval)
@@ -288,10 +276,8 @@ def main():
                 game = detect_active_game(window_title)
                 effective_title = game or window_title or args.game_hint
 
-                # 4. Publish image as raw JPEG bytes
                 client.publish(topic_image, jpeg_bytes)
 
-                # 5. Publish metadata as JSON
                 meta = {
                     "client_type": "pc",
                     "window_title": effective_title,
@@ -307,7 +293,6 @@ def main():
                     effective_title or "(unknown)",
                     detector,
                 )
-
                 consecutive_errors = 0
 
             except Exception as err:

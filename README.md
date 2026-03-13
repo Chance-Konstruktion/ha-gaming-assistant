@@ -146,8 +146,7 @@ python worker/capture_agent_ipcam.py \
   --client-id livingroom-console \
   --game-hint "Elden Ring" \
   --interval 5 \
-  --quality 75 \
-  --game-hint "Steam Game"
+  --quality 75
 ```
 
 Tip: point your phone camera at the TV/monitor and lock focus/exposure for more stable tips.

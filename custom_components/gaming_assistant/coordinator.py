@@ -16,7 +16,6 @@ from .const import (
     CONF_OLLAMA_HOST,
     DEFAULT_SPOILER_LEVEL,
     DOMAIN,
-    HISTORY_CONTEXT_SIZE,
     MQTT_IMAGE_TOPIC,
     MQTT_META_TOPIC,
     MQTT_MODE_TOPIC,
@@ -25,7 +24,6 @@ from .const import (
 )
 from .history import HistoryManager
 from .image_processor import ImageProcessor
-from .prompt_builder import PromptBuilder
 from .prompt_packs import PromptPackLoader
 from .spoiler import SpoilerManager
 
@@ -138,17 +136,13 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 self._mqtt_connected = True
                 _LOGGER.info(
                     "MQTT subscriptions active (attempt %d/%d)",
-                    attempt,
-                    MQTT_RETRY_ATTEMPTS,
+                    attempt, MQTT_RETRY_ATTEMPTS,
                 )
                 return
             except HomeAssistantError as err:
                 _LOGGER.warning(
                     "MQTT subscribe attempt %d/%d failed: %s – retrying in %ds",
-                    attempt,
-                    MQTT_RETRY_ATTEMPTS,
-                    err,
-                    delay,
+                    attempt, MQTT_RETRY_ATTEMPTS, err, delay,
                 )
                 if attempt < MQTT_RETRY_ATTEMPTS:
                     await asyncio.sleep(delay)
@@ -254,7 +248,6 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         try:
             metadata = self._client_metadata.get(client_id, {})
 
-            # Extract game from metadata
             game = metadata.get("window_title", "")
             if game:
                 self._current_game = game
@@ -266,8 +259,6 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             if tip:
                 self._tip = tip
                 self._tip_count += 1
-
-                # Update recent tips list
                 self._recent_tips.append({
                     "tip": tip,
                     "game": self._current_game,
@@ -275,7 +266,6 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 })
                 if len(self._recent_tips) > 5:
                     self._recent_tips = self._recent_tips[-5:]
-
                 self._status = "idle"
                 _LOGGER.info("New tip generated: %s", tip[:80])
             else:
