@@ -19,8 +19,8 @@ PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
 _ALL_SERVICES = (
     "analyze", "start", "stop",
-    "process_image", "set_spoiler_level", "clear_history",
-    "capture_from_camera",
+    "process_image", "ask", "set_spoiler_level", "set_spoiler_profile",
+    "clear_history", "capture_from_camera",
 )
 
 
