@@ -12,8 +12,8 @@ v0.4 uses a **Thin Client Architecture**: the gaming device only captures and se
 screenshots. All intelligence runs in Home Assistant.
 
 ```
-Gaming PC / Android (Capture Agent)
-  └── Screenshot capture + JPEG compress + MQTT publish (binary image)
+Gaming PC / Android / Android TV / IP Webcam (Capture Agent)
+  └── Screenshot capture + JPEG compress + MQTT publish (binary image + metadata)
          │
     Home Assistant (the "Brain")
       ├── MQTT Image Listener
@@ -47,7 +47,7 @@ passthrough mode.
 |-----------|---------|
 | Home Assistant | 2024.1+ with MQTT integration |
 | MQTT Broker | Mosquitto (built-in HA add-on) |
-| Gaming PC | Windows / Linux / macOS with Python 3.10+ |
+| Gaming Devices | PC, Steam Deck/Linux handhelds, Android phones/tablets, Android TV/Google TV |
 | Ollama | Running locally or on a machine reachable from HA |
 
 ### Recommended Vision Models
@@ -127,9 +127,68 @@ python worker/capture_agent_android.py \
   --device 192.168.1.42:5555
 ```
 
+
+#### IP Webcam Capture Agent (Console / TV setup)
+
+```bash
+pip install -r worker/requirements-capture.txt
+
+# Example with Android IP Webcam app
+python worker/capture_agent_ipcam.py \
+  --broker 192.168.1.10 \
+  --url http://192.168.1.42:8080/shot.jpg \
+  --client-id livingroom-console \
+  --game-hint "Elden Ring" \
+  --interval 5 \
+  --quality 75
+```
+
+Tip: point your phone camera at the TV/monitor and lock focus/exposure for more stable tips.
+
+#### Android TV / Google TV Capture Agent (ADB)
+
+```bash
+pip install -r worker/requirements-capture.txt
+
+# Enable developer mode + network debugging on your TV/box first
+# then connect once via ADB
+adb connect 192.168.1.50:5555
+
+python worker/capture_agent_android_tv.py \
+  --broker 192.168.1.10 \
+  --device 192.168.1.50:5555 \
+  --client-id livingroom-tv \
+  --interval 5 \
+  --quality 75
+```
+
+Works with many Android TV / Google TV devices (e.g. Sony TVs, Chromecast with Google TV, NVIDIA Shield).
+
+---
+
+## Supported Capture Sources (quick overview)
+
+- `worker/capture_agent.py` → PC / Steam Deck desktop capture
+- `worker/capture_agent_android.py` → Android devices via ADB
+- `worker/capture_agent_android_tv.py` → Android TV / Google TV via ADB
+- `worker/capture_agent_ipcam.py` → Phone/IP camera snapshot endpoint
+
+All sources publish to the same MQTT image/meta topics, so automations and sensors keep working unchanged.
+
+Priority for current roadmap execution:
+1. Android TV / Google TV + IP webcam (living-room first)
+2. PC / Steam Deck desktop capture
+3. HDMI/capture-card only as optional fallback
+
 ---
 
 ## Features
+
+The assistant is designed as a **universal vision coach**: with the right capture source it can support not only action games, but also slower games like chess, board games, and card games via phone camera or TV capture.
+
+It supports both:
+- **Ask mode** (you ask directly for help), and
+- **Proactive mode** (automation triggers regular analysis and hints).
 
 ### Spoiler Level System
 
@@ -187,6 +246,10 @@ Clear history via `gaming_assistant.clear_history`.
 | `sensor.gaming_assistant_status` | Status (idle / analyzing / error) |
 | `sensor.gaming_assistant_history` | Tip count + recent tips as attributes |
 | `binary_sensor.gaming_mode` | ON when a game is detected |
+
+The integration supports both:
+- **Ask mode**: trigger a targeted analysis manually (e.g. `gaming_assistant.process_image`).
+- **Proactive mode**: periodic/triggered automations run analysis in the background and push hints.
 
 ## Services
 
