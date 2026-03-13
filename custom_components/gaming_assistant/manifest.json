@@ -5,7 +5,7 @@
   "documentation": "https://github.com/Chance-Konstruktion/gaming-assistant",
   "issue_tracker": "https://github.com/Chance-Konstruktion/gaming-assistant/issues",
   "dependencies": ["mqtt"],
-  "codeowners": ["@yourname"],
+  "codeowners": ["@Chance-Konstruktion"],
   "requirements": ["requests>=2.28.0"],
   "iot_class": "local_push",
   "config_flow": true

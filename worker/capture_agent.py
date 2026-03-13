@@ -13,6 +13,10 @@ Requirements:
 Optional (game detection on Windows):
     pip install pywin32
 
+Linux/X11 note:
+    If `xprop` is available, the agent tries to read the active window title.
+    Wayland support is best-effort only; use --game-hint as fallback.
+
 Usage:
     python capture_agent.py --broker 192.168.1.10
 
@@ -31,6 +35,7 @@ import hashlib
 import json
 import logging
 import platform
+import subprocess
 import time
 from io import BytesIO
 
@@ -91,18 +96,70 @@ def capture_screen(
 
 
 # ---------------------------------------------------------------------------
-# Game detection (Windows only, graceful fallback)
+# Game detection helpers
 # ---------------------------------------------------------------------------
-def detect_window_title() -> str:
-    """Return the foreground window title (Windows: win32gui, else: empty)."""
+def _detect_window_title_windows() -> str:
+    """Return foreground window title on Windows (pywin32)."""
     try:
         import win32gui
+
         return win32gui.GetWindowText(win32gui.GetForegroundWindow())
     except ImportError:
-        pass  # pywin32 not available (Linux/macOS)
+        return ""
     except Exception:
-        pass
-    return ""
+        return ""
+
+
+def _detect_window_title_x11() -> str:
+    """Return active window title via xprop (Linux/X11)."""
+    try:
+        active = subprocess.run(
+            ["xprop", "-root", "_NET_ACTIVE_WINDOW"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
+        )
+        if active.returncode != 0 or "#" not in active.stdout:
+            return ""
+
+        window_id = active.stdout.split("#", 1)[1].strip()
+        if not window_id:
+            return ""
+
+        title = subprocess.run(
+            ["xprop", "-id", window_id, "_NET_WM_NAME"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
+        )
+        if title.returncode != 0:
+            return ""
+
+        # Example output: _NET_WM_NAME(UTF8_STRING) = "Game Title"
+        if "=" not in title.stdout:
+            return ""
+        value = title.stdout.split("=", 1)[1].strip().strip('"')
+        return value
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return ""
+
+
+def detect_window_title() -> tuple[str, str]:
+    """Return (window title, detector source)."""
+    # 1) Windows API
+    win_title = _detect_window_title_windows()
+    if win_title:
+        return win_title, "win32gui"
+
+    # 2) Linux X11 via xprop
+    x11_title = _detect_window_title_x11()
+    if x11_title:
+        return x11_title, "x11_xprop"
+
+    # 3) Unknown/unsupported (often Wayland without tooling)
+    return "", "none"
 
 
 def detect_active_game(window_title: str) -> str:
@@ -169,6 +226,7 @@ def main():
     parser.add_argument("--quality", type=int, default=75, help="JPEG quality 1-100")
     parser.add_argument("--resize", default="960x540", help="Image size WxH")
     parser.add_argument("--monitor", type=int, default=1, help="Monitor index (1=primary)")
+    parser.add_argument("--game-hint", default="", help="Manual fallback game/app hint")
     parser.add_argument(
         "--detect-change", action="store_true",
         help="Skip sending if frame hasn't changed"
@@ -203,7 +261,7 @@ def main():
 
     last_hash = ""
     consecutive_errors = 0
-    MAX_ERRORS = 5
+    max_errors = 5
 
     try:
         while True:
@@ -226,8 +284,9 @@ def main():
                 last_hash = frame_hash
 
                 # 3. Detect window title / game
-                window_title = detect_window_title()
+                window_title, detector = detect_window_title()
                 game = detect_active_game(window_title)
+                effective_title = game or window_title or args.game_hint
 
                 # 4. Publish image as raw JPEG bytes
                 client.publish(topic_image, jpeg_bytes)
@@ -235,26 +294,28 @@ def main():
                 # 5. Publish metadata as JSON
                 meta = {
                     "client_type": "pc",
-                    "window_title": game or window_title,
+                    "window_title": effective_title,
                     "resolution": f"{resize[0]}x{resize[1]}",
                     "timestamp": int(time.time()),
+                    "detector": detector,
                 }
                 client.publish(topic_meta, json.dumps(meta))
 
                 log.info(
-                    "Sent frame (%d KB) game=%s",
+                    "Sent frame (%d KB) game=%s detector=%s",
                     len(jpeg_bytes) // 1024,
-                    game or "(unknown)",
+                    effective_title or "(unknown)",
+                    detector,
                 )
 
                 consecutive_errors = 0
 
-            except Exception as e:
-                log.exception("Capture error: %s", e)
+            except Exception as err:
+                log.exception("Capture error: %s", err)
                 consecutive_errors += 1
 
-            if consecutive_errors >= MAX_ERRORS:
-                log.error("Too many consecutive errors (%d). Exiting.", MAX_ERRORS)
+            if consecutive_errors >= max_errors:
+                log.error("Too many consecutive errors (%d). Exiting.", max_errors)
                 break
 
             time.sleep(args.interval)

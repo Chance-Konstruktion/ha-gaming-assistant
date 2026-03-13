@@ -4,6 +4,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
+from datetime import datetime
 
 from homeassistant.components import mqtt
 from homeassistant.core import HomeAssistant, callback
@@ -60,11 +62,19 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._client_metadata: dict[str, dict] = {}
         self._processing: bool = False
 
+        # Diagnostics
+        self._last_error: str = ""
+        self._last_latency_ms: int = 0
+        self._last_detector: str = ""
+        self._last_client_type: str = ""
+        self._last_processed_at: str = ""
+
         # Initialize managers
         self._history = HistoryManager(hass.config.config_dir)
-        self._spoiler = SpoilerManager()
+        self._spoiler = SpoilerManager(f"{hass.config.config_dir}/gaming_assistant/spoiler_profiles.json")
         default_spoiler = config.get(CONF_DEFAULT_SPOILER, DEFAULT_SPOILER_LEVEL)
         self._spoiler.initialize(default_spoiler)
+        self._spoiler.load()
         self._pack_loader = PromptPackLoader()
         self._pack_loader.load_all()
         self._image_processor = ImageProcessor(
@@ -108,6 +118,26 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     @property
     def tip_count(self) -> int:
         return self._tip_count
+
+    @property
+    def last_error(self) -> str:
+        return self._last_error
+
+    @property
+    def last_latency_ms(self) -> int:
+        return self._last_latency_ms
+
+    @property
+    def last_detector(self) -> str:
+        return self._last_detector
+
+    @property
+    def last_client_type(self) -> str:
+        return self._last_client_type
+
+    @property
+    def last_processed_at(self) -> str:
+        return self._last_processed_at
 
     @property
     def history_manager(self) -> HistoryManager:
@@ -244,14 +274,18 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Already processing an image, skipping")
             return
 
+        started = time.monotonic()
         self._processing = True
         self._status = "analyzing"
         self._current_client_id = client_id
         self._gaming_mode = True
+        self._last_error = ""
         self.async_set_updated_data(self._build_data())
 
         try:
             metadata = self._client_metadata.get(client_id, {})
+            self._last_client_type = metadata.get("client_type", "")
+            self._last_detector = metadata.get("detector", "")
 
             # Extract game from metadata
             game = metadata.get("window_title", "")
@@ -265,6 +299,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             if tip:
                 self._tip = tip
                 self._tip_count += 1
+                self._last_processed_at = datetime.now().isoformat(timespec="seconds")
 
                 # Update recent tips list
                 self._recent_tips.append({
@@ -282,8 +317,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
         except Exception as err:
             _LOGGER.exception("Image processing failed: %s", err)
+            self._last_error = str(err)
             self._status = "error"
         finally:
+            self._last_latency_ms = int((time.monotonic() - started) * 1000)
             self._processing = False
             self.async_set_updated_data(self._build_data())
 
@@ -315,6 +352,57 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             self._run_image_processing, image_bytes, "manual", metadata
         )
 
+    async def async_ask(
+        self,
+        question: str,
+        image_bytes: bytes | None = None,
+        game_hint: str = "",
+        client_type: str = "pc",
+    ) -> str:
+        """Answer a direct question, optionally with image context."""
+        metadata = {"client_type": client_type}
+        if game_hint:
+            metadata["window_title"] = game_hint
+            self._current_game = game_hint
+
+        started = time.monotonic()
+        self._status = "analyzing"
+        self._last_error = ""
+        self._last_client_type = client_type
+        self._current_client_id = "ask"
+        self.async_set_updated_data(self._build_data())
+
+        try:
+            answer = await self._image_processor.ask(
+                question=question,
+                client_id="ask",
+                metadata=metadata,
+                image_bytes=image_bytes,
+            )
+            if answer:
+                self._tip = answer
+                self._tip_count += 1
+                self._last_processed_at = datetime.now().isoformat(timespec="seconds")
+                self._recent_tips.append({
+                    "tip": answer,
+                    "game": self._current_game,
+                    "client_id": "ask",
+                    "question": question,
+                })
+                if len(self._recent_tips) > 5:
+                    self._recent_tips = self._recent_tips[-5:]
+            self._status = "idle"
+            self._last_latency_ms = int((time.monotonic() - started) * 1000)
+            self.async_set_updated_data(self._build_data())
+            return answer
+        except Exception as err:
+            _LOGGER.exception("Ask-mode processing failed: %s", err)
+            self._last_error = str(err)
+            self._status = "error"
+            self._last_latency_ms = int((time.monotonic() - started) * 1000)
+            self.async_set_updated_data(self._build_data())
+            return ""
+
     # -- cleanup -------------------------------------------------------------
 
     def async_unsubscribe(self) -> None:
@@ -335,6 +423,11 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "client_id": self._current_client_id,
             "tip_count": self._tip_count,
             "recent_tips": self._recent_tips,
+            "last_error": self._last_error,
+            "last_latency_ms": self._last_latency_ms,
+            "last_detector": self._last_detector,
+            "last_client_type": self._last_client_type,
+            "last_processed_at": self._last_processed_at,
         }
 
     async def _async_update_data(self) -> dict:
