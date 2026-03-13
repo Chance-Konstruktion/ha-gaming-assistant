@@ -119,16 +119,22 @@ def detect_foreground_app(device: str | None = None) -> str:
     """
     try:
         result = subprocess.run(
-            _adb_cmd(
-                ["shell", "dumpsys", "activity", "activities",
-                 "|", "grep", "mResumedActivity"],
-                device,
-            ),
-            capture_output=True, text=True, timeout=10,
+            _adb_cmd(["shell", "dumpsys", "activity", "activities"], device),
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
-        activity_line = result.stdout.strip()
+        if result.returncode != 0:
+            return ""
+
+        resumed_lines = [
+            line for line in result.stdout.splitlines() if "mResumedActivity" in line
+        ]
+        haystack = " ".join(resumed_lines).lower()
+
         for game in KNOWN_GAMES:
-            if game.lower().replace(" ", "") in activity_line.lower():
+            normalized = game.lower().replace(" ", "")
+            if normalized in haystack.replace(" ", ""):
                 return game
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
