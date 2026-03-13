@@ -1,24 +1,21 @@
 """
-Gaming Assistant – Android TV / Google TV Capture Agent (Thin Client)
-=====================================================================
-Captures screenshots from Android TV devices over ADB and publishes
-frames + metadata via MQTT for the Home Assistant Gaming Assistant pipeline.
+Gaming Assistant – Android TV Capture Agent (Thin Client)
+==========================================================
+Captures screenshots from an Android TV / Google TV device via ADB,
+compresses them as JPEG, and publishes raw bytes to Home Assistant via MQTT.
 
-Targets:
-- Google TV / Android TV
-- NVIDIA Shield
-- TVs with Android TV firmware (Sony, Philips, ...)
-- Fire TV devices with ADB enabled (best effort)
+All intelligence runs in Home Assistant. This agent only captures and sends.
 
 Requirements:
     pip install -r requirements-capture.txt
-    adb available in PATH
+
+Prerequisites:
+    - ADB installed and in PATH
+    - Android TV device with developer options and network debugging enabled
+    - Device paired via: adb pair <ip>:<pairing-port>
 
 Usage:
-    python capture_agent_android_tv.py \
-      --broker 192.168.1.10 \
-      --device 192.168.1.55:5555 \
-      --client-id livingroom-tv
+    python capture_agent_android_tv.py --broker 192.168.1.10 --device 192.168.1.100:5555
 """
 
 import argparse
@@ -33,6 +30,9 @@ from io import BytesIO
 import paho.mqtt.client as mqtt
 from PIL import Image
 
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -40,86 +40,96 @@ logging.basicConfig(
 )
 log = logging.getLogger("capture_agent_android_tv")
 
+# ---------------------------------------------------------------------------
+# MQTT Topics
+# ---------------------------------------------------------------------------
 TOPIC_CMD = "gaming_assistant/command"
 
+# ---------------------------------------------------------------------------
+# Known Android TV games / apps
+# ---------------------------------------------------------------------------
+KNOWN_GAMES = [
+    "PUBG", "Call of Duty", "Genshin Impact", "Honkai",
+    "Minecraft", "Stadia", "GeForce NOW", "Xbox Game Pass",
+    "Steam Link", "Moonlight", "Asphalt", "Dead Cells",
+    "Diablo Immortal", "Alto's Odyssey", "Crossy Road",
+]
 
+
+# ---------------------------------------------------------------------------
+# ADB helpers
+# ---------------------------------------------------------------------------
 def _adb_cmd(args: list[str], device: str | None = None) -> list[str]:
-    """Build ADB command with optional device selector."""
-    base = ["adb"]
+    cmd = ["adb"]
     if device:
-        base.extend(["-s", device])
-    return [*base, *args]
+        cmd.extend(["-s", device])
+    cmd.extend(args)
+    return cmd
 
 
 def check_adb_connection(device: str | None = None) -> bool:
-    """Verify ADB can talk to the selected device."""
     try:
         result = subprocess.run(
-            _adb_cmd(["get-state"], device),
-            capture_output=True,
-            text=True,
-            timeout=8,
-            check=False,
+            _adb_cmd(["shell", "echo", "ok"], device),
+            capture_output=True, text=True, timeout=10,
         )
-        return result.returncode == 0 and "device" in result.stdout.lower()
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return result.returncode == 0 and "ok" in result.stdout
+    except (subprocess.TimeoutExpired, FileNotFoundError):
         return False
 
 
 def capture_tv_screen(
-    device: str | None,
-    resize: tuple[int, int],
-    quality: int,
+    device: str | None = None,
+    resize: tuple[int, int] = (960, 540),
+    quality: int = 75,
 ) -> tuple[bytes, str]:
-    """Capture screen from Android TV device via adb exec-out screencap -p."""
-    proc = subprocess.run(
+    """Capture screenshot from Android TV via ADB screencap."""
+    result = subprocess.run(
         _adb_cmd(["exec-out", "screencap", "-p"], device),
-        capture_output=True,
-        timeout=15,
-        check=False,
+        capture_output=True, timeout=15,
     )
-    if proc.returncode != 0 or not proc.stdout:
-        raise RuntimeError(proc.stderr.decode("utf-8", errors="ignore") or "screencap failed")
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"ADB screencap failed: {result.stderr.decode(errors='replace')}"
+        )
 
-    img = Image.open(BytesIO(proc.stdout)).convert("RGB")
+    img = Image.open(BytesIO(result.stdout)).convert("RGB")
     img = img.resize(resize, Image.LANCZOS)
 
     buffer = BytesIO()
     img.save(buffer, format="JPEG", quality=quality)
     jpeg_bytes = buffer.getvalue()
-    frame_hash = hashlib.md5(jpeg_bytes).hexdigest()
 
-    return jpeg_bytes, frame_hash
+    return jpeg_bytes, hashlib.md5(jpeg_bytes).hexdigest()
 
 
-def detect_foreground_package(device: str | None = None) -> str:
-    """Try to extract currently focused app package from dumpsys window."""
+def detect_foreground_app(device: str | None = None) -> str:
+    """Detect the foreground app/game on Android TV via dumpsys."""
     try:
-        proc = subprocess.run(
-            _adb_cmd(["shell", "dumpsys", "window", "windows"], device),
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=False,
+        result = subprocess.run(
+            _adb_cmd(
+                ["shell", "dumpsys", "activity", "activities",
+                 "|", "grep", "mResumedActivity"],
+                device,
+            ),
+            capture_output=True, text=True, timeout=10,
         )
-        text = proc.stdout
-        # Typical line contains: mCurrentFocus=Window{... u0 com.package.name/...}
-        for line in text.splitlines():
-            if "mCurrentFocus" in line or "mFocusedApp" in line:
-                if " u0 " in line and "/" in line:
-                    part = line.split(" u0 ", 1)[1]
-                    pkg = part.split("/", 1)[0].strip()
-                    if pkg and " " not in pkg:
-                        return pkg
-        return ""
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return ""
+        activity_line = result.stdout.strip()
+        for game in KNOWN_GAMES:
+            if game.lower().replace(" ", "") in activity_line.lower():
+                return game
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    return ""
 
 
+# ---------------------------------------------------------------------------
+# MQTT setup
+# ---------------------------------------------------------------------------
 def build_mqtt_client(broker: str, port: int, username: str, password: str):
-    """Create and connect MQTT client."""
-    client = mqtt.Client(client_id="gaming_assistant_capture_android_tv", clean_session=True)
-
+    client = mqtt.Client(
+        client_id="gaming_assistant_capture_android_tv", clean_session=True
+    )
     if username:
         client.username_pw_set(username, password)
 
@@ -142,16 +152,17 @@ def build_mqtt_client(broker: str, port: int, username: str, password: str):
 
     client.on_connect = on_connect
     client.on_message = on_message
-
     client.connect(broker, port, keepalive=60)
     client.loop_start()
-
     return client, running
 
 
+# ---------------------------------------------------------------------------
+# Main loop
+# ---------------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(
-        description="Gaming Assistant – Android TV / Google TV Capture Agent"
+        description="Gaming Assistant – Android TV Capture Agent (Thin Client)"
     )
     parser.add_argument("--broker", required=True, help="MQTT broker IP/hostname")
     parser.add_argument("--port", type=int, default=1883, help="MQTT port")
@@ -161,14 +172,17 @@ def main():
         "--client-id", default=f"android-tv-{platform.node()}",
         help="Unique client ID (default: android-tv-hostname)",
     )
-    parser.add_argument("--device", default=None, help="ADB device serial or IP:port")
     parser.add_argument("--interval", type=int, default=5, help="Seconds between captures")
     parser.add_argument("--quality", type=int, default=75, help="JPEG quality 1-100")
     parser.add_argument("--resize", default="960x540", help="Image size WxH")
-    parser.add_argument("--game-hint", default="", help="Optional fixed game/game-type")
+    parser.add_argument(
+        "--device", default=None,
+        help="ADB device serial or IP:port (e.g. 192.168.1.100:5555)",
+    )
+    parser.add_argument("--game-hint", default="", help="Manual game name hint")
     parser.add_argument(
         "--detect-change", action="store_true",
-        help="Skip sending if frame has not changed",
+        help="Skip sending if frame hasn't changed",
     )
     args = parser.parse_args()
 
@@ -187,27 +201,25 @@ def main():
     log.info("Broker   : %s:%d", args.broker, args.port)
     log.info("Client ID: %s", client_id)
     log.info("Device   : %s", args.device or "default")
-    log.info("Interval : %ds", args.interval)
 
     if not check_adb_connection(args.device):
-        log.error(
-            "Cannot reach Android TV via ADB. Enable developer mode + network debugging."
-        )
+        log.error("Cannot reach Android TV device via ADB.")
         if args.device:
-            log.info("Trying adb connect %s", args.device)
-            subprocess.run(["adb", "connect", args.device], timeout=10, check=False)
+            subprocess.run(["adb", "connect", args.device], timeout=10)
             if not check_adb_connection(args.device):
-                log.error("Still unreachable. Exiting.")
+                log.error("Still cannot reach device. Exiting.")
                 return
         else:
             return
 
-    client, running = build_mqtt_client(args.broker, args.port, args.user, args.password)
+    client, running = build_mqtt_client(
+        args.broker, args.port, args.user, args.password
+    )
     time.sleep(1)
 
     last_hash = ""
     consecutive_errors = 0
-    max_errors = 8
+    MAX_ERRORS = 5
 
     try:
         while True:
@@ -217,46 +229,48 @@ def main():
                 continue
 
             try:
-                jpeg_bytes, frame_hash = capture_tv_screen(args.device, resize, args.quality)
+                game = args.game_hint or detect_foreground_app(args.device)
+                jpeg_bytes, frame_hash = capture_tv_screen(
+                    args.device, resize, args.quality
+                )
+
                 if args.detect_change and frame_hash == last_hash:
-                    log.debug("Frame unchanged, skipping")
                     time.sleep(args.interval)
                     continue
                 last_hash = frame_hash
 
-                package_name = detect_foreground_package(args.device)
-
                 client.publish(topic_image, jpeg_bytes)
                 meta = {
                     "client_type": "android_tv",
-                    "window_title": args.game_hint or package_name,
-                    "app_package": package_name,
+                    "window_title": game,
                     "resolution": f"{resize[0]}x{resize[1]}",
                     "timestamp": int(time.time()),
-                    "transport": "adb",
                 }
                 client.publish(topic_meta, json.dumps(meta))
 
                 log.info(
-                    "Sent frame (%d KB) app=%s",
+                    "Sent frame (%d KB) game=%s",
                     len(jpeg_bytes) // 1024,
-                    package_name or args.game_hint or "(unknown)",
+                    game or "(unknown)",
                 )
                 consecutive_errors = 0
-            except Exception as err:  # pylint: disable=broad-except
-                log.exception("Capture error: %s", err)
+
+            except Exception as e:
+                log.exception("Capture error: %s", e)
                 consecutive_errors += 1
 
-            if consecutive_errors >= max_errors:
-                log.error("Too many consecutive errors (%d). Exiting.", max_errors)
+            if consecutive_errors >= MAX_ERRORS:
+                log.error("Too many errors (%d). Exiting.", MAX_ERRORS)
                 break
 
             time.sleep(args.interval)
+
     except KeyboardInterrupt:
-        log.info("Stopping agent...")
+        log.info("Shutting down...")
     finally:
         client.loop_stop()
         client.disconnect()
+        log.info("Android TV capture agent stopped.")
 
 
 if __name__ == "__main__":

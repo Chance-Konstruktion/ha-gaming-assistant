@@ -1,1 +1,1 @@
-"""Worker package for capture agents."""
+# Gaming Assistant – Capture Agent package

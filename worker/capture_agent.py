@@ -217,7 +217,10 @@ def main():
     parser.add_argument("--quality", type=int, default=75, help="JPEG quality 1-100")
     parser.add_argument("--resize", default="960x540", help="Image size WxH")
     parser.add_argument("--monitor", type=int, default=1, help="Monitor index (1=primary)")
-    parser.add_argument("--game-hint", default="", help="Manual fallback game/app hint")
+    parser.add_argument(
+        "--game-hint", default="",
+        help="Manual game name hint (useful on Wayland where auto-detection fails)",
+    )
     parser.add_argument(
         "--detect-change", action="store_true",
         help="Skip sending if frame hasn't changed"
@@ -272,9 +275,13 @@ def main():
                 last_hash = frame_hash
 
                 # 3. Detect window title / game
-                window_title, detector = detect_window_title()
-                game = detect_active_game(window_title)
-                effective_title = game or window_title or args.game_hint
+                if args.game_hint:
+                    effective_title = args.game_hint
+                    detector = "hint"
+                else:
+                    window_title, detector = detect_window_title()
+                    game = detect_active_game(window_title)
+                    effective_title = game or window_title
 
                 client.publish(topic_image, jpeg_bytes)
 

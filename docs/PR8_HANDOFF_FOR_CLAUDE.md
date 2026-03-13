@@ -1,89 +1,45 @@
-# PR #8 Handoff (for Claude / manual copy)
+# PR #8 / #9 Implementation Handoff
 
-This file is a practical handoff so another assistant can replicate or cherry-pick the full branch work if direct remote access is blocked in this runtime.
+## What was added
 
-## 1) Current branch snapshot
+### New: Android TV Capture Agent (`worker/capture_agent_android_tv.py`)
+- Captures screenshots from Android TV / Google TV via ADB `screencap`
+- Supports `--game-hint` for streaming apps (Steam Link, GeForce NOW, etc.)
+- Uses same MQTT topic structure as other agents (`gaming_assistant/{client_id}/image` + `/meta`)
+- `client_type` in metadata: `"android_tv"`
 
-- Branch: `work`
-- Latest commit: check via `git log --oneline -n 1`
+### Improved: PC Capture Agent (`worker/capture_agent.py`)
+- Added X11 window title detection via `xprop` (previously Windows-only via `win32gui`)
+- Added `--game-hint` CLI flag as manual fallback (useful for Wayland)
+- Metadata now includes `"detector"` field indicating detection method
 
-## 2) What was implemented
+### New: CI Pipeline (`.github/workflows/ci.yml`)
+- Runs on push to `main` and on PRs
+- Installs capture dependencies
+- Python syntax check for all agent modules
+- Runs unit tests via `python -m unittest discover`
 
-### Capture agents
-- `worker/capture_agent_ipcam.py`
-  - HTTP snapshot polling (`--url`), optional auth, resize/compress, hash-based change detection.
-- `worker/capture_agent_android_tv.py`
-  - ADB TV screenshots (`adb exec-out screencap -p`), app package detection, MQTT image/meta publish.
-- `worker/capture_agent.py`
-  - Linux/X11 fallback window detection via `xprop`.
-  - `--game-hint` fallback for unsupported/Wayland cases.
-  - detector metadata (`win32gui`, `x11_xprop`, `none`).
-- `worker/capture_agent_android.py`
-  - foreground app parsing made robust (no invalid shell-pipe subprocess args).
+### New: Unit Tests (`tests/test_capture_agents.py`)
+- PC agent: game detection, X11/Windows window title dispatch
+- Android agent: ADB command building, foreground app detection, screenshot capture
+- Android TV agent: ADB commands, known games list, screenshot capture
+- IP Webcam agent: snapshot fetching with and without auth
+- Cross-agent: MQTT topic format consistency
 
-### HA integration metadata/docs
-- `custom_components/gaming_assistant/services.yaml`
-  - add `android_tv` and `ipcam` options for `process_image.client_type`.
-- `custom_components/gaming_assistant/manifest.json`
-  - codeowner placeholder replaced with real handle.
-- `README.md`
-  - setup examples for IP cam + Android TV.
-  - Linux/X11 note and `--game-hint` fallback guidance.
-- `ROADMAP_CODEX_MASTERPLAN.md`
-  - expanded roadmap and priority alignment.
+### Other changes
+- `worker/__init__.py` – package initialization
+- `worker/requirements-capture.txt` – added `requests>=2.28.0`
+- `.gitignore` – Python artifacts, IDE files, OS files
+- `services.yaml` – added `android_tv` to `client_type` options
+- `README.md` – Android TV setup instructions, `--game-hint` docs, X11 note
 
-### Quality/CI
-- `.github/workflows/ci.yml`
-  - install deps, run unittest, run syntax compile checks.
-- `tests/test_capture_agents.py`
-  - tests for ipcam/android/android_tv/pc helper logic.
-- `worker/__init__.py`
-- `.gitignore` for Python cache artifacts.
+## Architecture notes
 
-## 3) Validation commands
+All agents follow the same pattern:
+1. Capture screenshot (platform-specific)
+2. Resize + JPEG compress via Pillow
+3. Publish binary image + JSON metadata via MQTT
+4. All intelligence stays in Home Assistant
 
-Run locally:
-
-```bash
-python -m unittest discover -s tests -v
-python -m py_compile worker/capture_agent.py worker/capture_agent_android.py worker/capture_agent_android_tv.py worker/capture_agent_ipcam.py
-python worker/capture_agent.py --help
-git diff --check
-```
-
-## 4) How Claude can reproduce quickly
-
-### Option A: Cherry-pick commits from this branch
-
-```bash
-git checkout <target-branch>
-# cherry-pick the relevant commits from work
-# inspect with:
-git log --oneline work
-```
-
-### Option B: Manual copy of final file versions
-
-Copy final versions of:
-- `.github/workflows/ci.yml`
-- `.gitignore`
-- `README.md`
-- `ROADMAP_CODEX_MASTERPLAN.md`
-- `custom_components/gaming_assistant/manifest.json`
-- `custom_components/gaming_assistant/services.yaml`
-- `tests/test_capture_agents.py`
-- `worker/__init__.py`
-- `worker/capture_agent.py`
-- `worker/capture_agent_android.py`
-- `worker/capture_agent_android_tv.py`
-- `worker/capture_agent_ipcam.py`
-- `worker/requirements-capture.txt`
-
-## 5) If merge still blocked
-
-Check these repository settings:
-- required status checks name matches workflow job names
-- branch protection requires linear history / signed commits etc.
-- CODEOWNERS/reviewer requirements
-- app/token permissions for PR updates
-
+The Android TV agent is structurally similar to the Android agent but targets
+network-connected TV devices and includes streaming app names in its known games list.

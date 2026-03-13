@@ -134,6 +134,32 @@ python worker/capture_agent_android.py \
 ```
 
 
+#### Android TV / Google TV Capture Agent
+
+```bash
+pip install -r worker/requirements-capture.txt
+
+# Enable developer options on Android TV, then pair via ADB
+adb pair 192.168.1.100:<pairing-port>
+adb connect 192.168.1.100:5555
+
+# Start the Android TV capture agent
+python worker/capture_agent_android_tv.py \
+  --broker 192.168.1.10 \
+  --device 192.168.1.100:5555 \
+  --client-id livingroom-tv \
+  --interval 5
+```
+
+For streaming apps (Steam Link, GeForce NOW, Xbox Game Pass) use `--game-hint`:
+
+```bash
+python worker/capture_agent_android_tv.py \
+  --broker 192.168.1.10 \
+  --device 192.168.1.100:5555 \
+  --game-hint "Elden Ring"
+```
+
 #### IP Webcam Capture Agent (Console / TV setup)
 
 ```bash
@@ -310,7 +336,11 @@ See `lovelace/automations_example.yaml` for ready-to-use automations:
 | `--quality` | 75 | JPEG quality (1-100) |
 | `--resize` | 960x540 | Image dimensions |
 | `--monitor` | 1 | Monitor index |
+| `--game-hint` | | Manual game name (useful on Wayland) |
 | `--detect-change` | off | Skip unchanged frames |
+
+> **Linux note:** The PC agent now uses `xprop` for window title detection on
+> X11. On Wayland, auto-detection is not available -- use `--game-hint` instead.
 
 ### Android Agent (`capture_agent_android.py`)
 
@@ -319,6 +349,14 @@ Same as PC agent, plus:
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--device` | | ADB device serial or IP:port |
+
+### Android TV Agent (`capture_agent_android_tv.py`)
+
+Same as Android agent, plus:
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--game-hint` | | Manual game name for streaming apps |
 
 ---
 

@@ -102,16 +102,16 @@ class TestAndroidTvAgent(unittest.TestCase):
 
     @patch("worker.capture_agent_android_tv.subprocess.run")
     def test_check_adb_connection_true(self, mock_run):
-        mock_run.return_value = SimpleNamespace(returncode=0, stdout="device\n")
+        mock_run.return_value = SimpleNamespace(returncode=0, stdout="ok\n")
         self.assertTrue(tv_agent.check_adb_connection("tv-device"))
 
     @patch("worker.capture_agent_android_tv.subprocess.run")
-    def test_detect_foreground_package_parses_output(self, mock_run):
+    def test_detect_foreground_app_parses_output(self, mock_run):
         mock_run.return_value = SimpleNamespace(
-            stdout="mCurrentFocus=Window{abc u0 com.supercell.clashroyale/com.supercell.GameActivity}\n"
+            stdout="  mResumedActivity: ActivityRecord{abc u0 com.mojang.minecraftpe/.MainActivity t42}\n"
         )
-        package_name = tv_agent.detect_foreground_package("tv-device")
-        self.assertEqual(package_name, "com.supercell.clashroyale")
+        app = tv_agent.detect_foreground_app("tv-device")
+        self.assertEqual(app, "Minecraft")
 
     @patch("worker.capture_agent_android_tv.subprocess.run")
     def test_capture_tv_screen_raises_on_failed_screencap(self, mock_run):

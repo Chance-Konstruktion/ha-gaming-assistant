@@ -195,4 +195,5 @@ capture_from_camera:
           options:
             - "pc"
             - "android"
+            - "android_tv"
             - "console"
