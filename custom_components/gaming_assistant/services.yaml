@@ -42,6 +42,51 @@ process_image:
           options:
             - "pc"
             - "android"
+            - "android_tv"
+            - "ipcam"
+            - "console"
+
+
+ask:
+  name: Ask Assistant
+  description: Ask a direct question (optionally with image context).
+  fields:
+    question:
+      name: Question
+      description: Your question for the assistant
+      required: true
+      selector:
+        text:
+    image_path:
+      name: Image Path
+      description: Optional path to a JPEG/PNG image file
+      required: false
+      selector:
+        text:
+    image_base64:
+      name: Image Base64
+      description: Optional base64-encoded image data
+      required: false
+      selector:
+        text:
+    game_hint:
+      name: Game Hint
+      description: Optional game/context hint
+      required: false
+      selector:
+        text:
+    client_type:
+      name: Client Type
+      description: Client type (pc, android, android_tv, ipcam, console)
+      required: false
+      default: "pc"
+      selector:
+        select:
+          options:
+            - "pc"
+            - "android"
+            - "android_tv"
+            - "ipcam"
             - "console"
 
 set_spoiler_level:
@@ -80,6 +125,37 @@ set_spoiler_level:
       required: false
       selector:
         text:
+
+
+set_spoiler_profile:
+  name: Set Spoiler Profile
+  description: Set or clear a per-game spoiler profile (all categories at one level).
+  fields:
+    game:
+      name: Game
+      description: Game name for this profile
+      required: true
+      selector:
+        text:
+    level:
+      name: Level
+      description: Spoiler level to apply to all categories
+      required: false
+      default: "medium"
+      selector:
+        select:
+          options:
+            - "none"
+            - "low"
+            - "medium"
+            - "high"
+    clear:
+      name: Clear Profile
+      description: Remove the game-specific profile and fall back to global settings
+      required: false
+      default: false
+      selector:
+        boolean:
 
 clear_history:
   name: Clear History
