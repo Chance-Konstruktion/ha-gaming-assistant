@@ -1,20 +1,21 @@
 """
-Gaming Assistant – Capture Agent (Thin Client)
-===============================================
-Runs on the Gaming PC. Captures screenshots, compresses them as JPEG,
-and publishes raw bytes to Home Assistant via MQTT.
+Gaming Assistant – Android TV Capture Agent (Thin Client)
+==========================================================
+Captures screenshots from an Android TV / Google TV device via ADB,
+compresses them as JPEG, and publishes raw bytes to Home Assistant via MQTT.
 
-All intelligence (prompt building, game analysis, spoiler control) runs
-in Home Assistant. This agent only captures and sends images.
+All intelligence runs in Home Assistant. This agent only captures and sends.
 
 Requirements:
     pip install -r requirements-capture.txt
 
-Optional (game detection on Windows):
-    pip install pywin32
+Prerequisites:
+    - ADB installed and in PATH
+    - Android TV device with developer options and network debugging enabled
+    - Device paired via: adb pair <ip>:<pairing-port>
 
 Usage:
-    python capture_agent.py --broker 192.168.1.10
+    python capture_agent_android_tv.py --broker 192.168.1.10 --device 192.168.1.100:5555
 """
 
 import argparse
@@ -22,11 +23,11 @@ import hashlib
 import json
 import logging
 import platform
+import subprocess
 import time
 from io import BytesIO
 
 import paho.mqtt.client as mqtt
-from mss import mss
 from PIL import Image
 
 # ---------------------------------------------------------------------------
@@ -37,7 +38,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
 )
-log = logging.getLogger("capture_agent")
+log = logging.getLogger("capture_agent_android_tv")
 
 # ---------------------------------------------------------------------------
 # MQTT Topics
@@ -45,102 +46,80 @@ log = logging.getLogger("capture_agent")
 TOPIC_CMD = "gaming_assistant/command"
 
 # ---------------------------------------------------------------------------
-# Known games for window title detection
+# Known Android TV games / apps
 # ---------------------------------------------------------------------------
 KNOWN_GAMES = [
-    "Wolfenstein", "Doom", "Cyberpunk", "Elden Ring",
-    "Dark Souls", "Minecraft", "Counter-Strike", "Valorant",
-    "Overwatch", "Baldur's Gate", "Starfield", "The Witcher",
-    "Hogwarts Legacy", "Diablo", "Path of Exile", "Fortnite",
+    "PUBG", "Call of Duty", "Genshin Impact", "Honkai",
+    "Minecraft", "Stadia", "GeForce NOW", "Xbox Game Pass",
+    "Steam Link", "Moonlight", "Asphalt", "Dead Cells",
+    "Diablo Immortal", "Alto's Odyssey", "Crossy Road",
 ]
 
 
 # ---------------------------------------------------------------------------
-# Screenshot capture
+# ADB helpers
 # ---------------------------------------------------------------------------
-def capture_screen(
-    monitor_index: int = 1,
+def _adb_cmd(args: list[str], device: str | None = None) -> list[str]:
+    cmd = ["adb"]
+    if device:
+        cmd.extend(["-s", device])
+    cmd.extend(args)
+    return cmd
+
+
+def check_adb_connection(device: str | None = None) -> bool:
+    try:
+        result = subprocess.run(
+            _adb_cmd(["shell", "echo", "ok"], device),
+            capture_output=True, text=True, timeout=10,
+        )
+        return result.returncode == 0 and "ok" in result.stdout
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return False
+
+
+def capture_tv_screen(
+    device: str | None = None,
     resize: tuple[int, int] = (960, 540),
     quality: int = 75,
 ) -> tuple[bytes, str]:
-    """Capture -> Resize -> JPEG bytes + hash."""
-    with mss() as sct:
-        monitors = sct.monitors
-        if monitor_index >= len(monitors):
-            monitor_index = 1
-        shot = sct.grab(monitors[monitor_index])
-        img = Image.frombytes("RGB", shot.size, shot.rgb)
+    """Capture screenshot from Android TV via ADB screencap."""
+    result = subprocess.run(
+        _adb_cmd(["exec-out", "screencap", "-p"], device),
+        capture_output=True, timeout=15,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"ADB screencap failed: {result.stderr.decode(errors='replace')}"
+        )
 
+    img = Image.open(BytesIO(result.stdout)).convert("RGB")
     img = img.resize(resize, Image.LANCZOS)
 
     buffer = BytesIO()
     img.save(buffer, format="JPEG", quality=quality)
     jpeg_bytes = buffer.getvalue()
 
-    frame_hash = hashlib.md5(jpeg_bytes).hexdigest()
-    return jpeg_bytes, frame_hash
+    return jpeg_bytes, hashlib.md5(jpeg_bytes).hexdigest()
 
 
-# ---------------------------------------------------------------------------
-# Game detection (Windows only, graceful fallback)
-# ---------------------------------------------------------------------------
-def _detect_window_title_windows() -> str:
-    """Return the foreground window title on Windows via win32gui."""
+def detect_foreground_app(device: str | None = None) -> str:
+    """Detect the foreground app/game on Android TV via dumpsys."""
     try:
-        import win32gui
-        return win32gui.GetWindowText(win32gui.GetForegroundWindow())
-    except ImportError:
-        pass
-    except Exception:
-        pass
-    return ""
-
-
-def _detect_window_title_x11() -> str:
-    """Return the focused window title on Linux/X11 via xprop."""
-    import subprocess
-    try:
-        # Get the active window ID
         result = subprocess.run(
-            ["xprop", "-root", "_NET_ACTIVE_WINDOW"],
-            capture_output=True, text=True, timeout=5,
+            _adb_cmd(
+                ["shell", "dumpsys", "activity", "activities",
+                 "|", "grep", "mResumedActivity"],
+                device,
+            ),
+            capture_output=True, text=True, timeout=10,
         )
-        if result.returncode != 0:
-            return ""
-        # Extract window ID (e.g. "0x1234567")
-        parts = result.stdout.strip().split()
-        window_id = parts[-1] if parts else ""
-        if not window_id or window_id == "0x0":
-            return ""
-        # Get the window name
-        result = subprocess.run(
-            ["xprop", "-id", window_id, "WM_NAME"],
-            capture_output=True, text=True, timeout=5,
-        )
-        if result.returncode != 0:
-            return ""
-        # Parse: WM_NAME(STRING) = "Window Title"
-        line = result.stdout.strip()
-        if "=" in line:
-            return line.split("=", 1)[1].strip().strip('"')
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+        activity_line = result.stdout.strip()
+        for game in KNOWN_GAMES:
+            if game.lower().replace(" ", "") in activity_line.lower():
+                return game
+    except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
-    return ""
-
-
-def detect_window_title() -> str:
-    """Return the foreground window title (Windows: win32gui, Linux/X11: xprop)."""
-    if platform.system() == "Windows":
-        return _detect_window_title_windows()
-    return _detect_window_title_x11()
-
-
-def detect_active_game(window_title: str) -> str:
-    """Match window title against known games."""
-    title_lower = window_title.lower()
-    for game in KNOWN_GAMES:
-        if game.lower() in title_lower:
-            return game
     return ""
 
 
@@ -148,9 +127,9 @@ def detect_active_game(window_title: str) -> str:
 # MQTT setup
 # ---------------------------------------------------------------------------
 def build_mqtt_client(broker: str, port: int, username: str, password: str):
-    """Create and connect the MQTT client."""
-    client = mqtt.Client(client_id="gaming_assistant_capture", clean_session=True)
-
+    client = mqtt.Client(
+        client_id="gaming_assistant_capture_android_tv", clean_session=True
+    )
     if username:
         client.username_pw_set(username, password)
 
@@ -173,10 +152,8 @@ def build_mqtt_client(broker: str, port: int, username: str, password: str):
 
     client.on_connect = on_connect
     client.on_message = on_message
-
     client.connect(broker, port, keepalive=60)
     client.loop_start()
-
     return client, running
 
 
@@ -185,31 +162,30 @@ def build_mqtt_client(broker: str, port: int, username: str, password: str):
 # ---------------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(
-        description="Gaming Assistant – Capture Agent (Thin Client)"
+        description="Gaming Assistant – Android TV Capture Agent (Thin Client)"
     )
     parser.add_argument("--broker", required=True, help="MQTT broker IP/hostname")
     parser.add_argument("--port", type=int, default=1883, help="MQTT port")
     parser.add_argument("--user", default="", help="MQTT username (optional)")
     parser.add_argument("--password", default="", help="MQTT password (optional)")
     parser.add_argument(
-        "--client-id", default=platform.node(),
-        help="Unique client ID (default: hostname)"
+        "--client-id", default=f"android-tv-{platform.node()}",
+        help="Unique client ID (default: android-tv-hostname)",
     )
     parser.add_argument("--interval", type=int, default=5, help="Seconds between captures")
     parser.add_argument("--quality", type=int, default=75, help="JPEG quality 1-100")
     parser.add_argument("--resize", default="960x540", help="Image size WxH")
-    parser.add_argument("--monitor", type=int, default=1, help="Monitor index (1=primary)")
     parser.add_argument(
-        "--game-hint", default="",
-        help="Manual game name hint (useful on Wayland where auto-detection fails)",
+        "--device", default=None,
+        help="ADB device serial or IP:port (e.g. 192.168.1.100:5555)",
     )
+    parser.add_argument("--game-hint", default="", help="Manual game name hint")
     parser.add_argument(
         "--detect-change", action="store_true",
-        help="Skip sending if frame hasn't changed"
+        help="Skip sending if frame hasn't changed",
     )
     args = parser.parse_args()
 
-    # Parse resize
     try:
         w, h = args.resize.lower().split("x")
         resize = (int(w), int(h))
@@ -221,13 +197,20 @@ def main():
     topic_image = f"gaming_assistant/{client_id}/image"
     topic_meta = f"gaming_assistant/{client_id}/meta"
 
-    log.info("=== Gaming Assistant – Capture Agent ===")
+    log.info("=== Gaming Assistant – Android TV Capture Agent ===")
     log.info("Broker   : %s:%d", args.broker, args.port)
     log.info("Client ID: %s", client_id)
-    log.info("Interval : %ds", args.interval)
-    log.info("Quality  : %d", args.quality)
-    log.info("Resize   : %s", args.resize)
-    log.info("Monitor  : %d", args.monitor)
+    log.info("Device   : %s", args.device or "default")
+
+    if not check_adb_connection(args.device):
+        log.error("Cannot reach Android TV device via ADB.")
+        if args.device:
+            subprocess.run(["adb", "connect", args.device], timeout=10)
+            if not check_adb_connection(args.device):
+                log.error("Still cannot reach device. Exiting.")
+                return
+        else:
+            return
 
     client, running = build_mqtt_client(
         args.broker, args.port, args.user, args.password
@@ -246,30 +229,22 @@ def main():
                 continue
 
             try:
-                jpeg_bytes, frame_hash = capture_screen(
-                    args.monitor, resize, args.quality
+                game = args.game_hint or detect_foreground_app(args.device)
+                jpeg_bytes, frame_hash = capture_tv_screen(
+                    args.device, resize, args.quality
                 )
 
                 if args.detect_change and frame_hash == last_hash:
-                    log.debug("Frame unchanged, skipping")
                     time.sleep(args.interval)
                     continue
                 last_hash = frame_hash
 
-                if args.game_hint:
-                    game = args.game_hint
-                else:
-                    window_title = detect_window_title()
-                    game = detect_active_game(window_title)
-
                 client.publish(topic_image, jpeg_bytes)
-
                 meta = {
-                    "client_type": "pc",
-                    "window_title": game if args.game_hint else (game or window_title),
+                    "client_type": "android_tv",
+                    "window_title": game,
                     "resolution": f"{resize[0]}x{resize[1]}",
                     "timestamp": int(time.time()),
-                    "detector": "hint" if args.game_hint else platform.system().lower(),
                 }
                 client.publish(topic_meta, json.dumps(meta))
 
@@ -285,18 +260,17 @@ def main():
                 consecutive_errors += 1
 
             if consecutive_errors >= MAX_ERRORS:
-                log.error("Too many consecutive errors (%d). Exiting.", MAX_ERRORS)
+                log.error("Too many errors (%d). Exiting.", MAX_ERRORS)
                 break
 
             time.sleep(args.interval)
 
     except KeyboardInterrupt:
         log.info("Shutting down...")
-
     finally:
         client.loop_stop()
         client.disconnect()
-        log.info("Capture agent stopped.")
+        log.info("Android TV capture agent stopped.")
 
 
 if __name__ == "__main__":

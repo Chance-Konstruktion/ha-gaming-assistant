@@ -42,6 +42,7 @@ process_image:
           options:
             - "pc"
             - "android"
+            - "android_tv"
             - "console"
 
 set_spoiler_level:
@@ -119,4 +120,5 @@ capture_from_camera:
           options:
             - "pc"
             - "android"
+            - "android_tv"
             - "console"
