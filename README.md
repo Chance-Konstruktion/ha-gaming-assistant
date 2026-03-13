@@ -127,6 +127,24 @@ python worker/capture_agent_android.py \
   --device 192.168.1.42:5555
 ```
 
+
+#### IP Webcam Capture Agent (Console / TV setup)
+
+```bash
+pip install -r worker/requirements-capture.txt
+
+# Example with Android IP Webcam app
+python worker/capture_agent_ipcam.py \
+  --broker 192.168.1.10 \
+  --url http://192.168.1.42:8080/shot.jpg \
+  --client-id livingroom-console \
+  --game-hint "Elden Ring" \
+  --interval 5 \
+  --quality 75
+```
+
+Tip: point your phone camera at the TV/monitor and lock focus/exposure for more stable tips.
+
 ---
 
 ## Features
