@@ -12,8 +12,8 @@ v0.4 uses a **Thin Client Architecture**: the gaming device only captures and se
 screenshots. All intelligence runs in Home Assistant.
 
 ```
-Gaming PC / Android (Capture Agent)
-  └── Screenshot capture + JPEG compress + MQTT publish (binary image)
+Gaming PC / Android / Android TV / IP Webcam (Capture Agent)
+  └── Screenshot capture + JPEG compress + MQTT publish (binary image + metadata)
          │
     Home Assistant (the "Brain")
       ├── MQTT Image Listener
@@ -47,7 +47,7 @@ passthrough mode.
 |-----------|---------|
 | Home Assistant | 2024.1+ with MQTT integration |
 | MQTT Broker | Mosquitto (built-in HA add-on) |
-| Gaming PC | Windows / Linux / macOS with Python 3.10+ |
+| Gaming Devices | PC, Steam Deck/Linux handhelds, Android phones/tablets, Android TV/Google TV |
 | Ollama | Running locally or on a machine reachable from HA |
 
 ### Recommended Vision Models
@@ -166,6 +166,17 @@ Works with many Android TV / Google TV devices (e.g. Sony TVs, Chromecast with G
 
 ---
 
+## Supported Capture Sources (quick overview)
+
+- `worker/capture_agent.py` → PC / Steam Deck desktop capture
+- `worker/capture_agent_android.py` → Android devices via ADB
+- `worker/capture_agent_android_tv.py` → Android TV / Google TV via ADB
+- `worker/capture_agent_ipcam.py` → Phone/IP camera snapshot endpoint
+
+All sources publish to the same MQTT image/meta topics, so automations and sensors keep working unchanged.
+
+---
+
 ## Features
 
 The assistant is designed as a **universal vision coach**: with the right capture source it can support not only action games, but also slower games like chess, board games, and card games via phone camera or TV capture.
@@ -230,6 +241,10 @@ Clear history via `gaming_assistant.clear_history`.
 | `sensor.gaming_assistant_status` | Status (idle / analyzing / error) |
 | `sensor.gaming_assistant_history` | Tip count + recent tips as attributes |
 | `binary_sensor.gaming_mode` | ON when a game is detected |
+
+The integration supports both:
+- **Ask mode**: trigger a targeted analysis manually (e.g. `gaming_assistant.process_image`).
+- **Proactive mode**: periodic/triggered automations run analysis in the background and push hints.
 
 ## Services
 

@@ -32,6 +32,16 @@ Der **Gaming Assistant** ist eine Home-Assistant-Integration (HACS), die Gamepla
 
 ---
 
+## 1.1) Merge-/Ausrichtungsnotiz
+
+Diese Roadmap priorisiert nach aktuellem Stand:
+1. **Android TV/Google TV + IP Cam + Steam Deck/PC** als primäre Capture-Wege.
+2. **HDMI-Dongle/Capture-Card** nur optionaler Fallback für Sonderfälle.
+
+Damit ist die Richtung konsistent zu "software-first" und living-room-freundlichen Setups.
+
+---
+
 ## 2) Architektur-Masterplan
 
 ## 2.1 Zielarchitektur (Thin Client)
@@ -403,6 +413,11 @@ Zusätzlich empfohlen:
 ---
 
 ## 10) Backlog (konkret formulierte nächste Tasks)
+
+**Empfohlene Reihenfolge ab jetzt (für parallel arbeitende Assistants):**
+- Track A (Capture): GA-102 -> GA-103 -> GA-107
+- Track B (Interaction): GA-111 -> GA-112
+- Track C (Domain Expansion): GA-113 + zusätzliche Prompt-Packs
 
 1. **GA-101:** `capture_agent_ipcam.py` implementieren + README-Abschnitt.
 2. **GA-102:** Android-TV ADB-MVP (`capture_agent_android_tv.py`) mit stabiler Screenshot-Pipeline.
