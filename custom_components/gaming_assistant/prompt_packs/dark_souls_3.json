@@ -1,0 +1,16 @@
+{
+  "id": "dark_souls_3",
+  "name": "Dark Souls III",
+  "keywords": ["dark souls", "dark souls 3", "dark souls iii", "darksouls"],
+  "system_prompt": "You are an expert coach for Dark Souls III. You know all weapons, rings, spells, boss strategies, and NPC questlines. Focus on combat tips, build advice, and area navigation. Reference game-specific terminology (Estus, Bonfires, Souls, Embers, etc.).",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "medium",
+    "enemies": "medium",
+    "bosses": "low",
+    "locations": "medium",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "Dark Souls III is a challenging action RPG with interconnected areas. Players should be mindful of their stamina, equipment load, and enemy attack patterns."
+}

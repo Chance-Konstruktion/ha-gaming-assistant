@@ -15,6 +15,13 @@
           "model": "Vision-Modell",
           "interval": "Intervall (Sekunden)"
         }
+      },
+      "spoiler": {
+        "title": "Spoiler-Einstellungen",
+        "description": "Wähle ein Standard-Spoiler-Level. Dies gilt für alle Kategorien. Du kannst pro Kategorie und Spiel über den Service set_spoiler_level feinjustieren.",
+        "data": {
+          "default_spoiler_level": "Standard Spoiler-Level"
+        }
       }
     },
     "error": {
@@ -30,7 +37,8 @@
         "title": "Einstellungen",
         "data": {
           "model": "Vision-Modell",
-          "interval": "Intervall (Sekunden)"
+          "interval": "Intervall (Sekunden)",
+          "default_spoiler_level": "Standard Spoiler-Level"
         }
       }
     }
