@@ -66,3 +66,21 @@
         title: "🎮 Gaming Tip"
         message: "{{ states('sensor.gaming_assistant_tip') }}"
   mode: single
+
+# ── 5. Periodic capture from IP Webcam (console/TV gaming) ─────────────────
+- alias: "Gaming Assistant – IP Webcam Capture"
+  description: "Captures from an IP Webcam pointed at the TV every 10 seconds."
+  trigger:
+    - platform: time_pattern
+      seconds: "/10"
+  condition:
+    - condition: state
+      entity_id: input_boolean.gaming_session  # Create a helper toggle
+      state: "on"
+  action:
+    - service: gaming_assistant.capture_from_camera
+      data:
+        entity_id: camera.ip_webcam  # Change to your camera entity
+        game_hint: ""                # Optional: set to your game name
+        client_type: console
+  mode: single

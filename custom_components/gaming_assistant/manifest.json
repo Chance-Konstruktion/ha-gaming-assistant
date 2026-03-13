@@ -1,7 +1,7 @@
 {
   "domain": "gaming_assistant",
   "name": "Gaming Assistant",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "documentation": "https://github.com/Chance-Konstruktion/gaming-assistant",
   "issue_tracker": "https://github.com/Chance-Konstruktion/gaming-assistant/issues",
   "dependencies": ["mqtt"],

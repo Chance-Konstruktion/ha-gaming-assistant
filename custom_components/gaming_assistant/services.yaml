@@ -9,3 +9,114 @@ start:
 stop:
   name: Stop Worker
   description: Sends a stop command to the Gaming Assistant worker.
+
+process_image:
+  name: Process Image
+  description: Manually trigger image analysis (for testing/automation).
+  fields:
+    image_path:
+      name: Image Path
+      description: Path to a JPEG/PNG image file
+      required: false
+      selector:
+        text:
+    image_base64:
+      name: Image Base64
+      description: Base64-encoded image data
+      required: false
+      selector:
+        text:
+    game_hint:
+      name: Game Hint
+      description: Optional game name hint
+      required: false
+      selector:
+        text:
+    client_type:
+      name: Client Type
+      description: Client type (pc, android, console)
+      required: false
+      default: "pc"
+      selector:
+        select:
+          options:
+            - "pc"
+            - "android"
+            - "console"
+
+set_spoiler_level:
+  name: Set Spoiler Level
+  description: Change spoiler settings during gameplay.
+  fields:
+    category:
+      name: Category
+      description: Spoiler category
+      required: true
+      selector:
+        select:
+          options:
+            - "all"
+            - "story"
+            - "items"
+            - "enemies"
+            - "bosses"
+            - "locations"
+            - "lore"
+            - "mechanics"
+    level:
+      name: Level
+      description: Spoiler level
+      required: true
+      selector:
+        select:
+          options:
+            - "none"
+            - "low"
+            - "medium"
+            - "high"
+    game:
+      name: Game
+      description: Game name (optional, for game-specific settings)
+      required: false
+      selector:
+        text:
+
+clear_history:
+  name: Clear History
+  description: Clear tip history for a game or all games.
+  fields:
+    game:
+      name: Game
+      description: Game name (leave empty to clear all)
+      required: false
+      selector:
+        text:
+
+capture_from_camera:
+  name: Capture from Camera
+  description: Grab a snapshot from a Home Assistant camera entity (e.g. IP Webcam, Generic Camera) and analyze it. Perfect for console gaming without a dedicated capture agent.
+  fields:
+    entity_id:
+      name: Camera Entity
+      description: The camera entity to capture from (e.g. camera.ip_webcam)
+      required: true
+      selector:
+        entity:
+          domain: camera
+    game_hint:
+      name: Game Hint
+      description: Optional game name hint for better tips
+      required: false
+      selector:
+        text:
+    client_type:
+      name: Client Type
+      description: Client type (pc, android, console)
+      required: false
+      default: "console"
+      selector:
+        select:
+          options:
+            - "pc"
+            - "android"
+            - "console"
