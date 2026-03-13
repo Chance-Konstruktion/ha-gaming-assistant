@@ -18,13 +18,13 @@ class PromptPackLoader:
         self._loaded = False
 
     def load_all(self) -> dict[str, dict]:
-        """Load all prompt pack JSON files from the prompt_packs directory."""
+        """Load all prompt pack JSON files."""
         if self._loaded:
             return self._packs
 
         for path in _PACKS_DIR.glob("*.json"):
             if path.name.startswith("_"):
-                continue  # Skip templates
+                continue
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
                 pack_id = data.get("id", path.stem)
@@ -38,10 +38,7 @@ class PromptPackLoader:
         return self._packs
 
     def find_by_keyword(self, text: str) -> dict | None:
-        """Match a window title or app name against pack keywords.
-
-        Case-insensitive partial match. First match wins.
-        """
+        """Match a window title or app name against pack keywords."""
         if not self._loaded:
             self.load_all()
 
