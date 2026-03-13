@@ -12,7 +12,7 @@ Der **Gaming Assistant** ist eine Home-Assistant-Integration (HACS), die Gamepla
 ### Produktziel
 - Echtzeit-nahe, hilfreiche Tipps während des Spielens.
 - Maximale Privatsphäre durch lokale Verarbeitung.
-- Geräteunabhängig durch Thin-Client-Erfassung (PC, Android, Android TV/Google TV, Kameraquellen).
+- Geräteunabhängig durch Thin-Client-Erfassung (PC, Steam Deck/Linux Handhelds, Android, Android TV/Google TV, Kameraquellen, Konsolen via Kamera).
 - Klare Erweiterbarkeit für Community, Overlay, Sprache und Agent-Mode.
 
 ### Aktueller Stand (Baseline: v0.4.0)
@@ -24,6 +24,12 @@ Der **Gaming Assistant** ist eine Home-Assistant-Integration (HACS), die Gamepla
 - History-Management + deduplizierte Tipps.
 - Legacy-Kompatibilität für alte Worker-Pfade.
 
+### Produktweite Zielgruppe (erweitert)
+- Competitive & Casual Gamer (PC/Konsole/Mobile).
+- Couch- und TV-Setups (Android TV/Google TV).
+- Strategie-/Denkspiele (z. B. Schach, Karten- und Brettspiele via Handykamera).
+- Handheld-Nutzer (z. B. Steam Deck, sofern Capture verfügbar).
+
 ---
 
 ## 2) Architektur-Masterplan
@@ -31,7 +37,7 @@ Der **Gaming Assistant** ist eine Home-Assistant-Integration (HACS), die Gamepla
 ## 2.1 Zielarchitektur (Thin Client)
 
 ```text
-Capture Source (PC / Android / Android TV App / IP Webcam)
+Capture Source (PC / Steam Deck / Android / Android TV App / IP Webcam)
   -> Screenshot + Metadaten + optional Audio
   -> MQTT Publish (binary + JSON)
 
@@ -57,6 +63,7 @@ Optional Clients
 - **Idempotente Services** + nachvollziehbare Zustände.
 - **Backward Compatibility**, wo sinnvoll.
 - **Feature Flags** für experimentelle Module.
+- **Dual Interaction Model**: Ask-Mode + Proaktiv-Mode.
 
 ## 2.3 Nicht-funktionale Anforderungen
 - Latenz Ziel: 2–8 Sekunden pro Analysezyklus (modellabhängig).
@@ -91,7 +98,7 @@ Optional Clients
 ## Phase 1 (v0.5.x): Capture-Quellen erweitern
 
 ### Ziel
-Mehr Eingangsquellen, damit praktisch jedes Setup (PC/Console/Mobile) angebunden werden kann.
+Mehr Eingangsquellen, damit praktisch jedes Setup (PC/Steam Deck/Console/Mobile/TV) angebunden werden kann.
 
 ### 4.1 IP Webcam Source
 **Deliverables**
@@ -314,8 +321,8 @@ Empfohlener Codex-Workflow je Task:
 
 ### 6.1 Geplante neue Dateien (Beispiele)
 - `worker/capture_agent_ipcam.py`
-- `android_tv_capture/` (Companion-App, Kotlin)
 - `worker/capture_agent_android_tv.py` (optionaler Übergangsagent via ADB)
+- `android_tv_capture/` (Companion-App, Kotlin)
 - `custom_components/gaming_assistant/spoiler_profiles.py` (optional)
 - `custom_components/gaming_assistant/prompt_packs/manifest.json`
 - `docs/`-Struktur für Setup und Quellen
@@ -407,6 +414,9 @@ Zusätzlich empfohlen:
 8. **GA-108:** Overlay-PC-Prototyp (nur Anzeige, kein Agent Mode).
 9. **GA-109:** Test-Harness mit Beispielbildern für reproduzierbare E2E-Läufe.
 10. **GA-110:** HDMI-Bridge nur als optionales Community-Addon (niedrige Priorität).
+11. **GA-111:** Ask-Mode-Service (`gaming_assistant.ask`) für freie Fragen plus Screenshot-Kontext.
+12. **GA-112:** Proaktiv-Modus mit Regelprofilen ("silent", "coach", "aggressive hints").
+13. **GA-113:** Prompt-Profile für Nicht-Action-Spiele (Schach/Karten/Brettspiele).
 
 ---
 

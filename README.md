@@ -145,9 +145,34 @@ python worker/capture_agent_ipcam.py \
 
 Tip: point your phone camera at the TV/monitor and lock focus/exposure for more stable tips.
 
+#### Android TV / Google TV Capture Agent (ADB)
+
+```bash
+pip install -r worker/requirements-capture.txt
+
+# Enable developer mode + network debugging on your TV/box first
+# then connect once via ADB
+adb connect 192.168.1.50:5555
+
+python worker/capture_agent_android_tv.py \
+  --broker 192.168.1.10 \
+  --device 192.168.1.50:5555 \
+  --client-id livingroom-tv \
+  --interval 5 \
+  --quality 75
+```
+
+Works with many Android TV / Google TV devices (e.g. Sony TVs, Chromecast with Google TV, NVIDIA Shield).
+
 ---
 
 ## Features
+
+The assistant is designed as a **universal vision coach**: with the right capture source it can support not only action games, but also slower games like chess, board games, and card games via phone camera or TV capture.
+
+It supports both:
+- **Ask mode** (you ask directly for help), and
+- **Proactive mode** (automation triggers regular analysis and hints).
 
 ### Spoiler Level System
 
