@@ -46,6 +46,49 @@ process_image:
             - "ipcam"
             - "console"
 
+
+ask:
+  name: Ask Assistant
+  description: Ask a direct question (optionally with image context).
+  fields:
+    question:
+      name: Question
+      description: Your question for the assistant
+      required: true
+      selector:
+        text:
+    image_path:
+      name: Image Path
+      description: Optional path to a JPEG/PNG image file
+      required: false
+      selector:
+        text:
+    image_base64:
+      name: Image Base64
+      description: Optional base64-encoded image data
+      required: false
+      selector:
+        text:
+    game_hint:
+      name: Game Hint
+      description: Optional game/context hint
+      required: false
+      selector:
+        text:
+    client_type:
+      name: Client Type
+      description: Client type (pc, android, android_tv, ipcam, console)
+      required: false
+      default: "pc"
+      selector:
+        select:
+          options:
+            - "pc"
+            - "android"
+            - "android_tv"
+            - "ipcam"
+            - "console"
+
 set_spoiler_level:
   name: Set Spoiler Level
   description: Change spoiler settings during gameplay.

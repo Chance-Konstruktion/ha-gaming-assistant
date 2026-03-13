@@ -315,6 +315,49 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             self._run_image_processing, image_bytes, "manual", metadata
         )
 
+    async def async_ask(
+        self,
+        question: str,
+        image_bytes: bytes | None = None,
+        game_hint: str = "",
+        client_type: str = "pc",
+    ) -> str:
+        """Answer a direct question, optionally with image context."""
+        metadata = {"client_type": client_type}
+        if game_hint:
+            metadata["window_title"] = game_hint
+            self._current_game = game_hint
+
+        self._status = "analyzing"
+        self.async_set_updated_data(self._build_data())
+
+        try:
+            answer = await self._image_processor.ask(
+                question=question,
+                client_id="ask",
+                metadata=metadata,
+                image_bytes=image_bytes,
+            )
+            if answer:
+                self._tip = answer
+                self._tip_count += 1
+                self._recent_tips.append({
+                    "tip": answer,
+                    "game": self._current_game,
+                    "client_id": "ask",
+                    "question": question,
+                })
+                if len(self._recent_tips) > 5:
+                    self._recent_tips = self._recent_tips[-5:]
+            self._status = "idle"
+            self.async_set_updated_data(self._build_data())
+            return answer
+        except Exception as err:
+            _LOGGER.exception("Ask-mode processing failed: %s", err)
+            self._status = "error"
+            self.async_set_updated_data(self._build_data())
+            return ""
+
     # -- cleanup -------------------------------------------------------------
 
     def async_unsubscribe(self) -> None:

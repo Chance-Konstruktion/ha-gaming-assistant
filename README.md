@@ -267,6 +267,7 @@ The integration supports both:
 | `gaming_assistant.start` | Resume the capture agent |
 | `gaming_assistant.stop` | Pause the capture agent |
 | `gaming_assistant.process_image` | Manually analyze an image (path or base64) |
+| `gaming_assistant.ask` | Ask a direct question (optional image context) |
 | `gaming_assistant.set_spoiler_level` | Change spoiler settings |
 | `gaming_assistant.clear_history` | Clear tip history |
 

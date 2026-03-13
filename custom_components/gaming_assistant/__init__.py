@@ -89,6 +89,44 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     )
                     break
 
+
+        async def handle_ask(call: ServiceCall) -> None:
+            """Ask a direct question to the assistant (optional image context)."""
+            question = (call.data.get("question") or "").strip()
+            if not question:
+                _LOGGER.error("ask requires a non-empty question")
+                return
+
+            image_bytes = None
+            image_path = call.data.get("image_path")
+            image_base64 = call.data.get("image_base64")
+            game_hint = call.data.get("game_hint", "")
+            client_type = call.data.get("client_type", "pc")
+
+            if image_path:
+                path = Path(image_path)
+                if path.exists():
+                    image_bytes = path.read_bytes()
+                else:
+                    _LOGGER.error("Image file not found: %s", image_path)
+                    return
+            elif image_base64:
+                try:
+                    image_bytes = base64.b64decode(image_base64)
+                except Exception as err:
+                    _LOGGER.error("Invalid base64 image data: %s", err)
+                    return
+
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_ask(
+                        question=question,
+                        image_bytes=image_bytes,
+                        game_hint=game_hint,
+                        client_type=client_type,
+                    )
+                    break
+
         async def handle_set_spoiler_level(call: ServiceCall) -> None:
             """Change spoiler settings."""
             category = call.data.get("category", "all")
@@ -121,6 +159,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "start", handle_start)
         hass.services.async_register(DOMAIN, "stop", handle_stop)
         hass.services.async_register(DOMAIN, "process_image", handle_process_image)
+        hass.services.async_register(DOMAIN, "ask", handle_ask)
         hass.services.async_register(DOMAIN, "set_spoiler_level", handle_set_spoiler_level)
         hass.services.async_register(DOMAIN, "clear_history", handle_clear_history)
 
@@ -145,7 +184,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not hass.data[DOMAIN]:
             for service in (
                 "analyze", "start", "stop",
-                "process_image", "set_spoiler_level", "clear_history",
+                "process_image", "ask", "set_spoiler_level", "clear_history",
             ):
                 hass.services.async_remove(DOMAIN, service)
 
