@@ -112,6 +112,52 @@ class ImageProcessor:
 
         return tip
 
+    async def ask(
+        self,
+        question: str,
+        client_id: str = "ask",
+        metadata: dict | None = None,
+        image_bytes: bytes | None = None,
+    ) -> str:
+        """Answer a direct user question (optional image context)."""
+        metadata = metadata or {}
+
+        game = metadata.get("window_title", "") or metadata.get("game", "")
+        client_type = metadata.get("client_type", "pc")
+
+        prompt_pack = None
+        if self._pack_loader and game:
+            prompt_pack = self._pack_loader.find_by_keyword(game)
+
+        spoiler_settings = self._spoiler.get_settings(game or None)
+        spoiler_block = SpoilerManager.generate_prompt_block(spoiler_settings)
+
+        key = game or client_id
+        recent = await self._history.get_recent(key, HISTORY_CONTEXT_SIZE)
+        history_context = HistoryManager.format_for_prompt(recent)
+
+        prompt = PromptBuilder.build(
+            game=game,
+            spoiler_block=spoiler_block,
+            history_context=history_context,
+            prompt_pack=prompt_pack,
+            client_type=client_type,
+            user_question=question,
+        )
+
+        if image_bytes:
+            image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+            answer = await self._call_ollama(prompt, image_b64)
+            image_hash = hashlib.md5(image_bytes).hexdigest()
+        else:
+            answer = await self._call_ollama_text(prompt)
+            image_hash = hashlib.md5(question.encode("utf-8")).hexdigest()
+
+        if answer:
+            await self._history.add_entry(game, client_id, image_hash, answer)
+
+        return answer
+
     async def _call_ollama(self, prompt: str, image_b64: str) -> str:
         """Send image + prompt to Ollama and return the response."""
         url = f"{self._ollama_host}/api/generate"
@@ -151,4 +197,47 @@ class ImageProcessor:
                 return ""
 
         _LOGGER.error("Ollama request failed after retries")
+        return ""
+
+
+    async def _call_ollama_text(self, prompt: str) -> str:
+        """Send text-only prompt to Ollama and return the response."""
+        url = f"{self._ollama_host}/api/generate"
+        payload = {
+            "model": self._model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.4,
+                "num_predict": OLLAMA_NUM_PREDICT,
+            },
+        }
+
+        import asyncio
+
+        loop = asyncio.get_event_loop()
+
+        for attempt in range(2):
+            try:
+                response = await loop.run_in_executor(
+                    None,
+                    lambda: requests.post(url, json=payload, timeout=OLLAMA_TIMEOUT),
+                )
+                response.raise_for_status()
+                return response.json().get("response", "").strip()
+            except requests.exceptions.Timeout:
+                _LOGGER.warning(
+                    "Ollama text timeout (attempt %d/2), retrying in %ds",
+                    attempt + 1, OLLAMA_RETRY_DELAY,
+                )
+                if attempt == 0:
+                    await asyncio.sleep(OLLAMA_RETRY_DELAY)
+            except requests.exceptions.ConnectionError:
+                _LOGGER.error("Cannot reach Ollama at %s", self._ollama_host)
+                return ""
+            except Exception as err:
+                _LOGGER.exception("Ollama text call failed: %s", err)
+                return ""
+
+        _LOGGER.error("Ollama text request failed after retries")
         return ""

@@ -12,8 +12,8 @@ v0.4 uses a **Thin Client Architecture**: the gaming device only captures and se
 screenshots. All intelligence runs in Home Assistant.
 
 ```
-Gaming PC / Android (Capture Agent)
-  └── Screenshot capture + JPEG compress + MQTT publish (binary image)
+Gaming PC / Android / Android TV / IP Webcam (Capture Agent)
+  └── Screenshot capture + JPEG compress + MQTT publish (binary image + metadata)
          │
     Home Assistant (the "Brain")
       ├── MQTT Image Listener
@@ -47,7 +47,7 @@ passthrough mode.
 |-----------|---------|
 | Home Assistant | 2024.1+ with MQTT integration |
 | MQTT Broker | Mosquitto (built-in HA add-on) |
-| Gaming PC | Windows / Linux / macOS with Python 3.10+ |
+| Gaming Devices | PC, Steam Deck/Linux handhelds, Android phones/tablets, Android TV/Google TV |
 | Ollama | Running locally or on a machine reachable from HA |
 
 ### Recommended Vision Models
@@ -90,16 +90,22 @@ The config flow has 3 steps:
 # Install dependencies (much lighter than before -- no requests/ollama needed)
 pip install -r worker/requirements-capture.txt
 
-# Windows: also install for game detection
+# Windows: optional for active-window detection
 pip install pywin32
+
+# Linux (X11): optional xprop for active-window detection
+# sudo apt install x11-utils
 
 # Start the capture agent
 python worker/capture_agent.py \
   --broker 192.168.1.10 \
   --client-id gaming-pc \
   --interval 5 \
-  --quality 75
+  --quality 75 \
+  --game-hint "Steam Game"
 ```
+
+> Linux/macOS note: window detection is best-effort. X11 can use `xprop`; Wayland is currently experimental. Use `--game-hint` as fallback when no window title is detected.
 
 #### Android Capture Agent
 
@@ -171,9 +177,51 @@ python worker/capture_agent_ipcam.py \
 
 Tip: point your phone camera at the TV/monitor and lock focus/exposure for more stable tips.
 
+#### Android TV / Google TV Capture Agent (ADB)
+
+```bash
+pip install -r worker/requirements-capture.txt
+
+# Enable developer mode + network debugging on your TV/box first
+# then connect once via ADB
+adb connect 192.168.1.50:5555
+
+python worker/capture_agent_android_tv.py \
+  --broker 192.168.1.10 \
+  --device 192.168.1.50:5555 \
+  --client-id livingroom-tv \
+  --interval 5 \
+  --quality 75 \
+  --game-hint "Steam Game"
+```
+
+Works with many Android TV / Google TV devices (e.g. Sony TVs, Chromecast with Google TV, NVIDIA Shield).
+
+---
+
+## Supported Capture Sources (quick overview)
+
+- `worker/capture_agent.py` → PC / Steam Deck desktop capture
+- `worker/capture_agent_android.py` → Android devices via ADB
+- `worker/capture_agent_android_tv.py` → Android TV / Google TV via ADB
+- `worker/capture_agent_ipcam.py` → Phone/IP camera snapshot endpoint
+
+All sources publish to the same MQTT image/meta topics, so automations and sensors keep working unchanged.
+
+Priority for current roadmap execution:
+1. Android TV / Google TV + IP webcam (living-room first)
+2. PC / Steam Deck desktop capture
+3. HDMI/capture-card only as optional fallback
+
 ---
 
 ## Features
+
+The assistant is designed as a **universal vision coach**: with the right capture source it can support not only action games, but also slower games like chess, board games, and card games via phone camera or TV capture.
+
+It supports both:
+- **Ask mode** (you ask directly for help), and
+- **Proactive mode** (automation triggers regular analysis and hints).
 
 ### Spoiler Level System
 
@@ -232,6 +280,10 @@ Clear history via `gaming_assistant.clear_history`.
 | `sensor.gaming_assistant_history` | Tip count + recent tips as attributes |
 | `binary_sensor.gaming_mode` | ON when a game is detected |
 
+The integration supports both:
+- **Ask mode**: ask directly via `gaming_assistant.ask` (optional image context).
+- **Proactive mode**: periodic/triggered automations run analysis in the background and push hints.
+
 ## Services
 
 | Service | Description |
@@ -240,7 +292,9 @@ Clear history via `gaming_assistant.clear_history`.
 | `gaming_assistant.start` | Resume the capture agent |
 | `gaming_assistant.stop` | Pause the capture agent |
 | `gaming_assistant.process_image` | Manually analyze an image (path or base64) |
+| `gaming_assistant.ask` | Ask a direct question (optional image context) |
 | `gaming_assistant.set_spoiler_level` | Change spoiler settings |
+| `gaming_assistant.set_spoiler_profile` | Set or clear per-game spoiler profile (all categories) |
 | `gaming_assistant.clear_history` | Clear tip history |
 
 ---
@@ -376,3 +430,16 @@ Same as Android agent, plus:
 ## License
 
 MIT -- do whatever you want with it.
+
+
+## Windows EXE Build (PC Capture Agent)
+
+You can build a standalone `.exe` for the PC capture agent using PyInstaller:
+
+```powershell
+# from repository root
+pip install pyinstaller -r worker/requirements-capture.txt
+./scripts/build_windows_capture_agent.ps1
+```
+
+The output executable will be created in `dist/capture_agent.exe`.
