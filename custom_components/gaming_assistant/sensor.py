@@ -26,6 +26,10 @@ async def async_setup_entry(
         GamingAssistantTipSensor(coordinator),
         GamingAssistantStatusSensor(coordinator),
         GamingAssistantHistorySensor(coordinator),
+        GamingAssistantLatencySensor(coordinator),
+        GamingAssistantErrorCountSensor(coordinator),
+        GamingAssistantFramesProcessedSensor(coordinator),
+        GamingAssistantLastAnalysisSensor(coordinator),
     ])
 
 
@@ -94,3 +98,72 @@ class GamingAssistantHistorySensor(CoordinatorEntity, SensorEntity):
             "current_game": self._coordinator.current_game,
             "client_id": self._coordinator.current_client_id,
         }
+
+
+class GamingAssistantLatencySensor(CoordinatorEntity, SensorEntity):
+    """Duration of the last analysis in seconds."""
+
+    _attr_name = "Gaming Assistant Latency"
+    _attr_unique_id = "gaming_assistant_latency"
+    _attr_native_unit_of_measurement = "s"
+    _attr_icon = "mdi:clock"
+    _attr_entity_category = "diagnostic"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+
+    @property
+    def native_value(self) -> float:
+        return self._coordinator.latency
+
+
+class GamingAssistantErrorCountSensor(CoordinatorEntity, SensorEntity):
+    """Number of errors since startup."""
+
+    _attr_name = "Gaming Assistant Error Count"
+    _attr_unique_id = "gaming_assistant_error_count"
+    _attr_icon = "mdi:alert-circle"
+    _attr_entity_category = "diagnostic"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+
+    @property
+    def native_value(self) -> int:
+        return self._coordinator.error_count
+
+
+class GamingAssistantFramesProcessedSensor(CoordinatorEntity, SensorEntity):
+    """Total number of frames analyzed."""
+
+    _attr_name = "Gaming Assistant Frames Processed"
+    _attr_unique_id = "gaming_assistant_frames_processed"
+    _attr_icon = "mdi:image-multiple"
+    _attr_entity_category = "diagnostic"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+
+    @property
+    def native_value(self) -> int:
+        return self._coordinator.frames_processed
+
+
+class GamingAssistantLastAnalysisSensor(CoordinatorEntity, SensorEntity):
+    """Timestamp of the last successful analysis."""
+
+    _attr_name = "Gaming Assistant Last Analysis"
+    _attr_unique_id = "gaming_assistant_last_analysis"
+    _attr_icon = "mdi:clock-check"
+    _attr_entity_category = "diagnostic"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+
+    @property
+    def native_value(self) -> str:
+        return self._coordinator.last_analysis
