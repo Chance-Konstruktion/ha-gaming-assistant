@@ -24,11 +24,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r worker/requirements-capture.txt
 
-      - name: Python syntax check
-        run: python -m py_compile worker/capture_agent.py
-             && python -m py_compile worker/capture_agent_android.py
-             && python -m py_compile worker/capture_agent_android_tv.py
-             && python -m py_compile worker/capture_agent_ipcam.py
+      - name: Python syntax check (all .py files)
+        run: find . -name '*.py' -not -path './.git/*' -exec python -m py_compile {} +
 
       - name: Run unit tests
         run: python -m unittest discover -s tests -v

@@ -12,6 +12,7 @@ class PromptBuilder:
         history_context: str = "",
         prompt_pack: dict | None = None,
         client_type: str = "pc",
+        user_question: str = "",
     ) -> str:
         """Assemble the full prompt in the correct order."""
         parts: list[str] = []
@@ -38,11 +39,15 @@ class PromptBuilder:
         if history_context:
             parts.append(history_context)
 
-        # 6. Instruction
-        parts.append(
-            "Give exactly ONE short, specific, actionable tip. "
-            "No introduction, no emojis, just the tip."
-        )
+        # 6. User question (ask-mode) or default tip instruction
+        if user_question:
+            parts.append(f"The player asks: {user_question}")
+            parts.append("Answer the question directly and concisely.")
+        else:
+            parts.append(
+                "Give exactly ONE short, specific, actionable tip. "
+                "No introduction, no emojis, just the tip."
+            )
 
         # 7. Anti-repetition
         if history_context:

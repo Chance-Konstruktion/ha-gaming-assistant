@@ -39,6 +39,7 @@ ATTR_LAST_TIP = "last_tip"
 ATTR_GAMING_MODE = "gaming_mode"
 
 # Image Processing
+MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB hard limit for base64-decoded images
 IMAGE_DEDUP_WINDOW_SECONDS = 60
 OLLAMA_TIMEOUT = 60
 OLLAMA_RETRY_DELAY = 5

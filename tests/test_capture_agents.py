@@ -7,6 +7,7 @@ import hashlib
 import subprocess
 import unittest
 from io import BytesIO
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from PIL import Image
@@ -53,20 +54,37 @@ class TestPCAgentDetection(unittest.TestCase):
         self.assertTrue(len(KNOWN_GAMES) > 0)
 
     @patch("worker.capture_agent._detect_window_title_x11")
-    @patch("worker.capture_agent.platform")
-    def test_detect_window_title_linux(self, mock_platform, mock_x11):
-        from worker.capture_agent import detect_window_title
-        mock_platform.system.return_value = "Linux"
-        mock_x11.return_value = "Minecraft 1.20"
-        self.assertEqual(detect_window_title(), "Minecraft 1.20")
-
     @patch("worker.capture_agent._detect_window_title_windows")
-    @patch("worker.capture_agent.platform")
-    def test_detect_window_title_windows(self, mock_platform, mock_win):
+    def test_detect_window_title_returns_tuple(self, mock_win, mock_x11):
+        """detect_window_title() now returns (title, detector_source)."""
         from worker.capture_agent import detect_window_title
-        mock_platform.system.return_value = "Windows"
+        mock_win.return_value = ""
+        mock_x11.return_value = "Minecraft 1.20"
+        title, detector = detect_window_title()
+        self.assertEqual(title, "Minecraft 1.20")
+        self.assertEqual(detector, "x11_xprop")
+
+    @patch("worker.capture_agent._detect_window_title_x11")
+    @patch("worker.capture_agent._detect_window_title_windows")
+    def test_detect_window_title_windows_first(self, mock_win, mock_x11):
+        """Windows detection takes priority over X11."""
+        from worker.capture_agent import detect_window_title
         mock_win.return_value = "Elden Ring"
-        self.assertEqual(detect_window_title(), "Elden Ring")
+        mock_x11.return_value = ""
+        title, detector = detect_window_title()
+        self.assertEqual(title, "Elden Ring")
+        self.assertEqual(detector, "win32gui")
+
+    @patch("worker.capture_agent._detect_window_title_x11")
+    @patch("worker.capture_agent._detect_window_title_windows")
+    def test_detect_window_title_none(self, mock_win, mock_x11):
+        """Returns empty with 'none' detector when nothing found."""
+        from worker.capture_agent import detect_window_title
+        mock_win.return_value = ""
+        mock_x11.return_value = ""
+        title, detector = detect_window_title()
+        self.assertEqual(title, "")
+        self.assertEqual(detector, "none")
 
 
 # ===========================================================================
@@ -132,11 +150,32 @@ class TestAndroidTVAgent(unittest.TestCase):
             ["adb", "-s", "192.168.1.100:5555", "exec-out", "screencap", "-p"],
         )
 
-    def test_known_games_includes_streaming(self):
-        from worker.capture_agent_android_tv import KNOWN_GAMES
-        names_lower = [g.lower() for g in KNOWN_GAMES]
-        self.assertIn("steam link", names_lower)
-        self.assertIn("geforce now", names_lower)
+    @patch("worker.capture_agent_android_tv.subprocess.run")
+    def test_check_adb_connection_true(self, mock_run):
+        from worker.capture_agent_android_tv import check_adb_connection
+        mock_run.return_value = SimpleNamespace(returncode=0, stdout="device\n")
+        self.assertTrue(check_adb_connection("tv-device"))
+
+    @patch("worker.capture_agent_android_tv.subprocess.run")
+    def test_check_adb_connection_offline(self, mock_run):
+        from worker.capture_agent_android_tv import check_adb_connection
+        mock_run.return_value = SimpleNamespace(returncode=0, stdout="offline\n")
+        self.assertFalse(check_adb_connection("tv-device"))
+
+    @patch("worker.capture_agent_android_tv.subprocess.run")
+    def test_detect_foreground_package(self, mock_run):
+        from worker.capture_agent_android_tv import detect_foreground_package
+        mock_run.return_value = SimpleNamespace(
+            returncode=0,
+            stdout="  mCurrentFocus=Window{abc123 u0 com.retroarch/.browser.mainmenu}\n",
+        )
+        self.assertEqual(detect_foreground_package("tv"), "com.retroarch")
+
+    @patch("worker.capture_agent_android_tv.subprocess.run")
+    def test_detect_foreground_package_empty(self, mock_run):
+        from worker.capture_agent_android_tv import detect_foreground_package
+        mock_run.return_value = SimpleNamespace(returncode=0, stdout="nothing useful\n")
+        self.assertEqual(detect_foreground_package("tv"), "")
 
     def test_capture_tv_screen(self):
         from worker.capture_agent_android_tv import capture_tv_screen
@@ -145,9 +184,18 @@ class TestAndroidTVAgent(unittest.TestCase):
         mock_result.stdout = png_data
         mock_result.returncode = 0
         with patch("subprocess.run", return_value=mock_result):
-            jpeg_bytes, frame_hash = capture_tv_screen(resize=(64, 64), quality=50)
+            jpeg_bytes, frame_hash = capture_tv_screen("dev", (64, 64), 50)
             self.assertIsInstance(jpeg_bytes, bytes)
             self.assertEqual(frame_hash, hashlib.md5(jpeg_bytes).hexdigest())
+
+    @patch("worker.capture_agent_android_tv.subprocess.run")
+    def test_capture_tv_screen_raises_on_failure(self, mock_run):
+        from worker.capture_agent_android_tv import capture_tv_screen
+        mock_run.return_value = SimpleNamespace(
+            returncode=1, stdout=b"", stderr=b"screencap failed"
+        )
+        with self.assertRaises(RuntimeError):
+            capture_tv_screen("tv", (960, 540), 75)
 
 
 # ===========================================================================
