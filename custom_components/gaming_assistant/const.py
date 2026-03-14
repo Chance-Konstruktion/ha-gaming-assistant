@@ -5,10 +5,12 @@ DOMAIN = "gaming_assistant"
 CONF_OLLAMA_HOST = "ollama_host"
 CONF_MODEL = "model"
 CONF_INTERVAL = "interval"
+CONF_TIMEOUT = "analysis_timeout"
 
 DEFAULT_OLLAMA_HOST = "http://localhost:11434"
 DEFAULT_MODEL = "qwen2.5vl"
 DEFAULT_INTERVAL = 10
+DEFAULT_TIMEOUT = 60
 
 # Legacy MQTT Topics (v0.2/v0.3 compatibility)
 MQTT_TIP_TOPIC = "gaming_assistant/tip"

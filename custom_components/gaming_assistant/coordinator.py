@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 
 from homeassistant.components import mqtt
 from homeassistant.core import HomeAssistant, callback
@@ -14,7 +15,9 @@ from .const import (
     CONF_DEFAULT_SPOILER,
     CONF_MODEL,
     CONF_OLLAMA_HOST,
+    CONF_TIMEOUT,
     DEFAULT_SPOILER_LEVEL,
+    DEFAULT_TIMEOUT,
     DOMAIN,
     MQTT_IMAGE_TOPIC,
     MQTT_META_TOPIC,
@@ -58,6 +61,15 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._client_metadata: dict[str, dict] = {}
         self._processing: bool = False
 
+        # Configurable timeout
+        self._analysis_timeout: int = config.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)
+
+        # Runtime metrics
+        self._latency: float = 0.0
+        self._error_count: int = 0
+        self._frames_processed: int = 0
+        self._last_analysis: str = ""
+
         # Initialize managers
         self._history = HistoryManager(hass.config.config_dir)
         self._spoiler = SpoilerManager(
@@ -74,6 +86,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             history_manager=self._history,
             spoiler_manager=self._spoiler,
             prompt_pack_loader=self._pack_loader,
+            timeout=self._analysis_timeout,
         )
 
     # -- public properties ---------------------------------------------------
@@ -125,6 +138,26 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     @property
     def pack_loader(self) -> PromptPackLoader:
         return self._pack_loader
+
+    @property
+    def analysis_timeout(self) -> int:
+        return self._analysis_timeout
+
+    @property
+    def latency(self) -> float:
+        return self._latency
+
+    @property
+    def error_count(self) -> int:
+        return self._error_count
+
+    @property
+    def frames_processed(self) -> int:
+        return self._frames_processed
+
+    @property
+    def last_analysis(self) -> str:
+        return self._last_analysis
 
     # -- MQTT setup with retry -----------------------------------------------
 
@@ -254,13 +287,19 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             if game:
                 self._current_game = game
 
+            start = time.monotonic()
             tip = await self.hass.async_add_executor_job(
                 self._run_image_processing, image_bytes, client_id, metadata
             )
+            self._latency = round(time.monotonic() - start, 3)
 
             if tip:
                 self._tip = tip
                 self._tip_count += 1
+                self._frames_processed += 1
+                self._last_analysis = (
+                    time.strftime("%Y-%m-%dT%H:%M:%S")
+                )
                 self._recent_tips.append({
                     "tip": tip,
                     "game": self._current_game,
@@ -271,10 +310,12 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 self._status = "idle"
                 _LOGGER.info("New tip generated: %s", tip[:80])
             else:
+                self._frames_processed += 1
                 self._status = "idle"
 
         except Exception as err:
             _LOGGER.exception("Image processing failed: %s", err)
+            self._error_count += 1
             self._status = "error"
         finally:
             self._processing = False
