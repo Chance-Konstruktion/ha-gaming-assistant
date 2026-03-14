@@ -12,7 +12,7 @@ Der **Gaming Assistant** ist eine Home-Assistant-Integration (HACS), die Gamepla
 ### Produktziel
 - Echtzeit-nahe, hilfreiche Tipps während des Spielens.
 - Maximale Privatsphäre durch lokale Verarbeitung.
-- Geräteunabhängig durch Thin-Client-Erfassung (PC, Steam Deck/Linux Handhelds, Android, Android TV/Google TV, Kameraquellen, Konsolen via Kamera).
+- Geräteunabhängig durch Thin-Client-Erfassung (PC, Android, Kameraquellen, HDMI-Bridge).
 - Klare Erweiterbarkeit für Community, Overlay, Sprache und Agent-Mode.
 
 ### Aktueller Stand (Baseline: v0.4.0)
@@ -24,22 +24,6 @@ Der **Gaming Assistant** ist eine Home-Assistant-Integration (HACS), die Gamepla
 - History-Management + deduplizierte Tipps.
 - Legacy-Kompatibilität für alte Worker-Pfade.
 
-### Produktweite Zielgruppe (erweitert)
-- Competitive & Casual Gamer (PC/Konsole/Mobile).
-- Couch- und TV-Setups (Android TV/Google TV).
-- Strategie-/Denkspiele (z. B. Schach, Karten- und Brettspiele via Handykamera).
-- Handheld-Nutzer (z. B. Steam Deck, sofern Capture verfügbar).
-
----
-
-## 1.1) Strategische Ausrichtung (konfliktbereinigt)
-
-Diese Roadmap priorisiert nach aktuellem Stand (Single Source of Truth):
-1. **Android TV/Google TV + IP Cam + Steam Deck/PC** als primäre Capture-Wege.
-2. **HDMI-Dongle/Capture-Card** nur optionaler Fallback für Sonderfälle.
-
-Damit ist die Richtung konsistent zu "software-first" und living-room-freundlichen Setups.
-
 ---
 
 ## 2) Architektur-Masterplan
@@ -47,7 +31,7 @@ Damit ist die Richtung konsistent zu "software-first" und living-room-freundlich
 ## 2.1 Zielarchitektur (Thin Client)
 
 ```text
-Capture Source (PC / Steam Deck / Android / Android TV App / IP Webcam)
+Capture Source (PC / Android / IP Webcam / HDMI-Bridge)
   -> Screenshot + Metadaten + optional Audio
   -> MQTT Publish (binary + JSON)
 
@@ -73,7 +57,6 @@ Optional Clients
 - **Idempotente Services** + nachvollziehbare Zustände.
 - **Backward Compatibility**, wo sinnvoll.
 - **Feature Flags** für experimentelle Module.
-- **Dual Interaction Model**: Ask-Mode + Proaktiv-Mode.
 
 ## 2.3 Nicht-funktionale Anforderungen
 - Latenz Ziel: 2–8 Sekunden pro Analysezyklus (modellabhängig).
@@ -108,7 +91,7 @@ Optional Clients
 ## Phase 1 (v0.5.x): Capture-Quellen erweitern
 
 ### Ziel
-Mehr Eingangsquellen, damit praktisch jedes Setup (PC/Steam Deck/Console/Mobile/TV) angebunden werden kann.
+Mehr Eingangsquellen, damit praktisch jedes Setup (PC/Console/Mobile) angebunden werden kann.
 
 ### 4.1 IP Webcam Source
 **Deliverables**
@@ -130,35 +113,23 @@ Mehr Eingangsquellen, damit praktisch jedes Setup (PC/Steam Deck/Console/Mobile/
 - Stabiler Betrieb > 60 Minuten ohne Crash.
 - Bei Kamera-Ausfall: saubere Fehlermeldung + Auto-Recovery.
 
-### 4.2 Android TV / Google TV Capture-Integration (PRIORITÄT)
+### 4.2 HDMI-Bridge (Raspberry Pi)
 **Deliverables**
-- Neues Modul/Companion-App-Konzept: `android_tv_capture/` (Kotlin) **oder** ADB-basierter Polling-Agent als Übergang.
-- Erfassung von Screenshots auf Android TV (MediaProjection API in App oder ADB `screencap`).
-- MQTT-Publishing kompatibel zu bestehender Topic-Struktur.
+- Neues Worker-Modul: `worker/capture_agent_bridge.py`.
+- Unterstützung für `/dev/video*` (USB Capture) + optional CSI Kamera.
+- Setup-Doku für Pi (minimal reproduzierbar).
 
 **Implementierungsschritte**
-1. Architektur-Entscheidung (ADR): native TV-App vs. ADB-only Übergang.
-2. MVP 1: ADB-Pfad stabilisieren (`adb exec-out screencap -p`) mit dedizierter TV-Konfiguration.
-3. MVP 2: Native Android-TV-App mit Foreground Service + Snapshot-Intervall + MQTT Client.
-4. Metadaten erweitern (`client_type: android_tv`, `app_package`, optional `input_source`).
-5. README-Setup für Sony/Philips/Chromecast/Shield ergänzen.
-
-**Abhängigkeiten**
-- Übergang: bestehender Python-Stack + ADB.
-- Native App: Kotlin + Android TV SDK + MQTT Client (Paho/alternativ).
+1. Capture-Backend abstrahieren (`opencv`/`ffmpeg`/`v4l2`).
+2. Einheitliches Frame-Processing wie Desktop-Agent.
+3. Topic-/Metadaten-Format identisch halten.
+4. Systemd-Service-Beispiel bereitstellen.
 
 **Risiken**
-- TV-Hersteller-Beschränkungen für Screen Capture.
-- Rechte-/Permission-Flow je Android-Version.
+- Unterschiedliche Treiber/Dongles.
+- Encoding-Latenz auf schwacher Hardware.
 
-### 4.3 HDMI-Bridge (depriorisiert, optional)
-**Status**
-- Nur optionaler Fallback, **nicht** primärer Fokus.
-
-**Lieferumfang (wenn nötig)**
-- Minimaler Bridge-Agent für Sonderfälle mit externer Capture-Hardware.
-
-### 4.4 Linux/macOS Feinschliff
+### 4.3 Linux/macOS Feinschliff
 **Deliverables**
 - Verbesserte Window-Title/Game-Erkennung auf Linux.
 - Dokumentierte macOS-Einschränkungen + Berechtigungen.
@@ -175,7 +146,7 @@ Mehr Eingangsquellen, damit praktisch jedes Setup (PC/Steam Deck/Console/Mobile/
 ### Ziel
 Präzisere Tipps und bessere Personalisierung pro Spiel/Session.
 
-### 4.5 Per-Game Spoiler Profile
+### 4.4 Per-Game Spoiler Profile
 **Deliverables**
 - Persistente Profile je Spiel.
 - Service: `gaming_assistant.set_spoiler_profile`.
@@ -187,7 +158,7 @@ Präzisere Tipps und bessere Personalisierung pro Spiel/Session.
 3. Service-Schema + Validierung ergänzen.
 4. Sensorattribute um aktives Profil erweitern.
 
-### 4.6 Prompt Pack Lifecycle
+### 4.5 Prompt Pack Lifecycle
 **Deliverables**
 - Versionierung/Manifest für Prompt Packs.
 - Optionales Update-Service-Konzept (remote oder lokaler Import).
@@ -197,7 +168,7 @@ Präzisere Tipps und bessere Personalisierung pro Spiel/Session.
 2. Loader-Validierung + Fehlerberichte verbessern.
 3. Lokales Override-Konzept dokumentieren.
 
-### 4.7 Session-Zusammenfassungen
+### 4.6 Session-Zusammenfassungen
 **Deliverables**
 - Rolling Summary statt nur „letzte N Tipps“.
 - Kontextkompression für lange Sessions.
@@ -215,7 +186,7 @@ Präzisere Tipps und bessere Personalisierung pro Spiel/Session.
 ### Ziel
 Tipps sichtbarer und direkter nutzbar machen.
 
-### 4.8 PC Overlay HUD
+### 4.7 PC Overlay HUD
 **Deliverables**
 - Optionales Overlay-Programm (`tools/overlay_pc.py` oder separates Repo).
 - MQTT Subscriber für aktuelle Tipps.
@@ -226,12 +197,12 @@ Tipps sichtbarer und direkter nutzbar machen.
 2. Render-Layer nicht-blockierend.
 3. Minimales Config-File + Presets.
 
-### 4.9 Android Overlay
+### 4.8 Android Overlay
 **Deliverables**
 - Begleit-App (Kotlin) mit „draw over apps“ Berechtigung.
 - Anzeige der letzten Tipps + optional TTS-Trigger.
 
-### 4.10 Lovelace-Ausbau
+### 4.9 Lovelace-Ausbau
 **Deliverables**
 - Erweiterte Dashboard-Karte (live Tip, History, Profilumschaltung, Quelle).
 - Bessere Diagnoseansicht (letzter Fehler, Latenz, Modellname).
@@ -243,13 +214,13 @@ Tipps sichtbarer und direkter nutzbar machen.
 ### Ziel
 Interaktive Steuerung und aktive Assistenz bei strengen Sicherheitsgrenzen.
 
-### 4.11 Sprach-Copilot
+### 4.10 Sprach-Copilot
 **Deliverables**
 - STT-Integration (z. B. Whisper/Faster-Whisper/Wyoming).
 - Frage-Antwort-Zyklus: Audio + Bild + Kontext -> Antworttip.
 - TTS-Rückkanal über HA.
 
-### 4.12 Agent Mode (Sicherheitsmodus)
+### 4.11 Agent Mode (Sicherheitsmodus)
 **Deliverables**
 - Separater, deaktivierter-by-default Modus.
 - Whitelist-fähige Aktionen (z. B. nur bestimmte Keys).
@@ -272,17 +243,17 @@ Interaktive Steuerung und aktive Assistenz bei strengen Sicherheitsgrenzen.
 ### Ziel
 Inhalte und Nutzung skalieren über Community-Beiträge.
 
-### 4.13 Prompt Pack Sharing
+### 4.12 Prompt Pack Sharing
 **Deliverables**
 - Externe Prompt-Pack-Registry (Repo/Index).
 - Submission-Templates + Validierung.
 
-### 4.14 Multi-Client & Multi-User UX
+### 4.13 Multi-Client & Multi-User UX
 **Deliverables**
 - Besseres Client-Routing im Coordinator.
 - Pro Client eigene Einstellungen/History-Anzeigen.
 
-### 4.15 Contributor Experience
+### 4.14 Contributor Experience
 **Deliverables**
 - Issue-Templates, PR-Template, Release-Checkliste.
 - „How to build a pack“-Guide inkl. Beispiele.
@@ -331,8 +302,7 @@ Empfohlener Codex-Workflow je Task:
 
 ### 6.1 Geplante neue Dateien (Beispiele)
 - `worker/capture_agent_ipcam.py`
-- `worker/capture_agent_android_tv.py` (optionaler Übergangsagent via ADB)
-- `android_tv_capture/` (Companion-App, Kotlin)
+- `worker/capture_agent_bridge.py`
 - `custom_components/gaming_assistant/spoiler_profiles.py` (optional)
 - `custom_components/gaming_assistant/prompt_packs/manifest.json`
 - `docs/`-Struktur für Setup und Quellen
@@ -368,7 +338,7 @@ Empfohlener Codex-Workflow je Task:
 
 ## 7.2 Test-Matrix
 - Plattformen: Windows, Linux, macOS (best effort), Android (ADB).
-- Quellen: Desktop Capture, Android TV (ADB/App), IP Webcam.
+- Quellen: Desktop Capture, IP Webcam, HDMI-Bridge.
 - Szenarien: hoher Bilddurchsatz, Broker-Neustart, Modellfehler, ungültige Metadaten.
 
 ## 7.3 Performance-Checks
@@ -381,7 +351,7 @@ Empfohlener Codex-Workflow je Task:
 ## 8) Release- und Migrationsplan
 
 ## 8.1 Zielversionen
-- **0.5.x**: Android-TV/Google-TV Capture + IP-Webcam Reife + Plattform-Robustheit.
+- **0.5.x**: Neue Capture-Quellen + Plattform-Robustheit.
 - **0.6.x**: Erweiterte Spoiler-/Prompt-Intelligenz.
 - **0.7.x**: Overlay + Dashboard UX.
 - **0.8.x**: Voice + sicherer Agent Mode (experimentell).
@@ -414,24 +384,14 @@ Zusätzlich empfohlen:
 
 ## 10) Backlog (konkret formulierte nächste Tasks)
 
-**Empfohlene Reihenfolge ab jetzt (für parallel arbeitende Assistants):**
-- Track A (Capture): GA-102 -> GA-103 -> GA-107
-- Track B (Interaction): GA-111 -> GA-112
-- Track C (Domain Expansion): GA-113 + zusätzliche Prompt-Packs
-
 1. **GA-101:** `capture_agent_ipcam.py` implementieren + README-Abschnitt.
-2. **GA-102:** Android-TV ADB-MVP (`capture_agent_android_tv.py`) mit stabiler Screenshot-Pipeline.
-3. **GA-103:** Architektur-ADR + Scaffold für native Android-TV-App (Foreground Service + MQTT).
-4. **GA-104:** Spoiler-Profil-Persistenz pro Spiel in Integration ergänzen.
-5. **GA-105:** Prompt-Pack-Manifest/Validierung einführen.
-6. **GA-106:** Session-Summary-Mechanik in History + Prompt Builder integrieren.
-7. **GA-107:** Erweiterte Diagnosesensoren (Latenz, letzter Fehler, Quelle, client_type).
-8. **GA-108:** Overlay-PC-Prototyp (nur Anzeige, kein Agent Mode).
-9. **GA-109:** Test-Harness mit Beispielbildern für reproduzierbare E2E-Läufe.
-10. **GA-110:** HDMI-Bridge nur als optionales Community-Addon (niedrige Priorität).
-11. **GA-111:** Ask-Mode-Service (`gaming_assistant.ask`) für freie Fragen plus Screenshot-Kontext.
-12. **GA-112:** Proaktiv-Modus mit Regelprofilen ("silent", "coach", "aggressive hints").
-13. **GA-113:** Prompt-Profile für Nicht-Action-Spiele (Schach/Karten/Brettspiele).
+2. **GA-102:** Bridge-Agent-Prototyp für `/dev/video0` + Systemd-Beispiel.
+3. **GA-103:** Spoiler-Profil-Persistenz pro Spiel in Integration ergänzen.
+4. **GA-104:** Prompt-Pack-Manifest/Validierung einführen.
+5. **GA-105:** Session-Summary-Mechanik in History + Prompt Builder integrieren.
+6. **GA-106:** Erweiterte Diagnosesensoren (Latenz, letzter Fehler, Quelle).
+7. **GA-107:** Overlay-PC-Prototyp (nur Anzeige, kein Agent Mode).
+8. **GA-108:** Test-Harness mit Beispielbildern für reproduzierbare E2E-Läufe.
 
 ---
 
@@ -480,7 +440,7 @@ Bei folgenden Themen vor Implementierung Entscheidung dokumentieren:
 ## 13) Kurzfassung für Stakeholder
 
 - Das Projekt ist auf gutem Fundament (v0.4.0).
-- Nächster Hebel: **Android-TV/Google-TV first** plus robuste Kameraquellen (v0.5.x).
+- Nächster Hebel: **mehr Capture-Quellen** (v0.5.x).
 - Danach: **intelligentere Kontextsteuerung** (v0.6.x) und **sichtbare UX** (v0.7.x).
 - Voice/Agent Mode erst mit klaren Sicherheits- und Qualitätsleitplanken.
 - Roadmap ist so strukturiert, dass Codex Tickets direkt umsetzen kann.

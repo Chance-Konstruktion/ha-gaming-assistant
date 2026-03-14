@@ -4,5 +4,3 @@ paho-mqtt>=1.6.1
 requests>=2.28.0
 # Optional: pywin32 (Windows only, for window title detection)
 # pywin32>=306
-
-requests>=2.28.0
