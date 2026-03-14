@@ -151,9 +151,9 @@ class ImageProcessor:
             image_hash = hashlib.md5(image_bytes).hexdigest()
         else:
             answer = await self._call_ollama_text(prompt)
-            image_hash = hashlib.md5(question.encode("utf-8")).hexdigest()
+            image_hash = None
 
-        if answer:
+        if answer and image_hash:
             await self._history.add_entry(game, client_id, image_hash, answer)
 
         return answer
@@ -212,8 +212,6 @@ class ImageProcessor:
                 "num_predict": OLLAMA_NUM_PREDICT,
             },
         }
-
-        import asyncio
 
         loop = asyncio.get_event_loop()
 

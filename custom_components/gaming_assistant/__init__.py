@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 
-from .const import DOMAIN
+from .const import DOMAIN, MAX_IMAGE_BYTES
 from .coordinator import GamingAssistantCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -87,6 +87,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 _LOGGER.error("process_image requires image_path or image_base64")
                 return
 
+            if len(image_bytes) > MAX_IMAGE_BYTES:
+                _LOGGER.error(
+                    "Image too large (%d bytes, max %d)", len(image_bytes), MAX_IMAGE_BYTES
+                )
+                return
+
             for coord in hass.data[DOMAIN].values():
                 if isinstance(coord, GamingAssistantCoordinator):
                     await coord.async_process_manual_image(
@@ -121,6 +127,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 except Exception as err:
                     _LOGGER.error("Invalid base64 image data: %s", err)
                     return
+
+            if image_bytes and len(image_bytes) > MAX_IMAGE_BYTES:
+                _LOGGER.error(
+                    "Image too large (%d bytes, max %d)", len(image_bytes), MAX_IMAGE_BYTES
+                )
+                return
 
             for coord in hass.data[DOMAIN].values():
                 if isinstance(coord, GamingAssistantCoordinator):
