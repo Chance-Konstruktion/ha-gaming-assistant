@@ -8,7 +8,7 @@ and push tips directly into Home Assistant -- no cloud, no subscriptions.
 
 ## Architecture
 
-v0.4 uses a **Thin Client Architecture**: the gaming device only captures and sends
+v0.5 uses a **Thin Client Architecture**: the gaming device only captures and sends
 screenshots. All intelligence runs in Home Assistant.
 
 ```
@@ -201,6 +201,58 @@ data:
   game: "Elden Ring"  # optional, for game-specific settings
 ```
 
+### Ask Mode
+
+Ask the assistant a direct question -- with or without a screenshot for context:
+
+```yaml
+service: gaming_assistant.ask
+data:
+  question: "How do I beat this boss?"
+  game_hint: "Elden Ring"
+```
+
+With a screenshot:
+
+```yaml
+service: gaming_assistant.ask
+data:
+  question: "What item is on the ground here?"
+  image_path: /config/www/screenshot.jpg
+```
+
+### Per-Game Spoiler Profiles
+
+Set all spoiler categories for a game at once:
+
+```yaml
+service: gaming_assistant.set_spoiler_profile
+data:
+  game: "Elden Ring"
+  level: none
+```
+
+Profiles persist across HA restarts. Clear with:
+
+```yaml
+service: gaming_assistant.set_spoiler_profile
+data:
+  game: "Elden Ring"
+  clear: true
+```
+
+### Camera Capture
+
+Use any HA camera entity (IP Webcam, Generic Camera, etc.) as image source -- perfect for console gaming:
+
+```yaml
+service: gaming_assistant.capture_from_camera
+data:
+  entity_id: camera.ip_webcam
+  game_hint: "Zelda"
+  client_type: console
+```
+
 ### Game-Specific Prompt Packs
 
 The integration includes prompt packs for popular games that provide tailored
@@ -240,8 +292,11 @@ Clear history via `gaming_assistant.clear_history`.
 | `gaming_assistant.start` | Resume the capture agent |
 | `gaming_assistant.stop` | Pause the capture agent |
 | `gaming_assistant.process_image` | Manually analyze an image (path or base64) |
-| `gaming_assistant.set_spoiler_level` | Change spoiler settings |
+| `gaming_assistant.ask` | Ask a direct question (optional image context) |
+| `gaming_assistant.set_spoiler_level` | Change spoiler settings per category |
+| `gaming_assistant.set_spoiler_profile` | Set/clear a per-game spoiler profile |
 | `gaming_assistant.clear_history` | Clear tip history |
+| `gaming_assistant.capture_from_camera` | Capture from a HA camera entity and analyze |
 
 ---
 
@@ -343,6 +398,20 @@ Same as Android agent, plus:
 ---
 
 ## Changelog
+
+### 0.5.0 -- "Ask Mode & Persistence"
+- **Added:** Ask mode -- ask the assistant direct questions via `gaming_assistant.ask`
+  service, optionally with an image for context.
+- **Added:** Per-game spoiler profiles via `gaming_assistant.set_spoiler_profile`.
+  Profiles persist across HA restarts (stored as JSON).
+- **Added:** Camera capture service `gaming_assistant.capture_from_camera` --
+  use any HA camera entity as image source (great for consoles).
+- **Added:** X11 window title detection via `xprop` (Linux).
+  `detect_window_title()` now tries Windows API, then X11, with graceful fallback.
+- **Added:** Android TV now detects foreground app package via `dumpsys window`.
+- **Improved:** CI checks all Python files (not just hardcoded list of 4).
+- **Improved:** 43 unit tests covering capture agents, prompt builder, and spoiler system.
+- **Fixed:** Branding -- correct codeowners, repo URLs, copyright.
 
 ### 0.4.0 -- "Thin Client Architecture"
 - **BREAKING:** New capture agent workers replace the old all-in-one workers.
