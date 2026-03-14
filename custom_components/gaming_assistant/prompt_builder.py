@@ -12,7 +12,6 @@ class PromptBuilder:
         history_context: str = "",
         prompt_pack: dict | None = None,
         client_type: str = "pc",
-        user_question: str = "",
     ) -> str:
         """Assemble the full prompt in the correct order."""
         parts: list[str] = []
@@ -40,20 +39,13 @@ class PromptBuilder:
             parts.append(history_context)
 
         # 6. Instruction
-        if user_question:
-            parts.append(f"User question: {user_question}")
-            parts.append(
-                "Answer the user question directly and briefly using the available context. "
-                "Be practical and specific."
-            )
-        else:
-            parts.append(
-                "Give exactly ONE short, specific, actionable tip. "
-                "No introduction, no emojis, just the tip."
-            )
+        parts.append(
+            "Give exactly ONE short, specific, actionable tip. "
+            "No introduction, no emojis, just the tip."
+        )
 
         # 7. Anti-repetition
-        if history_context and not user_question:
+        if history_context:
             parts.append("Do NOT repeat any previous tips. Give a NEW insight.")
 
         return "\n\n".join(parts)

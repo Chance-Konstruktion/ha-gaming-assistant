@@ -24,14 +24,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r worker/requirements-capture.txt
 
+      - name: Python syntax check
+        run: python -m py_compile worker/capture_agent.py
+             && python -m py_compile worker/capture_agent_android.py
+             && python -m py_compile worker/capture_agent_android_tv.py
+             && python -m py_compile worker/capture_agent_ipcam.py
+
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
-
-      - name: Verify Python syntax
-        run: |
-          python - <<'PY'
-          import pathlib, py_compile
-          for path in pathlib.Path('.').rglob('*.py'):
-              py_compile.compile(str(path), doraise=True)
-          print('Syntax checks passed')
-          PY

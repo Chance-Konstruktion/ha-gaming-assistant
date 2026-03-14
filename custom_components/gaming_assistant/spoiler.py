@@ -1,9 +1,7 @@
 """Spoiler level management for Gaming Assistant."""
 from __future__ import annotations
 
-import json
 import logging
-from pathlib import Path
 
 from .const import SPOILER_CATEGORIES, SPOILER_LEVELS, DEFAULT_SPOILER_LEVEL
 
@@ -59,10 +57,9 @@ _LEVEL_DESCRIPTIONS = {
 class SpoilerManager:
     """Manages spoiler settings and generates prompt blocks."""
 
-    def __init__(self, storage_path: str | None = None) -> None:
+    def __init__(self) -> None:
         self._global_settings: dict[str, str] = {}
         self._game_settings: dict[str, dict[str, str]] = {}
-        self._storage_path = Path(storage_path) if storage_path else None
 
     def initialize(self, default_level: str = DEFAULT_SPOILER_LEVEL) -> None:
         """Set all categories to the default level."""
@@ -77,13 +74,7 @@ class SpoilerManager:
             settings.update(self._game_settings[game])
         return settings
 
-    def get_game_profiles(self) -> dict[str, dict[str, str]]:
-        """Return all per-game profiles."""
-        return self._game_settings
-
-    def set_level(
-        self, category: str, level: str, game: str | None = None
-    ) -> None:
+    def set_level(self, category: str, level: str, game: str | None = None) -> None:
         """Set spoiler level for a category (globally or per game)."""
         if level not in SPOILER_LEVELS:
             _LOGGER.warning("Invalid spoiler level '%s', ignoring", level)
@@ -105,21 +96,6 @@ class SpoilerManager:
             for cat in targets:
                 self._global_settings[cat] = level
 
-        self.save()
-
-    def set_game_profile(self, game: str, level: str) -> None:
-        """Set all categories for a game profile with one level."""
-        if level not in SPOILER_LEVELS:
-            _LOGGER.warning("Invalid spoiler level '%s', ignoring", level)
-            return
-        self._game_settings[game] = {cat: level for cat in SPOILER_CATEGORIES}
-        self.save()
-
-    def clear_game_profile(self, game: str) -> None:
-        """Remove game-specific profile so globals apply again."""
-        self._game_settings.pop(game, None)
-        self.save()
-
     def apply_pack_defaults(self, game: str, spoiler_defaults: dict[str, str]) -> None:
         """Apply prompt pack spoiler defaults as a baseline for a game."""
         if game not in self._game_settings:
@@ -127,51 +103,6 @@ class SpoilerManager:
         for cat, level in spoiler_defaults.items():
             if cat in SPOILER_CATEGORIES and cat not in self._game_settings[game]:
                 self._game_settings[game][cat] = level
-
-    def load(self) -> None:
-        """Load spoiler profile settings from disk if available."""
-        if not self._storage_path or not self._storage_path.exists():
-            return
-        try:
-            data = json.loads(self._storage_path.read_text(encoding="utf-8"))
-            global_settings = data.get("global", {})
-            game_settings = data.get("games", {})
-
-            # validate keys/values
-            for cat in SPOILER_CATEGORIES:
-                level = global_settings.get(cat)
-                if level in SPOILER_LEVELS:
-                    self._global_settings[cat] = level
-
-            clean_games: dict[str, dict[str, str]] = {}
-            for game, settings in game_settings.items():
-                if not isinstance(settings, dict):
-                    continue
-                clean_games[game] = {
-                    cat: level
-                    for cat, level in settings.items()
-                    if cat in SPOILER_CATEGORIES and level in SPOILER_LEVELS
-                }
-            self._game_settings = clean_games
-        except (json.JSONDecodeError, OSError) as err:
-            _LOGGER.warning("Could not load spoiler profiles: %s", err)
-
-    def save(self) -> None:
-        """Persist spoiler profile settings to disk."""
-        if not self._storage_path:
-            return
-        try:
-            self._storage_path.parent.mkdir(parents=True, exist_ok=True)
-            payload = {
-                "global": self._global_settings,
-                "games": self._game_settings,
-            }
-            self._storage_path.write_text(
-                json.dumps(payload, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-        except OSError as err:
-            _LOGGER.warning("Could not save spoiler profiles: %s", err)
 
     @staticmethod
     def generate_prompt_block(settings: dict[str, str]) -> str:

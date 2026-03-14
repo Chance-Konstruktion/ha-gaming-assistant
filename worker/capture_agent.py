@@ -13,10 +13,6 @@ Requirements:
 Optional (game detection on Windows):
     pip install pywin32
 
-Linux/X11 note:
-    If `xprop` is available, the agent tries to read the active window title.
-    Wayland support is best-effort only; use --game-hint as fallback.
-
 Usage:
     python capture_agent.py --broker 192.168.1.10
 """
@@ -26,7 +22,6 @@ import hashlib
 import json
 import logging
 import platform
-import subprocess
 import time
 from io import BytesIO
 
@@ -87,70 +82,57 @@ def capture_screen(
 
 
 # ---------------------------------------------------------------------------
-# Game detection helpers
+# Game detection (Windows only, graceful fallback)
 # ---------------------------------------------------------------------------
 def _detect_window_title_windows() -> str:
-    """Return foreground window title on Windows (pywin32)."""
+    """Return the foreground window title on Windows via win32gui."""
     try:
         import win32gui
-
         return win32gui.GetWindowText(win32gui.GetForegroundWindow())
     except ImportError:
-        return ""
+        pass
     except Exception:
-        return ""
+        pass
+    return ""
 
 
 def _detect_window_title_x11() -> str:
-    """Return active window title via xprop (Linux/X11)."""
+    """Return the focused window title on Linux/X11 via xprop."""
+    import subprocess
     try:
-        active = subprocess.run(
+        # Get the active window ID
+        result = subprocess.run(
             ["xprop", "-root", "_NET_ACTIVE_WINDOW"],
-            capture_output=True,
-            text=True,
-            timeout=3,
-            check=False,
+            capture_output=True, text=True, timeout=5,
         )
-        if active.returncode != 0 or "#" not in active.stdout:
+        if result.returncode != 0:
             return ""
-
-        window_id = active.stdout.split("#", 1)[1].strip()
-        if not window_id:
+        # Extract window ID (e.g. "0x1234567")
+        parts = result.stdout.strip().split()
+        window_id = parts[-1] if parts else ""
+        if not window_id or window_id == "0x0":
             return ""
-
-        title = subprocess.run(
-            ["xprop", "-id", window_id, "_NET_WM_NAME"],
-            capture_output=True,
-            text=True,
-            timeout=3,
-            check=False,
+        # Get the window name
+        result = subprocess.run(
+            ["xprop", "-id", window_id, "WM_NAME"],
+            capture_output=True, text=True, timeout=5,
         )
-        if title.returncode != 0:
+        if result.returncode != 0:
             return ""
-
-        # Example output: _NET_WM_NAME(UTF8_STRING) = "Game Title"
-        if "=" not in title.stdout:
-            return ""
-        value = title.stdout.split("=", 1)[1].strip().strip('"')
-        return value
+        # Parse: WM_NAME(STRING) = "Window Title"
+        line = result.stdout.strip()
+        if "=" in line:
+            return line.split("=", 1)[1].strip().strip('"')
     except (FileNotFoundError, subprocess.TimeoutExpired):
-        return ""
+        pass
+    return ""
 
 
-def detect_window_title() -> tuple[str, str]:
-    """Return (window title, detector source)."""
-    # 1) Windows API
-    win_title = _detect_window_title_windows()
-    if win_title:
-        return win_title, "win32gui"
-
-    # 2) Linux X11 via xprop
-    x11_title = _detect_window_title_x11()
-    if x11_title:
-        return x11_title, "x11_xprop"
-
-    # 3) Unknown/unsupported (often Wayland without tooling)
-    return "", "none"
+def detect_window_title() -> str:
+    """Return the foreground window title (Windows: win32gui, Linux/X11: xprop)."""
+    if platform.system() == "Windows":
+        return _detect_window_title_windows()
+    return _detect_window_title_x11()
 
 
 def detect_active_game(window_title: str) -> str:
@@ -254,7 +236,7 @@ def main():
 
     last_hash = ""
     consecutive_errors = 0
-    max_errors = 5
+    MAX_ERRORS = 5
 
     try:
         while True:
@@ -274,40 +256,36 @@ def main():
                     continue
                 last_hash = frame_hash
 
-                # 3. Detect window title / game
                 if args.game_hint:
-                    effective_title = args.game_hint
-                    detector = "hint"
+                    game = args.game_hint
                 else:
-                    window_title, detector = detect_window_title()
+                    window_title = detect_window_title()
                     game = detect_active_game(window_title)
-                    effective_title = game or window_title
 
                 client.publish(topic_image, jpeg_bytes)
 
                 meta = {
                     "client_type": "pc",
-                    "window_title": effective_title,
+                    "window_title": game if args.game_hint else (game or window_title),
                     "resolution": f"{resize[0]}x{resize[1]}",
                     "timestamp": int(time.time()),
-                    "detector": detector,
+                    "detector": "hint" if args.game_hint else platform.system().lower(),
                 }
                 client.publish(topic_meta, json.dumps(meta))
 
                 log.info(
-                    "Sent frame (%d KB) game=%s detector=%s",
+                    "Sent frame (%d KB) game=%s",
                     len(jpeg_bytes) // 1024,
-                    effective_title or "(unknown)",
-                    detector,
+                    game or "(unknown)",
                 )
                 consecutive_errors = 0
 
-            except Exception as err:
-                log.exception("Capture error: %s", err)
+            except Exception as e:
+                log.exception("Capture error: %s", e)
                 consecutive_errors += 1
 
-            if consecutive_errors >= max_errors:
-                log.error("Too many consecutive errors (%d). Exiting.", max_errors)
+            if consecutive_errors >= MAX_ERRORS:
+                log.error("Too many consecutive errors (%d). Exiting.", MAX_ERRORS)
                 break
 
             time.sleep(args.interval)
