@@ -14,10 +14,12 @@ from .const import (
     CONF_OLLAMA_HOST,
     CONF_MODEL,
     CONF_INTERVAL,
+    CONF_TIMEOUT,
     CONF_DEFAULT_SPOILER,
     DEFAULT_OLLAMA_HOST,
     DEFAULT_MODEL,
     DEFAULT_INTERVAL,
+    DEFAULT_TIMEOUT,
     DEFAULT_SPOILER_LEVEL,
     SPOILER_LEVELS,
 )
@@ -46,7 +48,10 @@ def _fetch_ollama_models(host: str) -> list[str] | None:
 
 
 def _schema_model_step(
-    models: list[str], default_model: str, default_interval: int
+    models: list[str],
+    default_model: str,
+    default_interval: int,
+    default_timeout: int = DEFAULT_TIMEOUT,
 ) -> vol.Schema:
     if default_model not in models:
         models = [default_model, *models]
@@ -55,6 +60,9 @@ def _schema_model_step(
             vol.Required(CONF_MODEL, default=default_model): vol.In(models),
             vol.Required(CONF_INTERVAL, default=default_interval): vol.All(
                 int, vol.Range(min=5, max=120)
+            ),
+            vol.Required(CONF_TIMEOUT, default=default_timeout): vol.All(
+                int, vol.Range(min=10, max=300)
             ),
         }
     )
@@ -70,6 +78,7 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._models: list[str] = FALLBACK_MODELS
         self._model: str = DEFAULT_MODEL
         self._interval: int = DEFAULT_INTERVAL
+        self._timeout: int = DEFAULT_TIMEOUT
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -109,10 +118,11 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_model(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Step 2 – pick model and analysis interval."""
+        """Step 2 – pick model, analysis interval, and timeout."""
         if user_input is not None:
             self._model = user_input[CONF_MODEL]
             self._interval = user_input[CONF_INTERVAL]
+            self._timeout = user_input.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)
             return await self.async_step_spoiler()
 
         return self.async_show_form(
@@ -133,6 +143,7 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_OLLAMA_HOST: self._ollama_host,
                     CONF_MODEL: self._model,
                     CONF_INTERVAL: self._interval,
+                    CONF_TIMEOUT: self._timeout,
                     CONF_DEFAULT_SPOILER: user_input[CONF_DEFAULT_SPOILER],
                 },
             )
@@ -174,6 +185,7 @@ class GamingAssistantOptionsFlow(config_entries.OptionsFlow):
 
         default_model = current.get(CONF_MODEL, DEFAULT_MODEL)
         default_interval = current.get(CONF_INTERVAL, DEFAULT_INTERVAL)
+        default_timeout = current.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)
         default_spoiler = current.get(CONF_DEFAULT_SPOILER, DEFAULT_SPOILER_LEVEL)
 
         if user_input is not None:
@@ -189,6 +201,9 @@ class GamingAssistantOptionsFlow(config_entries.OptionsFlow):
                     vol.Required(CONF_MODEL, default=default_model): vol.In(models),
                     vol.Required(CONF_INTERVAL, default=default_interval): vol.All(
                         int, vol.Range(min=5, max=120)
+                    ),
+                    vol.Required(CONF_TIMEOUT, default=default_timeout): vol.All(
+                        int, vol.Range(min=10, max=300)
                     ),
                     vol.Required(
                         CONF_DEFAULT_SPOILER, default=default_spoiler

@@ -45,12 +45,14 @@ class ImageProcessor:
         history_manager: HistoryManager,
         spoiler_manager: SpoilerManager,
         prompt_pack_loader=None,
+        timeout: int | None = None,
     ) -> None:
         self._ollama_host = ollama_host.rstrip("/")
         self._model = model
         self._history = history_manager
         self._spoiler = spoiler_manager
         self._pack_loader = prompt_pack_loader
+        self._timeout = timeout or OLLAMA_TIMEOUT
 
     async def process(
         self,
@@ -178,7 +180,7 @@ class ImageProcessor:
             try:
                 response = await loop.run_in_executor(
                     None,
-                    lambda: requests.post(url, json=payload, timeout=OLLAMA_TIMEOUT),
+                    lambda: requests.post(url, json=payload, timeout=self._timeout),
                 )
                 response.raise_for_status()
                 return response.json().get("response", "").strip()
@@ -218,7 +220,7 @@ class ImageProcessor:
             try:
                 response = await loop.run_in_executor(
                     None,
-                    lambda: requests.post(url, json=payload, timeout=OLLAMA_TIMEOUT),
+                    lambda: requests.post(url, json=payload, timeout=self._timeout),
                 )
                 response.raise_for_status()
                 return response.json().get("response", "").strip()
