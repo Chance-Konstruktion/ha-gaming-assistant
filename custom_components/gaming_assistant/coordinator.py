@@ -60,7 +60,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
         # Initialize managers
         self._history = HistoryManager(hass.config.config_dir)
-        self._spoiler = SpoilerManager(f"{hass.config.config_dir}/gaming_assistant/spoiler_profiles.json")
+        self._spoiler = SpoilerManager(
+            f"{hass.config.config_dir}/gaming_assistant/spoiler_profiles.json"
+        )
         default_spoiler = config.get(CONF_DEFAULT_SPOILER, DEFAULT_SPOILER_LEVEL)
         self._spoiler.initialize(default_spoiler)
         self._spoiler.load()

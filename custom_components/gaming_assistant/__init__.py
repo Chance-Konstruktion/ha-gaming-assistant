@@ -100,7 +100,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     )
                     break
 
-
         async def handle_ask(call: ServiceCall) -> None:
             """Ask a direct question to the assistant (optional image context)."""
             question = (call.data.get("question") or "").strip()
@@ -158,7 +157,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         category, level, game or "global",
                     )
                     break
-
 
         async def handle_set_spoiler_profile(call: ServiceCall) -> None:
             """Set or clear a per-game spoiler profile."""

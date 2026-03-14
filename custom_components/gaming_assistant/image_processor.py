@@ -199,7 +199,6 @@ class ImageProcessor:
         _LOGGER.error("Ollama request failed after retries")
         return ""
 
-
     async def _call_ollama_text(self, prompt: str) -> str:
         """Send text-only prompt to Ollama and return the response."""
         url = f"{self._ollama_host}/api/generate"
