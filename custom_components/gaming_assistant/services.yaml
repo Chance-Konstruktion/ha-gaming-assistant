@@ -44,6 +44,7 @@ process_image:
             - "android"
             - "android_tv"
             - "console"
+            - "tabletop"
 
 ask:
   name: Ask Question
@@ -85,6 +86,7 @@ ask:
             - "android"
             - "android_tv"
             - "console"
+            - "tabletop"
 
 set_spoiler_level:
   name: Set Spoiler Level
@@ -193,3 +195,62 @@ capture_from_camera:
             - "android"
             - "android_tv"
             - "console"
+            - "tabletop"
+
+watch_camera:
+  name: Watch Camera
+  description: >
+    Start continuous monitoring of a Home Assistant camera entity.
+    Works like a built-in capture agent — grabs snapshots at a regular interval
+    and analyzes them automatically. Use any camera integrated in HA: IP Webcam,
+    Generic Camera, Frigate, Android TV, ONVIF, etc.
+    Perfect for board games, card games, chess, or console gaming.
+  fields:
+    entity_id:
+      name: Camera Entity
+      description: The camera entity to watch (e.g. camera.ip_webcam, camera.schachtisch)
+      required: true
+      selector:
+        entity:
+          domain: camera
+    game_hint:
+      name: Game Hint
+      description: Game name hint (e.g. "Schach", "Siedler von Catan", "Elden Ring")
+      required: false
+      selector:
+        text:
+    client_type:
+      name: Client Type
+      description: Type of game source
+      required: false
+      default: "tabletop"
+      selector:
+        select:
+          options:
+            - "pc"
+            - "android"
+            - "android_tv"
+            - "console"
+            - "tabletop"
+    interval:
+      name: Capture Interval
+      description: Seconds between captures (0 = use configured default)
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 300
+          unit_of_measurement: seconds
+
+stop_watch_camera:
+  name: Stop Watch Camera
+  description: Stop continuous camera monitoring. Leave entity_id empty to stop all watchers.
+  fields:
+    entity_id:
+      name: Camera Entity
+      description: The camera entity to stop watching (empty = stop all)
+      required: false
+      selector:
+        entity:
+          domain: camera

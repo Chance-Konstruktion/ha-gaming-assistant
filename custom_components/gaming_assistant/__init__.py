@@ -21,6 +21,7 @@ _ALL_SERVICES = (
     "analyze", "start", "stop",
     "process_image", "ask", "set_spoiler_level", "set_spoiler_profile",
     "clear_history", "capture_from_camera",
+    "watch_camera", "stop_watch_camera",
 )
 
 
@@ -221,6 +222,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     )
                     break
 
+        async def handle_watch_camera(call: ServiceCall) -> None:
+            """Start continuous monitoring of a HA camera entity."""
+            entity_id = call.data.get("entity_id", "")
+            game_hint = call.data.get("game_hint", "")
+            client_type = call.data.get("client_type", "tabletop")
+            interval = int(call.data.get("interval", 0))
+
+            if not entity_id:
+                _LOGGER.error("watch_camera requires entity_id")
+                return
+
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_watch_camera(
+                        entity_id, game_hint, client_type, interval
+                    )
+                    break
+
+        async def handle_stop_watch_camera(call: ServiceCall) -> None:
+            """Stop continuous camera monitoring."""
+            entity_id = call.data.get("entity_id", "")
+
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_stop_watch_camera(entity_id)
+                    break
+
         hass.services.async_register(DOMAIN, "analyze", handle_analyze)
         hass.services.async_register(DOMAIN, "start", handle_start)
         hass.services.async_register(DOMAIN, "stop", handle_stop)
@@ -230,6 +258,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "set_spoiler_profile", handle_set_spoiler_profile)
         hass.services.async_register(DOMAIN, "clear_history", handle_clear_history)
         hass.services.async_register(DOMAIN, "capture_from_camera", handle_capture_from_camera)
+        hass.services.async_register(DOMAIN, "watch_camera", handle_watch_camera)
+        hass.services.async_register(DOMAIN, "stop_watch_camera", handle_stop_watch_camera)
 
     _LOGGER.info("Gaming Assistant integration loaded successfully")
     return True
@@ -241,7 +271,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.entry_id
     )
     if coordinator:
-        coordinator.async_unsubscribe()
+        await coordinator.async_shutdown()
 
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
