@@ -8,23 +8,25 @@ and push tips directly into Home Assistant -- no cloud, no subscriptions.
 
 ## Architecture
 
-v0.5 uses a **Thin Client Architecture**: the gaming device only captures and sends
+v0.6 uses a **Thin Client Architecture**: the gaming device only captures and sends
 screenshots. All intelligence runs in Home Assistant.
 
 ```
-Gaming PC / Android (Capture Agent)
+Gaming PC / Android / Tabletop Camera (Capture Agent)
   └── Screenshot capture + JPEG compress + MQTT publish (binary image)
          │
     Home Assistant (the "Brain")
       ├── MQTT Image Listener
       ├── Image Deduplication (hash)
       ├── Game Detection (via client metadata)
-      ├── History Manager (per game, JSON)
+      ├── History Manager (per game, JSONL)
       ├── Spoiler Level System
-      ├── Prompt Pack Loader (game-specific coaching)
+      ├── Assistant Modes (coach / coplay / opponent / analyst)
+      ├── Prompt Pack Loader (video games + tabletop)
       ├── Dynamic Prompt Builder
+      ├── Camera Watcher (continuous HA camera monitoring)
       ├── Ollama Vision LLM Call
-      └── Sensors + Services
+      └── Sensors (8) + Services (12)
          │
     Automations
       ├── TTS (speak tips aloud)
@@ -171,9 +173,64 @@ python worker/capture_agent_ipcam.py \
 
 Tip: point your phone camera at the TV/monitor and lock focus/exposure for more stable tips.
 
+#### Windows GUI App (easiest setup)
+
+For non-technical users: download the single `.exe` and run it -- no Python needed.
+
+**Build from source:**
+
+```bat
+cd worker
+build_exe.bat
+```
+
+The resulting `GamingAssistant.exe` includes a GUI where you enter broker IP,
+select monitor, and start/stop capture with a button. Settings are saved to `config.ini`.
+
 ---
 
 ## Features
+
+### Assistant Modes
+
+Switch between 4 coaching styles:
+
+| Mode | Description |
+|------|-------------|
+| **coach** | Tips and strategy to help the player win (default) |
+| **coplay** | Collaborative teammate, suggests joint moves |
+| **opponent** | Plays competitively, announces its own moves |
+| **analyst** | Neutral commentary, doesn't take sides |
+
+```yaml
+service: gaming_assistant.set_mode
+data:
+  mode: opponent
+```
+
+### Tabletop Game Support
+
+Point a camera at your board game and get live coaching. Built-in prompt packs
+for **Chess**, **Poker**, **Settlers of Catan**, and **UNO**.
+
+Use the `watch_camera` service for continuous monitoring:
+
+```yaml
+service: gaming_assistant.watch_camera
+data:
+  entity_id: camera.board_game_cam
+  game_hint: "Chess"
+  client_type: tabletop
+  interval: 10
+```
+
+Stop watching:
+
+```yaml
+service: gaming_assistant.stop_watch_camera
+data:
+  entity_id: camera.board_game_cam  # omit to stop all watchers
+```
 
 ### Spoiler Level System
 
@@ -256,8 +313,12 @@ data:
 ### Game-Specific Prompt Packs
 
 The integration includes prompt packs for popular games that provide tailored
-coaching. Built-in packs: Elden Ring, Dark Souls III, Baldur's Gate 3,
+coaching.
+
+**Video games:** Elden Ring, Dark Souls III, Baldur's Gate 3,
 Minecraft, Zelda: Tears of the Kingdom.
+
+**Tabletop games:** Chess, Poker, Settlers of Catan, UNO.
 
 Create custom packs by adding JSON files to
 `custom_components/gaming_assistant/prompt_packs/`. See `_template.json`
@@ -279,9 +340,14 @@ Clear history via `gaming_assistant.clear_history`.
 
 | Entity | Description |
 |--------|-------------|
-| `sensor.gaming_assistant_tip` | Latest AI-generated gameplay tip |
+| `sensor.gaming_assistant_tip` | Latest AI tip (attributes: game, mode, spoiler_level) |
 | `sensor.gaming_assistant_status` | Status (idle / analyzing / error) |
 | `sensor.gaming_assistant_history` | Tip count + recent tips as attributes |
+| `sensor.gaming_assistant_latency` | Duration of last analysis (seconds) |
+| `sensor.gaming_assistant_error_count` | Errors since startup |
+| `sensor.gaming_assistant_frames_processed` | Total frames analyzed |
+| `sensor.gaming_assistant_last_analysis` | Timestamp of last successful analysis |
+| `sensor.gaming_assistant_active_watchers` | Number of active camera watchers |
 | `binary_sensor.gaming_mode` | ON when a game is detected |
 
 ## Services
@@ -296,7 +362,10 @@ Clear history via `gaming_assistant.clear_history`.
 | `gaming_assistant.set_spoiler_level` | Change spoiler settings per category |
 | `gaming_assistant.set_spoiler_profile` | Set/clear a per-game spoiler profile |
 | `gaming_assistant.clear_history` | Clear tip history |
-| `gaming_assistant.capture_from_camera` | Capture from a HA camera entity and analyze |
+| `gaming_assistant.capture_from_camera` | One-shot capture from a HA camera entity |
+| `gaming_assistant.watch_camera` | Continuous camera monitoring at interval |
+| `gaming_assistant.stop_watch_camera` | Stop camera watcher(s) |
+| `gaming_assistant.set_mode` | Switch assistant mode (coach/coplay/opponent/analyst) |
 
 ---
 
@@ -398,6 +467,25 @@ Same as Android agent, plus:
 ---
 
 ## Changelog
+
+### 0.6.0 -- "Tabletop & Modes"
+- **Added:** Assistant modes -- coach, coplay, opponent, analyst -- via
+  `gaming_assistant.set_mode` service. Each mode changes how the AI interacts
+  with the game (helping, competing, or commentating).
+- **Added:** Tabletop game prompt packs for Chess, Poker, Settlers of Catan,
+  and UNO. Point a camera at your board game for live coaching.
+- **Added:** `watch_camera` / `stop_watch_camera` services for continuous
+  HA camera monitoring at configurable intervals (great for tabletop games).
+- **Added:** `client_type` parameter (pc, android, android_tv, console,
+  tabletop) for context-aware prompts.
+- **Added:** Windows GUI app (`gaming_assistant_gui.py`) with `build_exe.bat`
+  for single-file .exe deployment -- no Python needed on the gaming PC.
+- **Added:** Windows launcher (`install_and_run.bat`) for easy first-time setup.
+- **Added:** 5 diagnostic sensors: latency, error count, frames processed,
+  last analysis timestamp, active watchers.
+- **Improved:** History storage switched from JSON to JSONL for better
+  performance and append-friendly writes.
+- **Improved:** Configurable Ollama timeout.
 
 ### 0.5.0 -- "Ask Mode & Persistence"
 - **Added:** Ask mode -- ask the assistant direct questions via `gaming_assistant.ask`
