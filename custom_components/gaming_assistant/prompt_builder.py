@@ -2,6 +2,16 @@
 from __future__ import annotations
 
 
+# Extra context injected when the source is a physical tabletop game.
+_TABLETOP_CONTEXT = (
+    "The game is being played physically on a real table, captured by a camera. "
+    "Analyze what you see on the board/table: pieces, cards, tokens, dice, etc. "
+    "Give tactical advice about the current visible game state. "
+    "If the image is unclear or partially obscured, say what you can identify "
+    "and base your tip on that."
+)
+
+
 class PromptBuilder:
     """Builds the final prompt from all components."""
 
@@ -23,6 +33,10 @@ class PromptBuilder:
         # 2. Game context
         if game:
             parts.append(f"The player is playing {game} on {client_type}.")
+
+        # 2b. Tabletop context
+        if client_type == "tabletop":
+            parts.append(_TABLETOP_CONTEXT)
 
         # 3. Prompt pack system prompt
         if prompt_pack:

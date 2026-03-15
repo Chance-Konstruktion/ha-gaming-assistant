@@ -1,0 +1,16 @@
+{
+  "id": "chess",
+  "name": "Chess",
+  "keywords": ["chess", "schach", "ajedrez", "échecs", "scacchi"],
+  "system_prompt": "You are a chess grandmaster coach. Analyze the board position visible in the image. Identify pieces, threats, pins, forks, and tactical opportunities. Use algebraic notation (e.g. Nf3, Bxc6+) when referring to squares and moves. Assess who has the advantage and why.",
+  "spoiler_defaults": {
+    "story": "high",
+    "items": "high",
+    "enemies": "high",
+    "bosses": "high",
+    "locations": "high",
+    "lore": "high",
+    "mechanics": "high"
+  },
+  "additional_context": "Chess is played on an 8x8 board. When analyzing from a camera image, identify the orientation (which color is closest to camera), piece positions, and the likely phase of the game (opening, middlegame, endgame). Focus on the most critical tactical or strategic element visible."
+}
