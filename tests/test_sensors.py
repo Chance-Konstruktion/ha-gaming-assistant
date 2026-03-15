@@ -119,11 +119,11 @@ class TestDiagnosticSensors(unittest.TestCase):
         self.assertEqual(GamingAssistantFramesProcessedSensor._attr_unique_id, "gaming_assistant_frames_processed")
         self.assertEqual(GamingAssistantLastAnalysisSensor._attr_unique_id, "gaming_assistant_last_analysis")
 
-    def test_entity_category_is_diagnostic(self):
-        self.assertEqual(GamingAssistantLatencySensor._attr_entity_category, "diagnostic")
-        self.assertEqual(GamingAssistantErrorCountSensor._attr_entity_category, "diagnostic")
-        self.assertEqual(GamingAssistantFramesProcessedSensor._attr_entity_category, "diagnostic")
-        self.assertEqual(GamingAssistantLastAnalysisSensor._attr_entity_category, "diagnostic")
+    def test_entity_category_not_diagnostic(self):
+        """Sensors should appear as regular entities, not diagnostic."""
+        for cls in (GamingAssistantLatencySensor, GamingAssistantErrorCountSensor,
+                    GamingAssistantFramesProcessedSensor, GamingAssistantLastAnalysisSensor):
+            self.assertIsNone(getattr(cls, "_attr_entity_category", None))
 
 
 if __name__ == "__main__":
