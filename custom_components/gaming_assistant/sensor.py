@@ -45,6 +45,7 @@ class GamingAssistantTipSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
         self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
 
     @property
     def native_value(self) -> str:
@@ -69,6 +70,7 @@ class GamingAssistantStatusSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
         self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
 
     @property
     def native_value(self) -> str:
@@ -85,6 +87,7 @@ class GamingAssistantHistorySensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
         self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
 
     @property
     def native_value(self) -> int:
@@ -111,6 +114,7 @@ class GamingAssistantLatencySensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
         self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
 
     @property
     def native_value(self) -> float:
@@ -128,6 +132,7 @@ class GamingAssistantErrorCountSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
         self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
 
     @property
     def native_value(self) -> int:
@@ -145,6 +150,7 @@ class GamingAssistantFramesProcessedSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
         self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
 
     @property
     def native_value(self) -> int:
@@ -162,6 +168,7 @@ class GamingAssistantLastAnalysisSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
         self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
 
     @property
     def native_value(self) -> str:
@@ -179,6 +186,7 @@ class GamingAssistantActiveWatchersSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
         self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
 
     @property
     def native_value(self) -> int:
@@ -199,6 +207,7 @@ class GamingAssistantRegisteredWorkersSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
         self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
 
     @property
     def native_value(self) -> int:

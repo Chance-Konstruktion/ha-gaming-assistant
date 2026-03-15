@@ -18,7 +18,7 @@
       },
       "spoiler": {
         "title": "Spoiler Settings",
-        "description": "Choose a default spoiler level. This applies to all categories. You can fine-tune per category and game later via the set_spoiler_level service.",
+        "description": "Choose a default spoiler level. This applies to all categories. You can fine-tune per category and game later via the spoiler level entity or the set_spoiler_level service.",
         "data": {
           "default_spoiler_level": "Default Spoiler Level"
         }
@@ -44,10 +44,38 @@
         "title": "Settings",
         "data": {
           "model": "Vision Model",
-          "interval": "Interval (seconds)",
-          "default_spoiler_level": "Default Spoiler Level",
           "camera_entity": "Camera Entity"
         }
+      }
+    }
+  },
+  "entity": {
+    "select": {
+      "assistant_mode": {
+        "name": "Assistant Mode",
+        "state": {
+          "coach": "Coach",
+          "coplay": "Co-Player",
+          "opponent": "Opponent",
+          "analyst": "Analyst"
+        }
+      },
+      "spoiler_level": {
+        "name": "Spoiler Level",
+        "state": {
+          "none": "None",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      }
+    },
+    "number": {
+      "interval": {
+        "name": "Analysis Interval"
+      },
+      "timeout": {
+        "name": "Analysis Timeout"
       }
     }
   }
