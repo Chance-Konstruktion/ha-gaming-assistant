@@ -56,10 +56,6 @@ class GamingAssistantTipSensor(CoordinatorEntity, SensorEntity):
             "gaming_mode": self._coordinator.gaming_mode,
             "worker_status": self._coordinator.status,
             "game": self._coordinator.current_game,
-            "assistant_mode": self._coordinator.assistant_mode,
-            "spoiler_level": self._coordinator.spoiler_manager.get_settings(
-                self._coordinator.current_game or None
-            ),
         }
 
 

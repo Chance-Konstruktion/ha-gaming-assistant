@@ -12,18 +12,18 @@ from homeassistant.core import callback
 from homeassistant.helpers import entity_registry as er
 
 from .const import (
-    DOMAIN,
-    CONF_OLLAMA_HOST,
-    CONF_MODEL,
-    CONF_INTERVAL,
-    CONF_TIMEOUT,
     CONF_CAMERA_ENTITY,
     CONF_DEFAULT_SPOILER,
-    DEFAULT_OLLAMA_HOST,
-    DEFAULT_MODEL,
+    CONF_INTERVAL,
+    CONF_MODEL,
+    CONF_OLLAMA_HOST,
+    CONF_TIMEOUT,
     DEFAULT_INTERVAL,
-    DEFAULT_TIMEOUT,
+    DEFAULT_MODEL,
+    DEFAULT_OLLAMA_HOST,
     DEFAULT_SPOILER_LEVEL,
+    DEFAULT_TIMEOUT,
+    DOMAIN,
     SPOILER_LEVELS,
 )
 
@@ -209,7 +209,7 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class GamingAssistantOptionsFlow(config_entries.OptionsFlow):
-    """Options flow – reconfigure model, interval, spoiler defaults, and camera."""
+    """Options flow – reconfigure model and camera (setup-level settings only)."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -225,9 +225,6 @@ class GamingAssistantOptionsFlow(config_entries.OptionsFlow):
             models = FALLBACK_MODELS
 
         default_model = current.get(CONF_MODEL, DEFAULT_MODEL)
-        default_interval = current.get(CONF_INTERVAL, DEFAULT_INTERVAL)
-        default_timeout = current.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)
-        default_spoiler = current.get(CONF_DEFAULT_SPOILER, DEFAULT_SPOILER_LEVEL)
         default_camera = current.get(CONF_CAMERA_ENTITY, "")
 
         if user_input is not None:
@@ -251,15 +248,6 @@ class GamingAssistantOptionsFlow(config_entries.OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_MODEL, default=default_model): vol.In(models),
-                    vol.Required(CONF_INTERVAL, default=default_interval): vol.All(
-                        int, vol.Range(min=5, max=120)
-                    ),
-                    vol.Required(CONF_TIMEOUT, default=default_timeout): vol.All(
-                        int, vol.Range(min=10, max=300)
-                    ),
-                    vol.Required(
-                        CONF_DEFAULT_SPOILER, default=default_spoiler
-                    ): vol.In(SPOILER_LEVELS),
                     vol.Optional(
                         CONF_CAMERA_ENTITY, default=default_camera
                     ): vol.In(camera_options),

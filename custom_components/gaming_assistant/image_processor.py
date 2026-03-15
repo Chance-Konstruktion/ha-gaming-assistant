@@ -54,6 +54,14 @@ class ImageProcessor:
         self._pack_loader = prompt_pack_loader
         self._timeout = timeout or OLLAMA_TIMEOUT
 
+    @property
+    def timeout(self) -> int:
+        return self._timeout
+
+    @timeout.setter
+    def timeout(self, value: int) -> None:
+        self._timeout = value
+
     async def process(
         self,
         image_bytes: bytes,
