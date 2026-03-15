@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 
-from .const import DOMAIN, MAX_IMAGE_BYTES
+from .const import CONF_CAMERA_ENTITY, DOMAIN, MAX_IMAGE_BYTES
 from .coordinator import GamingAssistantCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,6 +42,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await coordinator.async_setup_mqtt()
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Failed to set up MQTT subscriptions")
+
+        # Auto-start camera watcher if configured
+        camera_entity = entry.data.get(CONF_CAMERA_ENTITY, "") or entry.options.get(
+            CONF_CAMERA_ENTITY, ""
+        )
+        if camera_entity:
+            try:
+                await coordinator.async_watch_camera(camera_entity)
+                _LOGGER.info("Auto-started camera watcher for %s", camera_entity)
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception(
+                    "Failed to auto-start camera watcher for %s", camera_entity
+                )
 
     # On first boot wait for HA_STARTED so MQTT is fully initialised.
     # On reload (hass.is_running == True) connect immediately.

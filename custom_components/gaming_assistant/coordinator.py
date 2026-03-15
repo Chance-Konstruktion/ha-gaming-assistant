@@ -14,6 +14,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     ASSISTANT_MODES,
+    CONF_CAMERA_ENTITY,
     CONF_DEFAULT_SPOILER,
     CONF_MODEL,
     CONF_OLLAMA_HOST,
@@ -27,6 +28,7 @@ from .const import (
     MQTT_MODE_TOPIC,
     MQTT_STATUS_TOPIC,
     MQTT_TIP_TOPIC,
+    MQTT_WORKER_REGISTER_TOPIC,
 )
 from .history import HistoryManager
 from .image_processor import ImageProcessor
@@ -72,6 +74,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
         # Camera watchers: entity_id → {task, cancel_event, game_hint, client_type, interval}
         self._camera_watchers: dict[str, dict[str, Any]] = {}
+
+        # Registered workers: client_id → {name, type, platform, last_seen, ...}
+        self._registered_workers: dict[str, dict[str, Any]] = {}
 
         # Runtime metrics
         self._latency: float = 0.0
@@ -166,6 +171,37 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self.async_set_updated_data(self._build_data())
 
     @property
+    def registered_workers(self) -> dict[str, dict[str, Any]]:
+        return self._registered_workers
+
+    def _register_worker(self, client_id: str, info: dict[str, Any] | None = None) -> None:
+        """Register or update a worker. Called automatically on MQTT activity."""
+        now = time.strftime("%Y-%m-%dT%H:%M:%S")
+        if client_id in self._registered_workers:
+            self._registered_workers[client_id]["last_seen"] = now
+            if info:
+                self._registered_workers[client_id].update(info)
+        else:
+            worker_info = {
+                "name": info.get("name", client_id) if info else client_id,
+                "type": info.get("type", "unknown") if info else "unknown",
+                "platform": info.get("platform", "") if info else "",
+                "version": info.get("version", "") if info else "",
+                "first_seen": now,
+                "last_seen": now,
+            }
+            if info:
+                worker_info.update({k: v for k, v in info.items() if k not in worker_info})
+            self._registered_workers[client_id] = worker_info
+            _LOGGER.info("New worker registered: %s (%s)", client_id, worker_info.get("type"))
+        self.async_set_updated_data(self._build_data())
+
+    @property
+    def configured_camera(self) -> str:
+        """Return the camera entity configured in the config flow."""
+        return self.config.get(CONF_CAMERA_ENTITY, "")
+
+    @property
     def latency(self) -> float:
         return self._latency
 
@@ -250,6 +286,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             """Handle incoming image from a capture agent."""
             client_id = msg.topic.split("/")[1]
             _LOGGER.debug("Image received from client: %s", client_id)
+            self._register_worker(client_id)
             self.hass.async_create_task(
                 self._process_image(client_id, msg.payload)
             )
@@ -264,9 +301,24 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                     payload = payload.decode("utf-8")
                 metadata = json.loads(payload)
                 self._client_metadata[client_id] = metadata
+                self._register_worker(client_id, metadata)
                 _LOGGER.debug("Metadata from %s: %s", client_id, metadata)
             except (json.JSONDecodeError, UnicodeDecodeError) as err:
                 _LOGGER.warning("Invalid metadata from %s: %s", client_id, err)
+
+        @callback
+        def worker_register_received(msg) -> None:
+            """Handle explicit worker registration."""
+            client_id = msg.topic.split("/")[1]
+            try:
+                payload = msg.payload
+                if isinstance(payload, bytes):
+                    payload = payload.decode("utf-8")
+                info = json.loads(payload)
+                self._register_worker(client_id, info)
+                _LOGGER.info("Worker registered via MQTT: %s", client_id)
+            except (json.JSONDecodeError, UnicodeDecodeError) as err:
+                _LOGGER.warning("Invalid register payload from %s: %s", client_id, err)
 
         unsub_tip = await mqtt.async_subscribe(
             self.hass, MQTT_TIP_TOPIC, tip_received, 0
@@ -283,9 +335,13 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         unsub_meta = await mqtt.async_subscribe(
             self.hass, MQTT_META_TOPIC, meta_received, 0
         )
+        unsub_register = await mqtt.async_subscribe(
+            self.hass, MQTT_WORKER_REGISTER_TOPIC, worker_register_received, 0
+        )
 
         self._unsubscribe_callbacks = [
             unsub_tip, unsub_mode, unsub_status, unsub_image, unsub_meta,
+            unsub_register,
         ]
 
     # -- Image processing pipeline -------------------------------------------
@@ -570,6 +626,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "recent_tips": self._recent_tips,
             "active_watchers": self.active_camera_watchers,
             "assistant_mode": self._assistant_mode,
+            "registered_workers": self._registered_workers,
         }
 
     async def _async_update_data(self) -> dict:

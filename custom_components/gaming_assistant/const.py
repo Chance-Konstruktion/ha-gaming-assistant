@@ -6,6 +6,7 @@ CONF_OLLAMA_HOST = "ollama_host"
 CONF_MODEL = "model"
 CONF_INTERVAL = "interval"
 CONF_TIMEOUT = "analysis_timeout"
+CONF_CAMERA_ENTITY = "camera_entity"
 
 DEFAULT_OLLAMA_HOST = "http://localhost:11434"
 DEFAULT_MODEL = "qwen2.5vl"
@@ -20,6 +21,7 @@ MQTT_STATUS_TOPIC = "gaming_assistant/status"
 # New MQTT Topics (v0.4 Thin Client)
 MQTT_IMAGE_TOPIC = "gaming_assistant/+/image"  # + = client_id wildcard
 MQTT_META_TOPIC = "gaming_assistant/+/meta"
+MQTT_WORKER_REGISTER_TOPIC = "gaming_assistant/+/register"
 
 # Spoiler Levels
 SPOILER_CATEGORIES = [
