@@ -22,6 +22,13 @@
         "data": {
           "default_spoiler_level": "Standard Spoiler-Level"
         }
+      },
+      "camera": {
+        "title": "Kamera einrichten",
+        "description": "Optional: Wähle eine Home Assistant Kamera aus, die automatisch für Game-Screenshots überwacht wird. Du kannst das überspringen, wenn du einen externen Worker (PC/Android App) nutzt. Worker die sich per MQTT verbinden, werden automatisch registriert.",
+        "data": {
+          "camera_entity": "Kamera-Entität"
+        }
       }
     },
     "error": {
@@ -38,7 +45,8 @@
         "data": {
           "model": "Vision-Modell",
           "interval": "Intervall (Sekunden)",
-          "default_spoiler_level": "Standard Spoiler-Level"
+          "default_spoiler_level": "Standard Spoiler-Level",
+          "camera_entity": "Kamera-Entität"
         }
       }
     }

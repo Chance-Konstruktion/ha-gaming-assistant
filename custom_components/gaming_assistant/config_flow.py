@@ -9,12 +9,15 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 
+from homeassistant.helpers import entity_registry as er
+
 from .const import (
     DOMAIN,
     CONF_OLLAMA_HOST,
     CONF_MODEL,
     CONF_INTERVAL,
     CONF_TIMEOUT,
+    CONF_CAMERA_ENTITY,
     CONF_DEFAULT_SPOILER,
     DEFAULT_OLLAMA_HOST,
     DEFAULT_MODEL,
@@ -79,6 +82,7 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._model: str = DEFAULT_MODEL
         self._interval: int = DEFAULT_INTERVAL
         self._timeout: int = DEFAULT_TIMEOUT
+        self._spoiler_level: str = DEFAULT_SPOILER_LEVEL
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -137,16 +141,8 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.ConfigFlowResult:
         """Step 3 – configure default spoiler level."""
         if user_input is not None:
-            return self.async_create_entry(
-                title="Gaming Assistant",
-                data={
-                    CONF_OLLAMA_HOST: self._ollama_host,
-                    CONF_MODEL: self._model,
-                    CONF_INTERVAL: self._interval,
-                    CONF_TIMEOUT: self._timeout,
-                    CONF_DEFAULT_SPOILER: user_input[CONF_DEFAULT_SPOILER],
-                },
-            )
+            self._spoiler_level = user_input[CONF_DEFAULT_SPOILER]
+            return await self.async_step_camera()
 
         return self.async_show_form(
             step_id="spoiler",
@@ -159,6 +155,51 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
         )
 
+    async def async_step_camera(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Step 4 – optionally select a camera entity to auto-watch."""
+        if user_input is not None:
+            camera_entity = user_input.get(CONF_CAMERA_ENTITY, "")
+            return self.async_create_entry(
+                title="Gaming Assistant",
+                data={
+                    CONF_OLLAMA_HOST: self._ollama_host,
+                    CONF_MODEL: self._model,
+                    CONF_INTERVAL: self._interval,
+                    CONF_TIMEOUT: self._timeout,
+                    CONF_DEFAULT_SPOILER: self._spoiler_level,
+                    CONF_CAMERA_ENTITY: camera_entity,
+                },
+            )
+
+        # Build list of available camera entities
+        camera_entities = self._get_camera_entities()
+
+        schema_fields: dict = {}
+        if camera_entities:
+            options = {"": "— No camera (use external worker) —"}
+            options.update({eid: eid for eid in sorted(camera_entities)})
+            schema_fields[vol.Optional(CONF_CAMERA_ENTITY, default="")] = vol.In(
+                options
+            )
+        else:
+            schema_fields[vol.Optional(CONF_CAMERA_ENTITY, default="")] = str
+
+        return self.async_show_form(
+            step_id="camera",
+            data_schema=vol.Schema(schema_fields),
+        )
+
+    def _get_camera_entities(self) -> list[str]:
+        """Return all camera entity IDs registered in HA."""
+        registry = er.async_get(self.hass)
+        return [
+            entry.entity_id
+            for entry in registry.entities.values()
+            if entry.domain == "camera" and not entry.disabled
+        ]
+
     @staticmethod
     @callback
     def async_get_options_flow(
@@ -168,7 +209,7 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class GamingAssistantOptionsFlow(config_entries.OptionsFlow):
-    """Options flow – reconfigure model, interval, and spoiler defaults."""
+    """Options flow – reconfigure model, interval, spoiler defaults, and camera."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -187,12 +228,23 @@ class GamingAssistantOptionsFlow(config_entries.OptionsFlow):
         default_interval = current.get(CONF_INTERVAL, DEFAULT_INTERVAL)
         default_timeout = current.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)
         default_spoiler = current.get(CONF_DEFAULT_SPOILER, DEFAULT_SPOILER_LEVEL)
+        default_camera = current.get(CONF_CAMERA_ENTITY, "")
 
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
         if default_model not in models:
             models = [default_model, *models]
+
+        # Build camera options
+        registry = er.async_get(self.hass)
+        camera_entities = [
+            entry.entity_id
+            for entry in registry.entities.values()
+            if entry.domain == "camera" and not entry.disabled
+        ]
+        camera_options = {"": "— No camera (use external worker) —"}
+        camera_options.update({eid: eid for eid in sorted(camera_entities)})
 
         return self.async_show_form(
             step_id="init",
@@ -208,6 +260,9 @@ class GamingAssistantOptionsFlow(config_entries.OptionsFlow):
                     vol.Required(
                         CONF_DEFAULT_SPOILER, default=default_spoiler
                     ): vol.In(SPOILER_LEVELS),
+                    vol.Optional(
+                        CONF_CAMERA_ENTITY, default=default_camera
+                    ): vol.In(camera_options),
                 }
             ),
         )

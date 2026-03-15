@@ -31,6 +31,7 @@ async def async_setup_entry(
         GamingAssistantFramesProcessedSensor(coordinator),
         GamingAssistantLastAnalysisSensor(coordinator),
         GamingAssistantActiveWatchersSensor(coordinator),
+        GamingAssistantRegisteredWorkersSensor(coordinator),
     ])
 
 
@@ -190,3 +191,23 @@ class GamingAssistantActiveWatchersSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         return {"watchers": self._coordinator.active_camera_watchers}
+
+
+class GamingAssistantRegisteredWorkersSensor(CoordinatorEntity, SensorEntity):
+    """Number of registered workers (auto-discovered via MQTT)."""
+
+    _attr_name = "Gaming Assistant Workers"
+    _attr_unique_id = "gaming_assistant_registered_workers"
+    _attr_icon = "mdi:devices"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+
+    @property
+    def native_value(self) -> int:
+        return len(self._coordinator.registered_workers)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {"workers": self._coordinator.registered_workers}
