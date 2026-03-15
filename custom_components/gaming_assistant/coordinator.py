@@ -16,10 +16,12 @@ from .const import (
     ASSISTANT_MODES,
     CONF_CAMERA_ENTITY,
     CONF_DEFAULT_SPOILER,
+    CONF_INTERVAL,
     CONF_MODEL,
     CONF_OLLAMA_HOST,
     CONF_TIMEOUT,
     DEFAULT_ASSISTANT_MODE,
+    DEFAULT_INTERVAL,
     DEFAULT_SPOILER_LEVEL,
     DEFAULT_TIMEOUT,
     DOMAIN,
@@ -66,7 +68,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._client_metadata: dict[str, dict] = {}
         self._processing: bool = False
 
-        # Configurable timeout
+        # Configurable interval & timeout
+        self._analysis_interval: int = config.get(CONF_INTERVAL, DEFAULT_INTERVAL)
         self._analysis_timeout: int = config.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)
 
         # Assistant mode (coach, coplay, opponent, analyst)
@@ -154,8 +157,39 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         return self._pack_loader
 
     @property
+    def analysis_interval(self) -> int:
+        return self._analysis_interval
+
+    def set_analysis_interval(self, value: int) -> None:
+        """Set the capture/analysis interval in seconds."""
+        self._analysis_interval = max(5, min(120, value))
+        _LOGGER.info("Analysis interval set to: %ds", self._analysis_interval)
+        self.async_set_updated_data(self._build_data())
+
+    @property
     def analysis_timeout(self) -> int:
         return self._analysis_timeout
+
+    def set_analysis_timeout(self, value: int) -> None:
+        """Set the analysis timeout in seconds."""
+        self._analysis_timeout = max(10, min(300, value))
+        self._image_processor.timeout = self._analysis_timeout
+        _LOGGER.info("Analysis timeout set to: %ds", self._analysis_timeout)
+        self.async_set_updated_data(self._build_data())
+
+    @property
+    def default_spoiler_level(self) -> str:
+        return self._spoiler.default_level
+
+    def set_default_spoiler_level(self, level: str) -> None:
+        """Set the default spoiler level."""
+        from .const import SPOILER_LEVELS
+        if level not in SPOILER_LEVELS:
+            _LOGGER.warning("Unknown spoiler level '%s'", level)
+            return
+        self._spoiler.set_level("all", level)
+        _LOGGER.info("Default spoiler level set to: %s", level)
+        self.async_set_updated_data(self._build_data())
 
     @property
     def assistant_mode(self) -> str:
@@ -437,10 +471,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
         Uses the configured analysis interval if *interval* is 0.
         """
-        from .const import CONF_INTERVAL, DEFAULT_INTERVAL
-
         if interval <= 0:
-            interval = self.config.get(CONF_INTERVAL, DEFAULT_INTERVAL)
+            interval = self._analysis_interval
 
         # Stop existing watcher for this entity if running
         if entity_id in self._camera_watchers:
@@ -626,6 +658,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "recent_tips": self._recent_tips,
             "active_watchers": self.active_camera_watchers,
             "assistant_mode": self._assistant_mode,
+            "analysis_interval": self._analysis_interval,
+            "analysis_timeout": self._analysis_timeout,
+            "spoiler_level": self._spoiler.default_level,
             "registered_workers": self._registered_workers,
         }
 

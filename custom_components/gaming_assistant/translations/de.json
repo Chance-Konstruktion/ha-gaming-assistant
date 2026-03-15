@@ -18,7 +18,7 @@
       },
       "spoiler": {
         "title": "Spoiler-Einstellungen",
-        "description": "Wähle ein Standard-Spoiler-Level. Dies gilt für alle Kategorien. Du kannst pro Kategorie und Spiel über den Service set_spoiler_level feinjustieren.",
+        "description": "Wähle ein Standard-Spoiler-Level. Dies gilt für alle Kategorien. Du kannst pro Kategorie und Spiel über die Spoiler-Level Entität oder den Service set_spoiler_level feinjustieren.",
         "data": {
           "default_spoiler_level": "Standard Spoiler-Level"
         }
@@ -44,10 +44,38 @@
         "title": "Einstellungen",
         "data": {
           "model": "Vision-Modell",
-          "interval": "Intervall (Sekunden)",
-          "default_spoiler_level": "Standard Spoiler-Level",
           "camera_entity": "Kamera-Entität"
         }
+      }
+    }
+  },
+  "entity": {
+    "select": {
+      "assistant_mode": {
+        "name": "Assistenten-Modus",
+        "state": {
+          "coach": "Coach",
+          "coplay": "Mitspieler",
+          "opponent": "Gegner",
+          "analyst": "Analyst"
+        }
+      },
+      "spoiler_level": {
+        "name": "Spoiler-Level",
+        "state": {
+          "none": "Keins",
+          "low": "Niedrig",
+          "medium": "Mittel",
+          "high": "Hoch"
+        }
+      }
+    },
+    "number": {
+      "interval": {
+        "name": "Analyse-Intervall"
+      },
+      "timeout": {
+        "name": "Analyse-Timeout"
       }
     }
   }

@@ -70,6 +70,14 @@ class SpoilerManager:
             default_level = DEFAULT_SPOILER_LEVEL
         self._global_settings = {cat: default_level for cat in SPOILER_CATEGORIES}
 
+    @property
+    def default_level(self) -> str:
+        """Return the predominant global spoiler level."""
+        if not self._global_settings:
+            return DEFAULT_SPOILER_LEVEL
+        levels = list(self._global_settings.values())
+        return max(set(levels), key=levels.count)
+
     def get_settings(self, game: str | None = None) -> dict[str, str]:
         """Return spoiler settings, game-specific overrides merged on top of global."""
         settings = dict(self._global_settings)
