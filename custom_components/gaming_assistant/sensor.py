@@ -30,6 +30,7 @@ async def async_setup_entry(
         GamingAssistantErrorCountSensor(coordinator),
         GamingAssistantFramesProcessedSensor(coordinator),
         GamingAssistantLastAnalysisSensor(coordinator),
+        GamingAssistantActiveWatchersSensor(coordinator),
     ])
 
 
@@ -167,3 +168,24 @@ class GamingAssistantLastAnalysisSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self) -> str:
         return self._coordinator.last_analysis
+
+
+class GamingAssistantActiveWatchersSensor(CoordinatorEntity, SensorEntity):
+    """Number of active camera watchers."""
+
+    _attr_name = "Gaming Assistant Active Watchers"
+    _attr_unique_id = "gaming_assistant_active_watchers"
+    _attr_icon = "mdi:camera-eye"
+    _attr_entity_category = "diagnostic"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+
+    @property
+    def native_value(self) -> int:
+        return len(self._coordinator.active_camera_watchers)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {"watchers": self._coordinator.active_camera_watchers}
