@@ -1,5 +1,5 @@
 ################################################################################
-# Gaming Assistant – Lovelace Dashboard (v0.4)
+# Gaming Assistant – Lovelace Dashboard (v0.8)
 # Copy this into a manual card or your dashboard YAML
 ################################################################################
 
@@ -30,6 +30,19 @@ cards:
         name: Tips Count
         icon: mdi:history
 
+  # -- Controls (Select + Number entities) -----------------------------------
+  - type: entities
+    title: Controls
+    entities:
+      - entity: select.gaming_assistant_assistant_mode
+        name: Mode
+      - entity: select.gaming_assistant_spoiler_level
+        name: Spoiler Level
+      - entity: number.gaming_assistant_interval
+        name: Interval
+      - entity: number.gaming_assistant_timeout
+        name: Timeout
+
   # -- Current tip -----------------------------------------------------------
   - type: markdown
     content: |
@@ -53,48 +66,23 @@ cards:
       _No tips yet._
       {% endif %}
 
-  # -- Spoiler Level Controls ------------------------------------------------
+  # -- Diagnostics -----------------------------------------------------------
   - type: horizontal-stack
     cards:
-      - type: button
-        name: "Spoiler: None"
-        icon: mdi:shield-lock
-        tap_action:
-          action: call-service
-          service: gaming_assistant.set_spoiler_level
-          service_data:
-            category: all
-            level: none
+      - type: entity
+        entity: sensor.gaming_assistant_latency
+        name: Latency
+        icon: mdi:clock
 
-      - type: button
-        name: "Spoiler: Low"
-        icon: mdi:shield-half-full
-        tap_action:
-          action: call-service
-          service: gaming_assistant.set_spoiler_level
-          service_data:
-            category: all
-            level: low
+      - type: entity
+        entity: sensor.gaming_assistant_frames_processed
+        name: Frames
+        icon: mdi:image-multiple
 
-      - type: button
-        name: "Spoiler: Medium"
-        icon: mdi:shield-outline
-        tap_action:
-          action: call-service
-          service: gaming_assistant.set_spoiler_level
-          service_data:
-            category: all
-            level: medium
-
-      - type: button
-        name: "Spoiler: High"
-        icon: mdi:shield-off
-        tap_action:
-          action: call-service
-          service: gaming_assistant.set_spoiler_level
-          service_data:
-            category: all
-            level: high
+      - type: entity
+        entity: sensor.gaming_assistant_active_watchers
+        name: Watchers
+        icon: mdi:camera-eye
 
   # -- Action buttons --------------------------------------------------------
   - type: horizontal-stack

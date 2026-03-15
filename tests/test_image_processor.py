@@ -15,6 +15,7 @@ _HA_MODULES = [
     "homeassistant.core",
     "homeassistant.exceptions",
     "homeassistant.helpers",
+    "homeassistant.helpers.device_registry",
     "homeassistant.helpers.update_coordinator",
 ]
 for mod in _HA_MODULES:

@@ -10,6 +10,7 @@ from typing import Any
 from homeassistant.components import mqtt
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
@@ -54,6 +55,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             update_interval=None,  # Pure push via MQTT, no polling
         )
         self.config = config
+        self._config_entry_id: str = ""
+
         self._tip: str = "Waiting for tips..."
         self._gaming_mode: bool = False
         self._status: str = "idle"
@@ -107,6 +110,18 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         )
 
     # -- public properties ---------------------------------------------------
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device info so all entities are grouped under one device."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._config_entry_id or "gaming_assistant")},
+            name="Gaming Assistant",
+            manufacturer="Chance-Konstruktion",
+            model=self.config.get(CONF_MODEL, "qwen2.5vl"),
+            sw_version="0.8.0",
+            configuration_url=self.config.get(CONF_OLLAMA_HOST, ""),
+        )
 
     @property
     def tip(self) -> str:

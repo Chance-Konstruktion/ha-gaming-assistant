@@ -75,6 +75,7 @@ _ha_stubs = {
     "homeassistant.core": MagicMock(),
     "homeassistant.exceptions": MagicMock(),
     "homeassistant.helpers": MagicMock(),
+    "homeassistant.helpers.device_registry": MagicMock(),
     "homeassistant.helpers.entity_platform": MagicMock(),
 }
 

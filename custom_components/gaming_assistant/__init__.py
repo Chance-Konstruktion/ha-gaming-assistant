@@ -35,6 +35,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     coordinator = GamingAssistantCoordinator(hass, dict(entry.data))
+    coordinator._config_entry_id = entry.entry_id
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     # Forward setup to platforms so entities are available immediately

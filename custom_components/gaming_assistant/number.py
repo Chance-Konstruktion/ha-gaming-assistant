@@ -44,6 +44,7 @@ class AnalysisIntervalNumber(CoordinatorEntity, NumberEntity):
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
         self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
 
     @property
     def native_value(self) -> float:
@@ -69,6 +70,7 @@ class AnalysisTimeoutNumber(CoordinatorEntity, NumberEntity):
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
         self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
 
     @property
     def native_value(self) -> float:
