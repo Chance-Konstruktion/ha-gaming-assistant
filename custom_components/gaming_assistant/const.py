@@ -40,6 +40,10 @@ DEFAULT_SPOILER_LEVEL = "medium"
 ATTR_LAST_TIP = "last_tip"
 ATTR_GAMING_MODE = "gaming_mode"
 
+# Assistant Modes
+ASSISTANT_MODES = ["coach", "coplay", "opponent", "analyst"]
+DEFAULT_ASSISTANT_MODE = "coach"
+
 # Image Processing
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB hard limit for base64-decoded images
 IMAGE_DEDUP_WINDOW_SECONDS = 60

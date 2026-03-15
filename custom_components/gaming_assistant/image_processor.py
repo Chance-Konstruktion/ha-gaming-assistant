@@ -69,6 +69,7 @@ class ImageProcessor:
         # 2. Extract game info from metadata
         game = metadata.get("window_title", "") or metadata.get("game", "")
         client_type = metadata.get("client_type", "pc")
+        assistant_mode = metadata.get("assistant_mode", "coach")
 
         # 3. Deduplication check
         key = game or client_id
@@ -100,6 +101,7 @@ class ImageProcessor:
             history_context=history_context,
             prompt_pack=prompt_pack,
             client_type=client_type,
+            assistant_mode=assistant_mode,
         )
 
         # 8. Call Ollama
@@ -126,6 +128,7 @@ class ImageProcessor:
 
         game = metadata.get("window_title", "") or metadata.get("game", "")
         client_type = metadata.get("client_type", "pc")
+        assistant_mode = metadata.get("assistant_mode", "coach")
 
         prompt_pack = None
         if self._pack_loader and game:
@@ -145,6 +148,7 @@ class ImageProcessor:
             prompt_pack=prompt_pack,
             client_type=client_type,
             user_question=question,
+            assistant_mode=assistant_mode,
         )
 
         if image_bytes:
