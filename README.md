@@ -8,7 +8,7 @@ and push tips directly into Home Assistant -- no cloud, no subscriptions.
 
 ## Architecture
 
-v0.6 uses a **Thin Client Architecture**: the gaming device only captures and sends
+v0.8 uses a **Thin Client Architecture**: the gaming device only captures and sends
 screenshots. All intelligence runs in Home Assistant.
 
 ```
@@ -26,7 +26,7 @@ Gaming PC / Android / Tabletop Camera (Capture Agent)
       ├── Dynamic Prompt Builder
       ├── Camera Watcher (continuous HA camera monitoring)
       ├── Ollama Vision LLM Call
-      └── Sensors (8) + Services (12)
+      └── Sensors + Entities + Services
          │
     Automations
       ├── TTS (speak tips aloud)
@@ -76,10 +76,11 @@ passthrough mode.
 
 Go to **Settings -> Devices & Services -> Add Integration -> Gaming Assistant**
 
-The config flow has 3 steps:
+The config flow has 4 steps:
 1. **Ollama Host** -- URL of your Ollama server
-2. **Model & Interval** -- Choose a vision model and capture interval
+2. **Model & Interval** -- Choose a vision model, capture interval, and timeout
 3. **Spoiler Level** -- Default spoiler level (none/low/medium/high)
+4. **Camera** -- Optionally select a HA camera to auto-watch
 
 > **Note:** The config flow validates the Ollama connection. If the server is
 > unreachable you'll see an error and can correct the URL.
@@ -193,19 +194,24 @@ select monitor, and start/stop capture with a button. Settings are saved to `con
 
 ### Assistant Modes
 
-Switch between 4 coaching styles:
+Switch between 4 coaching styles directly from the dashboard using
+`select.gaming_assistant_assistant_mode`:
 
 | Mode | Description |
 |------|-------------|
-| **coach** | Tips and strategy to help the player win (default) |
-| **coplay** | Collaborative teammate, suggests joint moves |
-| **opponent** | Plays competitively, announces its own moves |
-| **analyst** | Neutral commentary, doesn't take sides |
+| **Coach** | Tips and strategy to help the player win (default) |
+| **Co-Player** | Collaborative teammate, suggests joint moves |
+| **Opponent** | Plays competitively, announces its own moves |
+| **Analyst** | Neutral commentary, doesn't take sides |
+
+Change the mode via the dropdown in your dashboard, or via automation:
 
 ```yaml
-service: gaming_assistant.set_mode
+action: select.select_option
+target:
+  entity_id: select.gaming_assistant_assistant_mode
 data:
-  mode: opponent
+  option: opponent
 ```
 
 ### Tabletop Game Support
@@ -338,9 +344,20 @@ Clear history via `gaming_assistant.clear_history`.
 
 ## Entities
 
+### Controls (adjustable from the dashboard)
+
+| Entity | Type | Description |
+|--------|------|-------------|
+| `select.gaming_assistant_assistant_mode` | Select | Coach / Co-Player / Opponent / Analyst |
+| `select.gaming_assistant_spoiler_level` | Select | Default spoiler level (None / Low / Medium / High) |
+| `number.gaming_assistant_interval` | Number (slider) | Capture/analysis interval (5–120 s) |
+| `number.gaming_assistant_timeout` | Number (slider) | Analysis timeout (10–300 s) |
+
+### Sensors
+
 | Entity | Description |
 |--------|-------------|
-| `sensor.gaming_assistant_tip` | Latest AI tip (attributes: game, mode, spoiler_level) |
+| `sensor.gaming_assistant_tip` | Latest AI tip (attributes: game, worker_status) |
 | `sensor.gaming_assistant_status` | Status (idle / analyzing / error) |
 | `sensor.gaming_assistant_history` | Tip count + recent tips as attributes |
 | `sensor.gaming_assistant_latency` | Duration of last analysis (seconds) |
@@ -348,6 +365,7 @@ Clear history via `gaming_assistant.clear_history`.
 | `sensor.gaming_assistant_frames_processed` | Total frames analyzed |
 | `sensor.gaming_assistant_last_analysis` | Timestamp of last successful analysis |
 | `sensor.gaming_assistant_active_watchers` | Number of active camera watchers |
+| `sensor.gaming_assistant_registered_workers` | Auto-discovered workers via MQTT |
 | `binary_sensor.gaming_mode` | ON when a game is detected |
 
 ## Services
@@ -359,13 +377,15 @@ Clear history via `gaming_assistant.clear_history`.
 | `gaming_assistant.stop` | Pause the capture agent |
 | `gaming_assistant.process_image` | Manually analyze an image (path or base64) |
 | `gaming_assistant.ask` | Ask a direct question (optional image context) |
-| `gaming_assistant.set_spoiler_level` | Change spoiler settings per category |
+| `gaming_assistant.set_spoiler_level` | Change spoiler settings per category/game |
 | `gaming_assistant.set_spoiler_profile` | Set/clear a per-game spoiler profile |
 | `gaming_assistant.clear_history` | Clear tip history |
 | `gaming_assistant.capture_from_camera` | One-shot capture from a HA camera entity |
 | `gaming_assistant.watch_camera` | Continuous camera monitoring at interval |
 | `gaming_assistant.stop_watch_camera` | Stop camera watcher(s) |
-| `gaming_assistant.set_mode` | Switch assistant mode (coach/coplay/opponent/analyst) |
+
+> **Note:** Assistant mode, spoiler level, interval, and timeout are now
+> controlled via entities (see above) instead of services.
 
 ---
 
@@ -467,6 +487,25 @@ Same as Android agent, plus:
 ---
 
 ## Changelog
+
+### 0.8.0 -- "Dashboard Entities"
+- **Added:** Select entity for assistant mode -- switch between Coach,
+  Co-Player, Opponent, and Analyst directly from the dashboard dropdown.
+- **Added:** Select entity for default spoiler level (None/Low/Medium/High).
+- **Added:** Number entities (sliders) for analysis interval (5–120 s) and
+  timeout (10–300 s) -- adjustable live without reconfiguring.
+- **Added:** Workers sensor showing auto-discovered MQTT workers.
+- **Added:** Full German and English translations for all new entities
+  including state labels.
+- **Removed:** `gaming_assistant.set_mode` service (replaced by select entity).
+- **Changed:** Options flow simplified to model and camera only. Interval,
+  timeout, and spoiler level are now controlled via entities.
+- **Changed:** Config flow updated to 4 steps (added camera step).
+
+### 0.7.0 -- "Camera & Workers"
+- **Added:** Config flow step 4 for camera entity selection (auto-watch on setup).
+- **Added:** Worker auto-registration via MQTT.
+- **Added:** Camera entity configurable in options flow.
 
 ### 0.6.0 -- "Tabletop & Modes"
 - **Added:** Assistant modes -- coach, coplay, opponent, analyst -- via

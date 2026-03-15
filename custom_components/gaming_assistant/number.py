@@ -9,11 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
-    DEFAULT_INTERVAL,
-    DEFAULT_TIMEOUT,
-    DOMAIN,
-)
+from .const import DOMAIN
 from .coordinator import GamingAssistantCoordinator
 
 _LOGGER = logging.getLogger(__name__)

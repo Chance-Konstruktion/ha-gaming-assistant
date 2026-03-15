@@ -11,21 +11,12 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     ASSISTANT_MODES,
-    DEFAULT_ASSISTANT_MODE,
-    DEFAULT_SPOILER_LEVEL,
     DOMAIN,
     SPOILER_LEVELS,
 )
 from .coordinator import GamingAssistantCoordinator
 
 _LOGGER = logging.getLogger(__name__)
-
-_MODE_LABELS: dict[str, str] = {
-    "coach": "Coach",
-    "coplay": "Co-Player",
-    "opponent": "Opponent",
-    "analyst": "Analyst",
-}
 
 
 async def async_setup_entry(
