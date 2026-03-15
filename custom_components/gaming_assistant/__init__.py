@@ -22,6 +22,7 @@ _ALL_SERVICES = (
     "process_image", "ask", "set_spoiler_level", "set_spoiler_profile",
     "clear_history", "capture_from_camera",
     "watch_camera", "stop_watch_camera",
+    "set_mode",
 )
 
 
@@ -249,6 +250,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     await coord.async_stop_watch_camera(entity_id)
                     break
 
+        async def handle_set_mode(call: ServiceCall) -> None:
+            """Switch the assistant mode (coach, coplay, opponent, analyst)."""
+            mode = (call.data.get("mode") or "").strip().lower()
+            if not mode:
+                _LOGGER.error("set_mode requires a mode")
+                return
+
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    coord.set_assistant_mode(mode)
+                    break
+
         hass.services.async_register(DOMAIN, "analyze", handle_analyze)
         hass.services.async_register(DOMAIN, "start", handle_start)
         hass.services.async_register(DOMAIN, "stop", handle_stop)
@@ -260,6 +273,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "capture_from_camera", handle_capture_from_camera)
         hass.services.async_register(DOMAIN, "watch_camera", handle_watch_camera)
         hass.services.async_register(DOMAIN, "stop_watch_camera", handle_stop_watch_camera)
+        hass.services.async_register(DOMAIN, "set_mode", handle_set_mode)
 
     _LOGGER.info("Gaming Assistant integration loaded successfully")
     return True
