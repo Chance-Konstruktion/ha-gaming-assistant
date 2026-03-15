@@ -254,3 +254,27 @@ stop_watch_camera:
       selector:
         entity:
           domain: camera
+
+set_mode:
+  name: Set Assistant Mode
+  description: >
+    Switch the assistant's role: Coach gives tips to help you win.
+    Co-Play plays alongside you as a teammate. Opponent plays against you
+    and announces its moves. Analyst provides neutral commentary without
+    taking sides.
+  fields:
+    mode:
+      name: Mode
+      description: The assistant's role
+      required: true
+      selector:
+        select:
+          options:
+            - label: "Coach — Tipps & Strategieberatung"
+              value: "coach"
+            - label: "Co-Play — Mitspieler & Teampartner"
+              value: "coplay"
+            - label: "Opponent — Gegenspieler"
+              value: "opponent"
+            - label: "Analyst — Neutraler Kommentator"
+              value: "analyst"

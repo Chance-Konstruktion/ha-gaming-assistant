@@ -13,10 +13,12 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
+    ASSISTANT_MODES,
     CONF_DEFAULT_SPOILER,
     CONF_MODEL,
     CONF_OLLAMA_HOST,
     CONF_TIMEOUT,
+    DEFAULT_ASSISTANT_MODE,
     DEFAULT_SPOILER_LEVEL,
     DEFAULT_TIMEOUT,
     DOMAIN,
@@ -64,6 +66,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
         # Configurable timeout
         self._analysis_timeout: int = config.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)
+
+        # Assistant mode (coach, coplay, opponent, analyst)
+        self._assistant_mode: str = DEFAULT_ASSISTANT_MODE
 
         # Camera watchers: entity_id → {task, cancel_event, game_hint, client_type, interval}
         self._camera_watchers: dict[str, dict[str, Any]] = {}
@@ -146,6 +151,19 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     @property
     def analysis_timeout(self) -> int:
         return self._analysis_timeout
+
+    @property
+    def assistant_mode(self) -> str:
+        return self._assistant_mode
+
+    def set_assistant_mode(self, mode: str) -> None:
+        """Set the assistant mode (coach, coplay, opponent, analyst)."""
+        if mode not in ASSISTANT_MODES:
+            _LOGGER.warning("Unknown assistant mode '%s', keeping '%s'", mode, self._assistant_mode)
+            return
+        self._assistant_mode = mode
+        _LOGGER.info("Assistant mode set to: %s", mode)
+        self.async_set_updated_data(self._build_data())
 
     @property
     def latency(self) -> float:
@@ -286,6 +304,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
         try:
             metadata = self._client_metadata.get(client_id, {})
+            metadata["assistant_mode"] = self._assistant_mode
 
             game = metadata.get("window_title", "")
             if game:
@@ -550,6 +569,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "tip_count": self._tip_count,
             "recent_tips": self._recent_tips,
             "active_watchers": self.active_camera_watchers,
+            "assistant_mode": self._assistant_mode,
         }
 
     async def _async_update_data(self) -> dict:
