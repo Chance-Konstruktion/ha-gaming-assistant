@@ -109,7 +109,6 @@ class GamingAssistantLatencySensor(CoordinatorEntity, SensorEntity):
     _attr_unique_id = "gaming_assistant_latency"
     _attr_native_unit_of_measurement = "s"
     _attr_icon = "mdi:clock"
-    _attr_entity_category = "diagnostic"
 
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
@@ -127,7 +126,6 @@ class GamingAssistantErrorCountSensor(CoordinatorEntity, SensorEntity):
     _attr_name = "Gaming Assistant Error Count"
     _attr_unique_id = "gaming_assistant_error_count"
     _attr_icon = "mdi:alert-circle"
-    _attr_entity_category = "diagnostic"
 
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
@@ -145,7 +143,6 @@ class GamingAssistantFramesProcessedSensor(CoordinatorEntity, SensorEntity):
     _attr_name = "Gaming Assistant Frames Processed"
     _attr_unique_id = "gaming_assistant_frames_processed"
     _attr_icon = "mdi:image-multiple"
-    _attr_entity_category = "diagnostic"
 
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
@@ -163,7 +160,6 @@ class GamingAssistantLastAnalysisSensor(CoordinatorEntity, SensorEntity):
     _attr_name = "Gaming Assistant Last Analysis"
     _attr_unique_id = "gaming_assistant_last_analysis"
     _attr_icon = "mdi:clock-check"
-    _attr_entity_category = "diagnostic"
 
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
@@ -181,7 +177,6 @@ class GamingAssistantActiveWatchersSensor(CoordinatorEntity, SensorEntity):
     _attr_name = "Gaming Assistant Active Watchers"
     _attr_unique_id = "gaming_assistant_active_watchers"
     _attr_icon = "mdi:camera-eye"
-    _attr_entity_category = "diagnostic"
 
     def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
         super().__init__(coordinator)
