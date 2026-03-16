@@ -3,7 +3,6 @@
  *
  * Self-contained custom element for the HA sidebar.
  * Supports DE/EN based on HA language setting.
- * No build step, no dependencies – vanilla JS + HA websocket API.
  */
 
 const DOMAIN = "gaming_assistant";
@@ -32,13 +31,6 @@ const I18N = {
     active: "Aktiv",
     inactive: "Inaktiv",
     tips: "Tipps",
-    currentTip: "Aktueller Tipp",
-    waitingForTips: "Warte auf Tipps\u2026",
-    game: "Spiel",
-    askTitle: "Frage an die KI",
-    askPlaceholder: "Stelle eine Frage zum Spiel\u2026",
-    askSend: "Fragen",
-    askSending: "Wird gesendet\u2026",
     controls: "Steuerung",
     mode: "Modus",
     spoilerLevel: "Spoiler-Stufe",
@@ -54,27 +46,36 @@ const I18N = {
     summarize: "Zusammenfassen",
     clearHistory: "Verlauf leeren",
     confirmClear: "Gesamten Tipp-Verlauf leeren?",
+    askTitle: "Frage an die KI",
+    askPlaceholder: "Stelle eine Frage zum Spiel\u2026",
+    askSend: "Fragen",
+    askSending: "Wird gesendet\u2026",
+    currentTip: "Aktueller Tipp",
+    waitingForTips: "Warte auf Tipps\u2026",
+    game: "Spiel",
     tipHistory: "Tipp-Verlauf",
     noTipsYet: "Noch keine Tipps.",
     sessionSummary: "Sitzungs\u00FCbersicht",
-    diagnostics: "Diagnose",
+    diagSetup: "Diagnose & Einstellungen",
     latency: "Latenz (s)",
     frames: "Frames",
     watchers: "Watchers",
     errors: "Fehler",
+    camera: "Kamera",
+    noCamera: "\u2014 Keine Kamera \u2014",
+    ttsEngine: "Sprachausgabe (TTS)",
+    noTts: "\u2014 Keine TTS \u2014",
+    speaker: "Lautsprecher",
+    defaultSpeaker: "\u2014 Standard \u2014",
+    aiModel: "KI-Modell",
+    save: "Speichern",
+    saved: "Gespeichert!",
   },
   en: {
     title: "Gaming Assistant",
     active: "Active",
     inactive: "Inactive",
     tips: "Tips",
-    currentTip: "Current Tip",
-    waitingForTips: "Waiting for tips\u2026",
-    game: "Game",
-    askTitle: "Ask the AI",
-    askPlaceholder: "Ask a question about the game\u2026",
-    askSend: "Ask",
-    askSending: "Sending\u2026",
     controls: "Controls",
     mode: "Mode",
     spoilerLevel: "Spoiler Level",
@@ -90,14 +91,30 @@ const I18N = {
     summarize: "Summarize",
     clearHistory: "Clear History",
     confirmClear: "Clear all tip history?",
+    askTitle: "Ask the AI",
+    askPlaceholder: "Ask a question about the game\u2026",
+    askSend: "Ask",
+    askSending: "Sending\u2026",
+    currentTip: "Current Tip",
+    waitingForTips: "Waiting for tips\u2026",
+    game: "Game",
     tipHistory: "Tip History",
     noTipsYet: "No tips yet.",
     sessionSummary: "Session Summary",
-    diagnostics: "Diagnostics",
+    diagSetup: "Diagnostics & Setup",
     latency: "Latency (s)",
     frames: "Frames",
     watchers: "Watchers",
     errors: "Errors",
+    camera: "Camera",
+    noCamera: "\u2014 No camera \u2014",
+    ttsEngine: "Text-to-Speech (TTS)",
+    noTts: "\u2014 No TTS \u2014",
+    speaker: "Speaker",
+    defaultSpeaker: "\u2014 Default \u2014",
+    aiModel: "AI Model",
+    save: "Save",
+    saved: "Saved!",
   },
 };
 
@@ -108,6 +125,7 @@ class GamingAssistantPanel extends HTMLElement {
     this._hass = null;
     this._rendered = false;
     this._lang = "en";
+    this._setupPopulated = false;
   }
 
   set hass(hass) {
@@ -117,6 +135,7 @@ class GamingAssistantPanel extends HTMLElement {
     this._lang = lang;
 
     if (!this._rendered || langChanged) {
+      this._setupPopulated = false;
       this._render();
       this._rendered = true;
     }
@@ -128,8 +147,7 @@ class GamingAssistantPanel extends HTMLElement {
   }
 
   _t(key) {
-    const strings = I18N[this._lang] || I18N.en;
-    return strings[key] || I18N.en[key] || key;
+    return (I18N[this._lang] || I18N.en)[key] || I18N.en[key] || key;
   }
 
   _render() {
@@ -185,10 +203,7 @@ class GamingAssistantPanel extends HTMLElement {
         .tip-box.empty { color: var(--text2); font-style: italic; border-left-color: var(--border); }
         .tip-game { margin-top: 8px; font-size: 12px; color: var(--text2); }
 
-        /* Ask input */
-        .ask-row {
-          display: flex; gap: 8px; align-items: stretch;
-        }
+        .ask-row { display: flex; gap: 8px; }
         .ask-row input[type="text"] {
           flex: 1; padding: 10px 14px; border: 1px solid var(--border);
           border-radius: 8px; background: var(--primary-background-color, #f5f5f5);
@@ -209,7 +224,7 @@ class GamingAssistantPanel extends HTMLElement {
           display: block; font-size: 12px; color: var(--text2);
           margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;
         }
-        .control-item select, .control-item input[type="number"] {
+        .control-item select, .control-item input[type="number"], .control-item input[type="text"] {
           width: 100%; padding: 8px 12px; border: 1px solid var(--border);
           border-radius: 8px; background: var(--primary-background-color, #f5f5f5);
           color: var(--text); font-size: 14px; box-sizing: border-box; outline: none;
@@ -243,6 +258,13 @@ class GamingAssistantPanel extends HTMLElement {
         .btn.danger:hover { background: var(--danger); border-color: var(--danger); }
         .btn.success { background: var(--success); color: #fff; border-color: var(--success); }
         .btn.success:hover { opacity: 0.85; }
+        .btn-save {
+          padding: 8px 24px; border: none; border-radius: 8px;
+          background: var(--primary); color: #fff; font-size: 13px; font-weight: 500;
+          cursor: pointer; transition: 0.15s; margin-top: 12px;
+        }
+        .btn-save:hover { opacity: 0.85; }
+        .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .history-list { max-height: 400px; overflow-y: auto; padding-right: 4px; }
         .history-item {
@@ -260,10 +282,17 @@ class GamingAssistantPanel extends HTMLElement {
         .diag-value { font-size: 24px; font-weight: 600; color: var(--primary); }
         .diag-label { font-size: 11px; color: var(--text2); text-transform: uppercase; margin-top: 4px; }
 
+        .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+        @media (max-width: 600px) { .setup-grid { grid-template-columns: 1fr; } }
+        .setup-grid .full-width { grid-column: 1 / -1; }
+
         .summary-box {
           background: var(--primary-background-color, #f5f5f5); padding: 12px 16px;
           border-radius: 8px; font-size: 14px; line-height: 1.6;
           white-space: pre-wrap; word-wrap: break-word;
+        }
+        .section-divider {
+          border: none; border-top: 1px solid var(--border); margin: 16px 0 12px;
         }
       </style>
 
@@ -276,23 +305,7 @@ class GamingAssistantPanel extends HTMLElement {
           <span class="status-chip" id="chip-tips">${t("tips")}: <strong id="chip-tips-count">0</strong></span>
         </div>
 
-        <!-- Current Tip -->
-        <div class="card">
-          <h2>${t("currentTip")}</h2>
-          <div class="tip-box empty" id="current-tip">${t("waitingForTips")}</div>
-          <div class="tip-game" id="current-tip-game"></div>
-        </div>
-
-        <!-- Ask the AI -->
-        <div class="card">
-          <h2>${t("askTitle")}</h2>
-          <div class="ask-row">
-            <input type="text" id="ask-input" placeholder="${t("askPlaceholder")}">
-            <button id="btn-ask">${t("askSend")}</button>
-          </div>
-        </div>
-
-        <!-- Controls -->
+        <!-- 1. Controls (top) -->
         <div class="card">
           <h2>${t("controls")}</h2>
           <div class="controls-grid">
@@ -316,22 +329,16 @@ class GamingAssistantPanel extends HTMLElement {
           <div style="margin-top: 12px;">
             <div class="switch-row">
               <span class="switch-label">${t("autoAnnounce")}</span>
-              <label class="toggle">
-                <input type="checkbox" id="ctrl-auto-announce">
-                <span class="slider"></span>
-              </label>
+              <label class="toggle"><input type="checkbox" id="ctrl-auto-announce"><span class="slider"></span></label>
             </div>
             <div class="switch-row">
               <span class="switch-label">${t("autoSummary")}</span>
-              <label class="toggle">
-                <input type="checkbox" id="ctrl-auto-summary">
-                <span class="slider"></span>
-              </label>
+              <label class="toggle"><input type="checkbox" id="ctrl-auto-summary"><span class="slider"></span></label>
             </div>
           </div>
         </div>
 
-        <!-- Actions -->
+        <!-- 2. Actions -->
         <div class="card">
           <h2>${t("actions")}</h2>
           <div class="actions">
@@ -344,7 +351,20 @@ class GamingAssistantPanel extends HTMLElement {
           </div>
         </div>
 
-        <!-- History -->
+        <!-- 3. Current Tip + Ask -->
+        <div class="card">
+          <h2>${t("currentTip")}</h2>
+          <div class="tip-box empty" id="current-tip">${t("waitingForTips")}</div>
+          <div class="tip-game" id="current-tip-game"></div>
+          <hr class="section-divider">
+          <h2>${t("askTitle")}</h2>
+          <div class="ask-row">
+            <input type="text" id="ask-input" placeholder="${t("askPlaceholder")}">
+            <button id="btn-ask">${t("askSend")}</button>
+          </div>
+        </div>
+
+        <!-- 4. Tip History -->
         <div class="card">
           <h2>${t("tipHistory")}</h2>
           <div class="history-list" id="history-list">
@@ -358,9 +378,9 @@ class GamingAssistantPanel extends HTMLElement {
           <div class="summary-box" id="session-summary"></div>
         </div>
 
-        <!-- Diagnostics -->
+        <!-- 5. Diagnostics & Setup -->
         <div class="card">
-          <h2>${t("diagnostics")}</h2>
+          <h2>${t("diagSetup")}</h2>
           <div class="diag-grid">
             <div class="diag-item">
               <div class="diag-value" id="diag-latency">--</div>
@@ -379,6 +399,26 @@ class GamingAssistantPanel extends HTMLElement {
               <div class="diag-label">${t("errors")}</div>
             </div>
           </div>
+          <hr class="section-divider">
+          <div class="setup-grid">
+            <div class="control-item">
+              <label>${t("camera")}</label>
+              <select id="setup-camera"></select>
+            </div>
+            <div class="control-item">
+              <label>${t("speaker")}</label>
+              <select id="setup-speaker"></select>
+            </div>
+            <div class="control-item">
+              <label>${t("ttsEngine")}</label>
+              <select id="setup-tts"></select>
+            </div>
+            <div class="control-item">
+              <label>${t("aiModel")}</label>
+              <input type="text" id="setup-model" placeholder="qwen2.5vl">
+            </div>
+          </div>
+          <button class="btn-save" id="btn-save-setup">${t("save")}</button>
         </div>
       </div>
     `;
@@ -389,7 +429,7 @@ class GamingAssistantPanel extends HTMLElement {
   _bindEvents() {
     const $ = (id) => this.shadowRoot.getElementById(id);
 
-    // Select/Number controls
+    // Controls
     $("ctrl-mode").addEventListener("change", (e) =>
       this._callService("select", "select_option", ENTITIES.mode, { option: e.target.value })
     );
@@ -402,8 +442,6 @@ class GamingAssistantPanel extends HTMLElement {
     $("ctrl-timeout").addEventListener("change", (e) =>
       this._callService("number", "set_value", ENTITIES.timeout, { value: Number(e.target.value) })
     );
-
-    // Switches
     $("ctrl-auto-announce").addEventListener("change", (e) =>
       this._callService("switch", e.target.checked ? "turn_on" : "turn_off", ENTITIES.autoAnnounce)
     );
@@ -411,40 +449,53 @@ class GamingAssistantPanel extends HTMLElement {
       this._callService("switch", e.target.checked ? "turn_on" : "turn_off", ENTITIES.autoSummary)
     );
 
-    // Ask the AI
+    // Ask
     const askInput = $("ask-input");
     const askBtn = $("btn-ask");
-
     const submitQuestion = async () => {
       const question = askInput.value.trim();
       if (!question) return;
-
       askBtn.disabled = true;
       askBtn.textContent = this._t("askSending");
-
       await this._callDomainService("ask", { question });
-
       askBtn.disabled = false;
       askBtn.textContent = this._t("askSend");
       askInput.value = "";
       askInput.focus();
     };
-
     askBtn.addEventListener("click", submitQuestion);
-    askInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") submitQuestion();
-    });
+    askInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submitQuestion(); });
 
-    // Action buttons
+    // Actions
     $("btn-start").addEventListener("click", () => this._callDomainService("start"));
     $("btn-stop").addEventListener("click", () => this._callDomainService("stop"));
     $("btn-analyze").addEventListener("click", () => this._callDomainService("analyze"));
     $("btn-announce").addEventListener("click", () => this._callDomainService("announce"));
     $("btn-summarize").addEventListener("click", () => this._callDomainService("summarize_session"));
     $("btn-clear").addEventListener("click", () => {
-      if (confirm(this._t("confirmClear"))) {
-        this._callDomainService("clear_history");
-      }
+      if (confirm(this._t("confirmClear"))) this._callDomainService("clear_history");
+    });
+
+    // Setup save
+    $("btn-save-setup").addEventListener("click", async () => {
+      const btn = $("btn-save-setup");
+      btn.disabled = true;
+      const data = {};
+      const cam = $("setup-camera").value;
+      data.camera_entity = cam || "";
+      const tts = $("setup-tts").value;
+      data.tts_entity = tts || "";
+      const spk = $("setup-speaker").value;
+      data.tts_target = spk || "";
+      const model = $("setup-model").value.trim();
+      if (model) data.model = model;
+
+      await this._callDomainService("configure", data);
+      btn.textContent = this._t("saved");
+      setTimeout(() => {
+        btn.textContent = this._t("save");
+        btn.disabled = false;
+      }, 2000);
     });
   }
 
@@ -494,9 +545,7 @@ class GamingAssistantPanel extends HTMLElement {
 
     // Tips count
     const history = this._getState(ENTITIES.history);
-    if (history) {
-      $("chip-tips-count").textContent = history.state || "0";
-    }
+    if (history) $("chip-tips-count").textContent = history.state || "0";
 
     // Current tip
     const tip = this._getState(ENTITIES.tip);
@@ -514,36 +563,30 @@ class GamingAssistantPanel extends HTMLElement {
       $("current-tip-game").textContent = game ? `${this._t("game")}: ${game}` : "";
     }
 
-    // Controls
+    // Mode & Spoiler selects
     this._updateSelect($("ctrl-mode"), ENTITIES.mode);
     this._updateSelect($("ctrl-spoiler"), ENTITIES.spoiler);
 
+    // Number inputs
     const interval = this._getState(ENTITIES.interval);
     const intEl = $("ctrl-interval");
-    if (interval && this.shadowRoot.activeElement !== intEl) {
-      intEl.value = interval.state;
-    }
-
+    if (interval && this.shadowRoot.activeElement !== intEl) intEl.value = interval.state;
     const timeout = this._getState(ENTITIES.timeout);
     const toEl = $("ctrl-timeout");
-    if (timeout && this.shadowRoot.activeElement !== toEl) {
-      toEl.value = timeout.state;
-    }
+    if (timeout && this.shadowRoot.activeElement !== toEl) toEl.value = timeout.state;
 
     // Switches
     const autoAnn = this._getState(ENTITIES.autoAnnounce);
     if (autoAnn) $("ctrl-auto-announce").checked = autoAnn.state === "on";
-
     const autoSum = this._getState(ENTITIES.autoSummary);
     if (autoSum) $("ctrl-auto-summary").checked = autoSum.state === "on";
 
-    // History list
+    // History
     if (history && history.attributes && history.attributes.recent_tips) {
       const tips = history.attributes.recent_tips;
       const listEl = $("history-list");
       if (tips.length > 0) {
-        listEl.innerHTML = tips
-          .slice().reverse()
+        listEl.innerHTML = tips.slice().reverse()
           .map((entry, i) =>
             `<div class="history-item"><span class="history-num">${i + 1}.</span>${this._escapeHtml(entry.tip)}</div>`
           ).join("");
@@ -577,6 +620,82 @@ class GamingAssistantPanel extends HTMLElement {
     if (watchers) $("diag-watchers").textContent = watchers.state || "0";
     const errors = this._getState(ENTITIES.errorCount);
     if (errors) $("diag-errors").textContent = errors.state || "0";
+
+    // Setup dropdowns (populate once from hass.states)
+    if (!this._setupPopulated) {
+      this._populateSetupDropdowns();
+      this._setupPopulated = true;
+    }
+  }
+
+  _populateSetupDropdowns() {
+    if (!this._hass) return;
+    const $ = (id) => this.shadowRoot.getElementById(id);
+    const states = this._hass.states;
+
+    // Camera dropdown
+    const camSelect = $("setup-camera");
+    const cameras = Object.keys(states).filter((e) => e.startsWith("camera.")).sort();
+    camSelect.innerHTML = `<option value="">${this._t("noCamera")}</option>`
+      + cameras.map((e) => {
+        const name = states[e].attributes.friendly_name || e;
+        return `<option value="${e}">${name}</option>`;
+      }).join("");
+
+    // TTS dropdown
+    const ttsSelect = $("setup-tts");
+    const ttsEntities = Object.keys(states).filter((e) => e.startsWith("tts.")).sort();
+    ttsSelect.innerHTML = `<option value="">${this._t("noTts")}</option>`
+      + ttsEntities.map((e) => {
+        const name = states[e].attributes.friendly_name || e;
+        return `<option value="${e}">${name}</option>`;
+      }).join("");
+
+    // Speaker (media_player) dropdown
+    const spkSelect = $("setup-speaker");
+    const players = Object.keys(states).filter((e) => e.startsWith("media_player.")).sort();
+    spkSelect.innerHTML = `<option value="">${this._t("defaultSpeaker")}</option>`
+      + players.map((e) => {
+        const name = states[e].attributes.friendly_name || e;
+        return `<option value="${e}">${name}</option>`;
+      }).join("");
+
+    // Try to set current values from config entry
+    this._loadCurrentConfig(camSelect, ttsSelect, spkSelect, $("setup-model"));
+  }
+
+  async _loadCurrentConfig(camSelect, ttsSelect, spkSelect, modelInput) {
+    if (!this._hass) return;
+    try {
+      const entries = await this._hass.callWS({
+        type: "config_entries/get",
+        domain: DOMAIN,
+      });
+      if (entries && entries.length > 0) {
+        // Get full entry details with options
+        const entry = entries[0];
+        // Options are merged with data at runtime; try callWS for entry details
+        try {
+          const detail = await this._hass.callWS({
+            type: "config_entries/get_single",
+            entry_id: entry.entry_id,
+          });
+          const opts = detail.options || {};
+          const data = detail.data || {};
+          const merged = { ...data, ...opts };
+          if (merged.camera_entity) camSelect.value = merged.camera_entity;
+          if (merged.tts_entity) ttsSelect.value = merged.tts_entity;
+          if (merged.tts_target) spkSelect.value = merged.tts_target;
+          if (merged.model) modelInput.value = merged.model;
+        } catch (_e) {
+          // get_single might not exist in all HA versions; fall back
+          // Use known defaults from the integration
+          modelInput.value = modelInput.value || "qwen2.5vl";
+        }
+      }
+    } catch (err) {
+      console.warn("Gaming Assistant: Could not load config entries:", err);
+    }
   }
 
   _updateSelect(selectEl, entityId) {
