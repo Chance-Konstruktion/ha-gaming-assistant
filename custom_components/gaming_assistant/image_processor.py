@@ -55,6 +55,11 @@ class ImageProcessor:
         self._pack_loader = prompt_pack_loader
         self._timeout = timeout or OLLAMA_TIMEOUT
         self._language = language
+        self._compact = PromptBuilder.is_small_model(model)
+        if self._compact:
+            _LOGGER.info(
+                "Small model detected (%s) — using compact prompts", model
+            )
 
     @property
     def timeout(self) -> int:
@@ -113,6 +118,7 @@ class ImageProcessor:
             client_type=client_type,
             assistant_mode=assistant_mode,
             language=self._language,
+            compact=self._compact,
         )
 
         # 8. Call Ollama
@@ -161,6 +167,7 @@ class ImageProcessor:
             user_question=question,
             assistant_mode=assistant_mode,
             language=self._language,
+            compact=self._compact,
         )
 
         if image_bytes:

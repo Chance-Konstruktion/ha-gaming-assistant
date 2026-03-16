@@ -15,14 +15,21 @@ Der **Gaming Assistant** ist eine Home-Assistant-Integration (HACS), die Gamepla
 - Geräteunabhängig durch Thin-Client-Erfassung (PC, Android, Kameraquellen, HDMI-Bridge).
 - Klare Erweiterbarkeit für Community, Overlay, Sprache und Agent-Mode.
 
-### Aktueller Stand (Baseline: v0.4.0)
+### Aktueller Stand (v0.9.0)
 - Thin-Client-Architektur aktiv.
-- Capture Agents für PC und Android (ADB).
+- Capture Agents für PC, Android (ADB), Android TV, IP Webcam.
 - MQTT-basierte Bild- und Metadaten-Pipeline.
-- Spoiler-System mit Kategorien/Leveln.
-- Prompt Packs + Prompt Builder.
+- Spoiler-System mit Kategorien/Leveln + Per-Game-Profile.
+- Prompt Packs + Prompt Builder (mit Compact-Modus für kleine Modelle).
 - History-Management + deduplizierte Tipps.
 - Legacy-Kompatibilität für alte Worker-Pfade.
+- 4 Assistenz-Modi: Coach, Co-Player, Opponent, Analyst.
+- HA Camera Watcher (kontinuierliches Monitoring).
+- Dashboard-Entities (Select, Number, Switch).
+- **TTS-Ansagen** (`gaming_assistant.announce` + Auto-Announce).
+- **Event-System** (`gaming_assistant_new_tip`).
+- **Automatische Spracherkennung** aus HA-Konfiguration.
+- **Compact-Prompt-Modus** für kleine Modelle (z.B. Ministral 3B).
 
 ---
 
@@ -209,16 +216,21 @@ Tipps sichtbarer und direkter nutzbar machen.
 
 ---
 
-## Phase 4 (v0.8.x): Voice Copilot + Agent Mode (experimentell)
+## Phase 4 (v0.8.x–v0.9.x): Voice Copilot + Agent Mode (experimentell)
 
 ### Ziel
 Interaktive Steuerung und aktive Assistenz bei strengen Sicherheitsgrenzen.
 
 ### 4.10 Sprach-Copilot
-**Deliverables**
+**Status: TTS-Ausgabe implementiert in v0.9.0**
+- `gaming_assistant.announce` Service für TTS-Ausgabe.
+- Auto-Announce Switch-Entity.
+- `gaming_assistant_new_tip` Event für Automationen.
+- Automatische Spracherkennung aus HA-Konfiguration.
+
+**Noch offen:**
 - STT-Integration (z. B. Whisper/Faster-Whisper/Wyoming).
 - Frage-Antwort-Zyklus: Audio + Bild + Kontext -> Antworttip.
-- TTS-Rückkanal über HA.
 
 ### 4.11 Agent Mode (Sicherheitsmodus)
 **Deliverables**

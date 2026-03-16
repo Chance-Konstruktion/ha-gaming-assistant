@@ -42,6 +42,8 @@ cards:
         name: Interval
       - entity: number.gaming_assistant_timeout
         name: Timeout
+      - entity: switch.gaming_assistant_auto_announce
+        name: Auto Announce
 
   # -- Current tip -----------------------------------------------------------
   - type: markdown
@@ -114,3 +116,10 @@ cards:
         tap_action:
           action: call-service
           service: gaming_assistant.clear_history
+
+      - type: button
+        name: Announce
+        icon: mdi:bullhorn
+        tap_action:
+          action: call-service
+          service: gaming_assistant.announce
