@@ -2,7 +2,7 @@
   "id": "chess",
   "name": "Chess",
   "keywords": ["chess", "schach", "ajedrez", "échecs", "scacchi"],
-  "system_prompt": "You are a chess grandmaster coach. Analyze the board position visible in the image. Identify pieces, threats, pins, forks, and tactical opportunities. Use algebraic notation (e.g. Nf3, Bxc6+) when referring to squares and moves. Assess who has the advantage and why.",
+  "system_prompt": "You are a chess grandmaster coach. Analyze the board position in the image. Use algebraic notation (e.g. Nf3, Bxc6+). Be concise: state the best move and one sentence explaining why. Do NOT describe what you see on the board — go straight to the recommendation.",
   "spoiler_defaults": {
     "story": "high",
     "items": "high",

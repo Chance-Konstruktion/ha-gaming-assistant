@@ -183,6 +183,21 @@ class ImageProcessor:
 
         return answer
 
+    @staticmethod
+    def _clean_response(text: str) -> str:
+        """Strip incomplete trailing sentences caused by num_predict cutoff."""
+        if not text:
+            return text
+        # If the text ends with proper punctuation, it's complete
+        if text[-1] in ".!?)\"'":
+            return text
+        # Find the last sentence-ending punctuation
+        for i in range(len(text) - 1, -1, -1):
+            if text[i] in ".!?)":
+                return text[:i + 1]
+        # No sentence end found -- return as-is (better than nothing)
+        return text
+
     async def _call_ollama(self, prompt: str, image_b64: str) -> str:
         """Send image + prompt to Ollama and return the response."""
         url = f"{self._ollama_host}/api/generate"
@@ -206,7 +221,8 @@ class ImageProcessor:
                     lambda: requests.post(url, json=payload, timeout=self._timeout),
                 )
                 response.raise_for_status()
-                return response.json().get("response", "").strip()
+                raw = response.json().get("response", "").strip()
+                return self._clean_response(raw)
             except requests.exceptions.Timeout:
                 _LOGGER.warning(
                     "Ollama timeout (attempt %d/2), retrying in %ds",

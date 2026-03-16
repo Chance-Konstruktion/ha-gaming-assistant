@@ -846,9 +846,11 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                     self.async_set_updated_data(self._build_data())
                     return
 
-            # Wait for interval or cancellation
+            # Wait for interval or cancellation (read current interval each time
+            # so changes via the number entity take effect immediately)
+            current_interval = self._analysis_interval
             try:
-                await asyncio.wait_for(cancel_event.wait(), timeout=interval)
+                await asyncio.wait_for(cancel_event.wait(), timeout=current_interval)
                 return  # cancel_event was set
             except asyncio.TimeoutError:
                 pass  # interval elapsed, loop again

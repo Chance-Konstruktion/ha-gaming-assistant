@@ -1,0 +1,9 @@
+# Requirements for Player 2 / Agent Mode features
+# These are OPTIONAL -- only needed if you want the AI to play games directly.
+
+# Virtual Xbox/PlayStation gamepad emulation (Windows)
+# Safer than pyautogui: can only send controller inputs, no system access.
+vgamepad>=0.1.0
+
+# Optional: for future ViZDoom integration
+# vizdoom>=1.2.0
