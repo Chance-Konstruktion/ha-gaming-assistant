@@ -11,22 +11,80 @@ set "VENV_DIR=%SCRIPT_DIR%venv"
 set "PYTHON_SCRIPT=%SCRIPT_DIR%capture_agent.py"
 set "REQUIREMENTS=%SCRIPT_DIR%requirements-capture.txt"
 
-REM ---- Check Python installation ----
-where python >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] Python is not installed or not in PATH.
-    echo Download Python from https://www.python.org/downloads/
-    echo Make sure to check "Add Python to PATH" during installation.
-    pause
-    exit /b 1
+REM ---- Find a working Python interpreter ----
+set "PYTHON="
+
+REM 1. Try py launcher (most reliable on Windows)
+where py >nul 2>&1
+if not errorlevel 1 (
+    py -3 --version >nul 2>&1
+    if not errorlevel 1 (
+        set "PYTHON=py -3"
+        goto :python_found
+    )
 )
+
+REM 2. Try python3
+where python3 >nul 2>&1
+if not errorlevel 1 (
+    python3 --version >nul 2>&1
+    if not errorlevel 1 (
+        set "PYTHON=python3"
+        goto :python_found
+    )
+)
+
+REM 3. Try python (but verify it's real, not the Windows Store alias)
+where python >nul 2>&1
+if not errorlevel 1 (
+    python --version >nul 2>&1
+    if not errorlevel 1 (
+        set "PYTHON=python"
+        goto :python_found
+    )
+)
+
+REM 4. Common install paths
+for %%P in (
+    "%LOCALAPPDATA%\Programs\Python\Python313\python.exe"
+    "%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+    "%LOCALAPPDATA%\Programs\Python\Python311\python.exe"
+    "%LOCALAPPDATA%\Programs\Python\Python310\python.exe"
+    "C:\Python313\python.exe"
+    "C:\Python312\python.exe"
+    "C:\Python311\python.exe"
+    "C:\Python310\python.exe"
+) do (
+    if exist %%P (
+        set "PYTHON=%%~P"
+        goto :python_found
+    )
+)
+
+echo.
+echo [ERROR] Python 3.10+ is not installed or not in PATH.
+echo.
+echo Please install Python from: https://www.python.org/downloads/
+echo IMPORTANT: Check "Add Python to PATH" during installation!
+echo.
+echo Alternatively, disable the Windows Store app alias:
+echo   Settings ^> Apps ^> Advanced app settings ^> App execution aliases
+echo   Turn off "python.exe" and "python3.exe"
+echo.
+pause
+exit /b 1
+
+:python_found
+echo [OK] Found Python: %PYTHON%
+for /f "tokens=*" %%v in ('%PYTHON% --version 2^>^&1') do echo [OK] Version: %%v
 
 REM ---- Create virtual environment if needed ----
 if not exist "%VENV_DIR%\Scripts\activate.bat" (
     echo [SETUP] Creating virtual environment...
-    python -m venv "%VENV_DIR%"
+    %PYTHON% -m venv "%VENV_DIR%"
     if errorlevel 1 (
         echo [ERROR] Failed to create virtual environment.
+        echo [HINT] Try: %PYTHON% -m pip install --user virtualenv
         pause
         exit /b 1
     )
