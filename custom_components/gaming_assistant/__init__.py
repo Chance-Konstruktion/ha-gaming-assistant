@@ -36,6 +36,7 @@ _ALL_SERVICES = (
     "clear_history", "capture_from_camera",
     "watch_camera", "stop_watch_camera",
     "announce", "summarize_session", "configure",
+    "set_game_hint", "list_game_packs",
 )
 
 
@@ -361,12 +362,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     await coord.async_summarize_session(game=game)
                     break
 
+        async def handle_set_game_hint(call: ServiceCall) -> None:
+            """Set persistent game hint for camera watchers."""
+            game_hint = call.data.get("game_hint", "")
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    coord.set_default_game_hint(game_hint)
+                    break
+
+        async def handle_list_game_packs(call: ServiceCall) -> None:
+            """Return available prompt packs (mainly for internal use)."""
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    packs = coord.available_game_packs
+                    _LOGGER.info("Available game packs: %s", packs)
+                    break
+
         async def handle_configure(call: ServiceCall) -> None:
             """Update runtime configuration (camera, TTS, model) from the panel."""
             camera = call.data.get("camera_entity")
             tts_entity = call.data.get("tts_entity")
             tts_target = call.data.get("tts_target")
             model = call.data.get("model")
+            game_hint = call.data.get("game_hint")
 
             for eid, coord in hass.data[DOMAIN].items():
                 if not isinstance(coord, GamingAssistantCoordinator):
@@ -384,6 +402,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     coord._tts_target = tts_target
                 if model is not None and model:
                     coord._image_processor._model = model
+                if game_hint is not None:
+                    coord.set_default_game_hint(game_hint)
 
                 # Persist to config entry options
                 cfg_entry = hass.config_entries.async_get_entry(
@@ -419,6 +439,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "announce", handle_announce)
         hass.services.async_register(DOMAIN, "summarize_session", handle_summarize_session)
         hass.services.async_register(DOMAIN, "configure", handle_configure)
+        hass.services.async_register(DOMAIN, "set_game_hint", handle_set_game_hint)
+        hass.services.async_register(DOMAIN, "list_game_packs", handle_list_game_packs)
 
     _LOGGER.info("Gaming Assistant integration loaded successfully")
     return True

@@ -33,6 +33,8 @@ const I18N = {
     tips: "Tipps",
     controls: "Steuerung",
     mode: "Modus",
+    game: "Spiel",
+    gameAuto: "Automatisch erkennen",
     spoilerLevel: "Spoiler-Stufe",
     intervalS: "Intervall (s)",
     timeoutS: "Timeout (s)",
@@ -78,6 +80,8 @@ const I18N = {
     tips: "Tips",
     controls: "Controls",
     mode: "Mode",
+    game: "Game",
+    gameAuto: "Auto-detect",
     spoilerLevel: "Spoiler Level",
     intervalS: "Interval (s)",
     timeoutS: "Timeout (s)",
@@ -314,6 +318,10 @@ class GamingAssistantPanel extends HTMLElement {
               <select id="ctrl-mode"></select>
             </div>
             <div class="control-item">
+              <label>${t("game")}</label>
+              <select id="ctrl-game"><option value="">${t("gameAuto")}</option></select>
+            </div>
+            <div class="control-item">
               <label>${t("spoilerLevel")}</label>
               <select id="ctrl-spoiler"></select>
             </div>
@@ -432,6 +440,9 @@ class GamingAssistantPanel extends HTMLElement {
     // Controls
     $("ctrl-mode").addEventListener("change", (e) =>
       this._callService("select", "select_option", ENTITIES.mode, { option: e.target.value })
+    );
+    $("ctrl-game").addEventListener("change", (e) =>
+      this._callDomainService("set_game_hint", { game_hint: e.target.value })
     );
     $("ctrl-spoiler").addEventListener("change", (e) =>
       this._callService("select", "select_option", ENTITIES.spoiler, { option: e.target.value })
@@ -621,6 +632,12 @@ class GamingAssistantPanel extends HTMLElement {
     const errors = this._getState(ENTITIES.errorCount);
     if (errors) $("diag-errors").textContent = errors.state || "0";
 
+    // Game dropdown + current game hint from status sensor
+    const statusState = this._getState(ENTITIES.status);
+    if (statusState && statusState.attributes) {
+      this._updateGameDropdown($("ctrl-game"), statusState.attributes);
+    }
+
     // Setup dropdowns (populate once from hass.states)
     if (!this._setupPopulated) {
       this._populateSetupDropdowns();
@@ -736,6 +753,22 @@ class GamingAssistantPanel extends HTMLElement {
     } catch (err) {
       console.warn("Gaming Assistant: Could not load config entries:", err);
     }
+  }
+
+  _updateGameDropdown(selectEl, attrs) {
+    const packs = attrs.available_game_packs || [];
+    const currentHint = attrs.default_game_hint || "";
+    const packKey = packs.map((p) => p.id).join(",");
+
+    // Rebuild options if packs changed
+    if (selectEl.dataset.packKey !== packKey) {
+      selectEl.innerHTML = `<option value="">${this._t("gameAuto")}</option>`
+        + packs.map((p) => `<option value="${p.name}">${p.name}</option>`).join("");
+      selectEl.dataset.packKey = packKey;
+    }
+
+    // Sync selection with current hint
+    if (selectEl.value !== currentHint) selectEl.value = currentHint;
   }
 
   _updateSelect(selectEl, entityId) {
