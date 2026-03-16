@@ -838,12 +838,21 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 image_bytes = image.content
                 consecutive_errors = 0
 
-                metadata = {
-                    "client_type": client_type,
-                    "source": entity_id,
-                }
                 # Use dynamic game hint: explicit param > persistent default
                 effective_hint = game_hint or self._default_game_hint
+
+                # Auto-detect client_type: if using HA camera and no digital
+                # game pack matches, assume physical/tabletop game
+                effective_type = client_type
+                if effective_type == "console" and effective_hint:
+                    pack = self._pack_loader.find_by_keyword(effective_hint)
+                    if not pack:
+                        effective_type = "tabletop"
+
+                metadata = {
+                    "client_type": effective_type,
+                    "source": entity_id,
+                }
                 if effective_hint:
                     metadata["window_title"] = effective_hint
 
