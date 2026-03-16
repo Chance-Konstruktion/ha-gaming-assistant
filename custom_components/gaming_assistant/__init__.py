@@ -48,13 +48,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         from homeassistant.components.frontend import (  # noqa: E501
             async_register_built_in_panel,
         )
+        from homeassistant.components.http import StaticPathConfig
 
         frontend_path = Path(__file__).parent / "frontend"
-        hass.http.register_static_path(
-            f"/{DOMAIN}/frontend",
-            str(frontend_path),
-            cache_headers=False,
-        )
+        await hass.http.async_register_static_paths([
+            StaticPathConfig(
+                url_path=f"/{DOMAIN}/frontend",
+                path=str(frontend_path),
+                cache_headers=False,
+            )
+        ])
         async_register_built_in_panel(
             hass,
             component_name="custom",
