@@ -20,6 +20,7 @@ PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
     Platform.SELECT,
     Platform.NUMBER,
+    Platform.SWITCH,
 ]
 
 _ALL_SERVICES = (
@@ -27,6 +28,7 @@ _ALL_SERVICES = (
     "process_image", "ask", "set_spoiler_level", "set_spoiler_profile",
     "clear_history", "capture_from_camera",
     "watch_camera", "stop_watch_camera",
+    "announce",
 )
 
 
@@ -296,6 +298,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     await coord.async_stop_watch_camera(entity_id)
                     break
 
+        async def handle_announce(call: ServiceCall) -> None:
+            """Announce the current tip (or a custom message) via TTS."""
+            message = call.data.get("message", "")
+            tts_entity = call.data.get("tts_entity", "")
+            media_player_entity_id = call.data.get("media_player_entity_id", "")
+
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_announce(
+                        message=message,
+                        tts_entity=tts_entity,
+                        media_player_entity_id=media_player_entity_id,
+                    )
+                    break
+
         hass.services.async_register(DOMAIN, "analyze", handle_analyze)
         hass.services.async_register(DOMAIN, "start", handle_start)
         hass.services.async_register(DOMAIN, "stop", handle_stop)
@@ -307,6 +324,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "capture_from_camera", handle_capture_from_camera)
         hass.services.async_register(DOMAIN, "watch_camera", handle_watch_camera)
         hass.services.async_register(DOMAIN, "stop_watch_camera", handle_stop_watch_camera)
+        hass.services.async_register(DOMAIN, "announce", handle_announce)
 
     _LOGGER.info("Gaming Assistant integration loaded successfully")
     return True

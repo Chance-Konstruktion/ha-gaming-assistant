@@ -46,6 +46,15 @@ ATTR_GAMING_MODE = "gaming_mode"
 ASSISTANT_MODES = ["coach", "coplay", "opponent", "analyst"]
 DEFAULT_ASSISTANT_MODE = "coach"
 
+# TTS / Announce
+CONF_TTS_ENTITY = "tts_entity"
+CONF_TTS_TARGET = "tts_target"
+CONF_AUTO_ANNOUNCE = "auto_announce"
+DEFAULT_AUTO_ANNOUNCE = False
+
+# Event fired on every new tip (for automations)
+EVENT_NEW_TIP = "gaming_assistant_new_tip"
+
 # Image Processing
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB hard limit for base64-decoded images
 IMAGE_DEDUP_WINDOW_SECONDS = 60
