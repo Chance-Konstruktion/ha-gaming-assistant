@@ -4,7 +4,7 @@
   "version": "0.9.0",
   "documentation": "https://github.com/Chance-Konstruktion/ha-gaming-assistant",
   "issue_tracker": "https://github.com/Chance-Konstruktion/ha-gaming-assistant/issues",
-  "dependencies": ["mqtt"],
+  "dependencies": ["mqtt", "frontend", "http"],
   "codeowners": ["@Chance-Konstruktion"],
   "requirements": ["requests>=2.28.0"],
   "iot_class": "local_push",
