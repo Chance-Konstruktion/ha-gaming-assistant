@@ -33,6 +33,11 @@ const I18N = {
     tips: "Tipps",
     controls: "Steuerung",
     mode: "Modus",
+    game: "Spiel",
+    gameAuto: "\u2014 Automatisch erkennen \u2014",
+    gamePlaceholder: "Oder Spielname eingeben\u2026",
+    gameTabletop: "Physisches Spiel (Kamera)",
+    gameDigital: "Digitales Spiel",
     spoilerLevel: "Spoiler-Stufe",
     intervalS: "Intervall (s)",
     timeoutS: "Timeout (s)",
@@ -78,6 +83,11 @@ const I18N = {
     tips: "Tips",
     controls: "Controls",
     mode: "Mode",
+    game: "Game",
+    gameAuto: "\u2014 Auto-detect \u2014",
+    gamePlaceholder: "Or type a game name\u2026",
+    gameTabletop: "Physical game (camera)",
+    gameDigital: "Digital game",
     spoilerLevel: "Spoiler Level",
     intervalS: "Interval (s)",
     timeoutS: "Timeout (s)",
@@ -314,6 +324,11 @@ class GamingAssistantPanel extends HTMLElement {
               <select id="ctrl-mode"></select>
             </div>
             <div class="control-item">
+              <label>${t("game")}</label>
+              <input type="text" id="ctrl-game" list="game-list" placeholder="${t("gamePlaceholder")}" autocomplete="off">
+              <datalist id="game-list"></datalist>
+            </div>
+            <div class="control-item">
               <label>${t("spoilerLevel")}</label>
               <select id="ctrl-spoiler"></select>
             </div>
@@ -433,6 +448,16 @@ class GamingAssistantPanel extends HTMLElement {
     $("ctrl-mode").addEventListener("change", (e) =>
       this._callService("select", "select_option", ENTITIES.mode, { option: e.target.value })
     );
+    // Game hint: send on Enter, blur, or datalist selection
+    const gameInput = $("ctrl-game");
+    let gameDebounce = null;
+    const sendGameHint = () => {
+      clearTimeout(gameDebounce);
+      const hint = gameInput.value.trim();
+      this._callDomainService("set_game_hint", { game_hint: hint });
+    };
+    gameInput.addEventListener("change", sendGameHint);  // datalist pick or blur
+    gameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendGameHint(); } });
     $("ctrl-spoiler").addEventListener("change", (e) =>
       this._callService("select", "select_option", ENTITIES.spoiler, { option: e.target.value })
     );
@@ -621,6 +646,12 @@ class GamingAssistantPanel extends HTMLElement {
     const errors = this._getState(ENTITIES.errorCount);
     if (errors) $("diag-errors").textContent = errors.state || "0";
 
+    // Game dropdown + current game hint from status sensor
+    const statusState = this._getState(ENTITIES.status);
+    if (statusState && statusState.attributes) {
+      this._updateGameDropdown($("ctrl-game"), statusState.attributes);
+    }
+
     // Setup dropdowns (populate once from hass.states)
     if (!this._setupPopulated) {
       this._populateSetupDropdowns();
@@ -735,6 +766,24 @@ class GamingAssistantPanel extends HTMLElement {
       }
     } catch (err) {
       console.warn("Gaming Assistant: Could not load config entries:", err);
+    }
+  }
+
+  _updateGameDropdown(inputEl, attrs) {
+    const packs = attrs.available_game_packs || [];
+    const currentHint = attrs.default_game_hint || "";
+    const packKey = packs.map((p) => p.id).join(",");
+
+    // Rebuild datalist options if packs changed
+    const datalist = this.shadowRoot.getElementById("game-list");
+    if (datalist && datalist.dataset.packKey !== packKey) {
+      datalist.innerHTML = packs.map((p) => `<option value="${p.name}">`).join("");
+      datalist.dataset.packKey = packKey;
+    }
+
+    // Sync value with current hint (don't overwrite while user is typing)
+    if (this.shadowRoot.activeElement !== inputEl && inputEl.value !== currentHint) {
+      inputEl.value = currentHint;
     }
   }
 

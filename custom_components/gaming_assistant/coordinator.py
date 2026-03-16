@@ -88,6 +88,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         # Assistant mode (coach, coplay, opponent, analyst)
         self._assistant_mode: str = DEFAULT_ASSISTANT_MODE
 
+        # Persistent game hint – used by camera watchers when no auto-detection
+        self._default_game_hint: str = ""
+
         # Camera watchers: entity_id → {task, cancel_event, game_hint, client_type, interval}
         self._camera_watchers: dict[str, dict[str, Any]] = {}
 
@@ -273,6 +276,27 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._assistant_mode = mode
         _LOGGER.info("Assistant mode set to: %s", mode)
         self.async_set_updated_data(self._build_data())
+
+    @property
+    def default_game_hint(self) -> str:
+        return self._default_game_hint
+
+    def set_default_game_hint(self, hint: str) -> None:
+        """Set the persistent game hint used by all camera watchers."""
+        self._default_game_hint = hint
+        if hint:
+            self._current_game = hint
+        _LOGGER.info("Default game hint set to: %s", hint or "(auto)")
+        self.async_set_updated_data(self._build_data())
+
+    @property
+    def available_game_packs(self) -> list[dict[str, str]]:
+        """Return list of available prompt packs for UI dropdown."""
+        packs = self._pack_loader.load_all()
+        return [
+            {"id": pid, "name": p.get("name", pid)}
+            for pid, p in sorted(packs.items(), key=lambda x: x[1].get("name", x[0]))
+        ]
 
     @property
     def registered_workers(self) -> dict[str, dict[str, Any]]:
@@ -814,12 +838,23 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 image_bytes = image.content
                 consecutive_errors = 0
 
+                # Use dynamic game hint: explicit param > persistent default
+                effective_hint = game_hint or self._default_game_hint
+
+                # Auto-detect client_type: if using HA camera and no digital
+                # game pack matches, assume physical/tabletop game
+                effective_type = client_type
+                if effective_type == "console" and effective_hint:
+                    pack = self._pack_loader.find_by_keyword(effective_hint)
+                    if not pack:
+                        effective_type = "tabletop"
+
                 metadata = {
-                    "client_type": client_type,
+                    "client_type": effective_type,
                     "source": entity_id,
                 }
-                if game_hint:
-                    metadata["window_title"] = game_hint
+                if effective_hint:
+                    metadata["window_title"] = effective_hint
 
                 # Use entity_id as client_id (sanitise dots → underscores)
                 client_id = entity_id.replace(".", "_")
@@ -959,6 +994,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "analysis_timeout": self._analysis_timeout,
             "spoiler_level": self._spoiler.default_level,
             "registered_workers": self._registered_workers,
+            "default_game_hint": self._default_game_hint,
         }
 
     async def _async_update_data(self) -> dict:

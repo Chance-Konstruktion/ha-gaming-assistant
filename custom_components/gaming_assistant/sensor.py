@@ -82,6 +82,14 @@ class GamingAssistantStatusSensor(CoordinatorEntity, SensorEntity):
     def native_value(self) -> str:
         return self._coordinator.status
 
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {
+            "assistant_mode": self._coordinator.assistant_mode,
+            "default_game_hint": self._coordinator.default_game_hint,
+            "available_game_packs": self._coordinator.available_game_packs,
+        }
+
 
 class GamingAssistantHistorySensor(CoordinatorEntity, SensorEntity):
     """Shows tip history for the current session."""
