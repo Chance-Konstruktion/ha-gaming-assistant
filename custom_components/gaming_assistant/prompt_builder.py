@@ -3,6 +3,20 @@ from __future__ import annotations
 
 import re
 
+# Extra context injected when the source is a console game captured via camera.
+_CONSOLE_CONTEXT = (
+    "The game is running on a console or handheld (e.g. Switch, Wii, "
+    "PlayStation, Dreamcast, Game Boy) and is captured by a camera pointed "
+    "at the screen. Analyze the on-screen game state: HUD, health bars, "
+    "map, inventory, menus, etc. Ignore any glare, bezels, or camera "
+    "artifacts — focus on the game content shown on screen."
+)
+
+_CONSOLE_CONTEXT_COMPACT = (
+    "Console/handheld game captured by camera on screen. "
+    "Analyze on-screen HUD, menus, game state. Ignore glare/bezels."
+)
+
 # Extra context injected when the source is a physical tabletop game.
 _TABLETOP_CONTEXT = (
     "The game is being played physically on a real table, captured by a camera. "
@@ -132,9 +146,11 @@ class PromptBuilder:
             parts.append(f"Game: {game} ({client_type})." if compact
                          else f"The player is playing {game} on {client_type}.")
 
-        # 2b. Tabletop context
+        # 2b. Source-specific context
         if client_type == "tabletop":
             parts.append(_TABLETOP_CONTEXT_COMPACT if compact else _TABLETOP_CONTEXT)
+        elif client_type == "console":
+            parts.append(_CONSOLE_CONTEXT_COMPACT if compact else _CONSOLE_CONTEXT)
 
         # 3. Prompt pack system prompt
         if prompt_pack:

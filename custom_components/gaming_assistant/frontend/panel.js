@@ -23,6 +23,7 @@ const ENTITIES = {
   watchers: `sensor.${DOMAIN}_active_watchers`,
   errorCount: `sensor.${DOMAIN}_error_count`,
   sessionSummary: `sensor.${DOMAIN}_session_summary`,
+  sourceType: `select.${DOMAIN}_source_type`,
 };
 
 const I18N = {
@@ -36,8 +37,10 @@ const I18N = {
     game: "Spiel",
     gameAuto: "\u2014 Automatisch erkennen \u2014",
     gamePlaceholder: "Oder Spielname eingeben\u2026",
-    gameTabletop: "Physisches Spiel (Kamera)",
-    gameDigital: "Digitales Spiel",
+    sourceType: "Quelle",
+    sourceAuto: "Automatisch",
+    sourceConsole: "Konsole / Handheld",
+    sourceTabletop: "Brettspiel / Karten",
     spoilerLevel: "Spoiler-Stufe",
     intervalS: "Intervall (s)",
     timeoutS: "Timeout (s)",
@@ -86,8 +89,10 @@ const I18N = {
     game: "Game",
     gameAuto: "\u2014 Auto-detect \u2014",
     gamePlaceholder: "Or type a game name\u2026",
-    gameTabletop: "Physical game (camera)",
-    gameDigital: "Digital game",
+    sourceType: "Source",
+    sourceAuto: "Auto-detect",
+    sourceConsole: "Console / Handheld",
+    sourceTabletop: "Board game / Cards",
     spoilerLevel: "Spoiler Level",
     intervalS: "Interval (s)",
     timeoutS: "Timeout (s)",
@@ -329,6 +334,14 @@ class GamingAssistantPanel extends HTMLElement {
               <datalist id="game-list"></datalist>
             </div>
             <div class="control-item">
+              <label>${t("sourceType")}</label>
+              <select id="ctrl-source-type">
+                <option value="auto">${t("sourceAuto")}</option>
+                <option value="console">${t("sourceConsole")}</option>
+                <option value="tabletop">${t("sourceTabletop")}</option>
+              </select>
+            </div>
+            <div class="control-item">
               <label>${t("spoilerLevel")}</label>
               <select id="ctrl-spoiler"></select>
             </div>
@@ -458,6 +471,9 @@ class GamingAssistantPanel extends HTMLElement {
     };
     gameInput.addEventListener("change", sendGameHint);  // datalist pick or blur
     gameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendGameHint(); } });
+    $("ctrl-source-type").addEventListener("change", (e) =>
+      this._callService("select", "select_option", ENTITIES.sourceType, { option: e.target.value })
+    );
     $("ctrl-spoiler").addEventListener("change", (e) =>
       this._callService("select", "select_option", ENTITIES.spoiler, { option: e.target.value })
     );
@@ -590,6 +606,7 @@ class GamingAssistantPanel extends HTMLElement {
 
     // Mode & Spoiler selects
     this._updateSelect($("ctrl-mode"), ENTITIES.mode);
+    this._updateSelect($("ctrl-source-type"), ENTITIES.sourceType);
     this._updateSelect($("ctrl-spoiler"), ENTITIES.spoiler);
 
     // Number inputs

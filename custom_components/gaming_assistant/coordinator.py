@@ -16,6 +16,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import (
     ASSISTANT_MODES,
     CONF_AUTO_ANNOUNCE,
+    DEFAULT_SOURCE_TYPE,
+    SOURCE_TYPES,
     CONF_AUTO_SUMMARY,
     CONF_CAMERA_ENTITY,
     CONF_DEFAULT_SPOILER,
@@ -90,6 +92,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
         # Persistent game hint – used by camera watchers when no auto-detection
         self._default_game_hint: str = ""
+
+        # Source type: auto, console, tabletop
+        self._source_type: str = DEFAULT_SOURCE_TYPE
 
         # Camera watchers: entity_id → {task, cancel_event, game_hint, client_type, interval}
         self._camera_watchers: dict[str, dict[str, Any]] = {}
@@ -287,6 +292,19 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         if hint:
             self._current_game = hint
         _LOGGER.info("Default game hint set to: %s", hint or "(auto)")
+        self.async_set_updated_data(self._build_data())
+
+    @property
+    def source_type(self) -> str:
+        return self._source_type
+
+    def set_source_type(self, source_type: str) -> None:
+        """Set the source type (auto, console, tabletop)."""
+        if source_type not in SOURCE_TYPES:
+            _LOGGER.warning("Unknown source type '%s', keeping '%s'", source_type, self._source_type)
+            return
+        self._source_type = source_type
+        _LOGGER.info("Source type set to: %s", source_type)
         self.async_set_updated_data(self._build_data())
 
     @property
@@ -841,13 +859,18 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 # Use dynamic game hint: explicit param > persistent default
                 effective_hint = game_hint or self._default_game_hint
 
-                # Auto-detect client_type: if using HA camera and no digital
-                # game pack matches, assume physical/tabletop game
-                effective_type = client_type
-                if effective_type == "console" and effective_hint:
-                    pack = self._pack_loader.find_by_keyword(effective_hint)
-                    if not pack:
-                        effective_type = "tabletop"
+                # Resolve client_type based on source_type setting:
+                # - "console": always treat as digital game on screen
+                # - "tabletop": always treat as physical game on table
+                # - "auto": use prompt pack match to decide
+                if self._source_type == "auto":
+                    effective_type = client_type
+                    if effective_type == "console" and effective_hint:
+                        pack = self._pack_loader.find_by_keyword(effective_hint)
+                        if not pack:
+                            effective_type = "tabletop"
+                else:
+                    effective_type = self._source_type
 
                 metadata = {
                     "client_type": effective_type,
@@ -995,6 +1018,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "spoiler_level": self._spoiler.default_level,
             "registered_workers": self._registered_workers,
             "default_game_hint": self._default_game_hint,
+            "source_type": self._source_type,
         }
 
     async def _async_update_data(self) -> dict:
