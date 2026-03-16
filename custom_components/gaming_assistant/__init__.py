@@ -43,6 +43,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Forward setup to platforms so entities are available immediately
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # -- Register sidebar panel (once) ----------------------------------------
+    if "panel_registered" not in hass.data.get(DOMAIN, {}):
+        from homeassistant.components.frontend import (  # noqa: E501
+            async_register_built_in_panel,
+        )
+
+        frontend_path = Path(__file__).parent / "frontend"
+        hass.http.register_static_path(
+            f"/{DOMAIN}/frontend",
+            str(frontend_path),
+            cache_headers=False,
+        )
+        async_register_built_in_panel(
+            hass,
+            component_name="custom",
+            sidebar_title="Gaming",
+            sidebar_icon="mdi:gamepad-variant",
+            frontend_url_path="gaming-assistant",
+            config={
+                "_panel_custom": {
+                    "name": "gaming-assistant-panel",
+                    "js_url": f"/{DOMAIN}/frontend/panel.js",
+                    "embed_iframe": False,
+                }
+            },
+        )
+        hass.data[DOMAIN]["panel_registered"] = True
+
     async def _setup_mqtt(_event=None) -> None:
         """Set up MQTT subscriptions once MQTT is ready."""
         try:
@@ -353,9 +381,16 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
 
-        # Remove services only when last entry is unloaded
-        if not hass.data[DOMAIN]:
+        # Remove services and panel only when last entry is unloaded
+        remaining = {
+            k: v
+            for k, v in hass.data[DOMAIN].items()
+            if isinstance(v, GamingAssistantCoordinator)
+        }
+        if not remaining:
             for service in _ALL_SERVICES:
                 hass.services.async_remove(DOMAIN, service)
+            hass.components.frontend.async_remove_panel("gaming-assistant")
+            hass.data[DOMAIN].pop("panel_registered", None)
 
     return unload_ok
