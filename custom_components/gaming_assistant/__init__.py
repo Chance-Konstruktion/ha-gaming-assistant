@@ -61,6 +61,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             sidebar_title="Gaming",
             sidebar_icon="mdi:gamepad-variant",
             frontend_url_path="gaming-assistant",
+            require_admin=False,
             config={
                 "_panel_custom": {
                     "name": "gaming-assistant-panel",
