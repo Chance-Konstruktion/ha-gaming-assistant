@@ -74,9 +74,14 @@ class PromptBuilder:
         client_type: str = "pc",
         user_question: str = "",
         assistant_mode: str = "coach",
+        language: str = "",
     ) -> str:
         """Assemble the full prompt in the correct order."""
         parts: list[str] = []
+
+        # 0. Language instruction (if set)
+        if language:
+            parts.append(f"IMPORTANT: Always respond in {language}.")
 
         # 1. System role (mode-dependent)
         parts.append(_MODE_ROLES.get(assistant_mode, _MODE_ROLES["coach"]))
