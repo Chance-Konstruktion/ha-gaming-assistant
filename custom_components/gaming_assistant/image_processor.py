@@ -46,6 +46,7 @@ class ImageProcessor:
         spoiler_manager: SpoilerManager,
         prompt_pack_loader=None,
         timeout: int | None = None,
+        language: str = "",
     ) -> None:
         self._ollama_host = ollama_host.rstrip("/")
         self._model = model
@@ -53,6 +54,7 @@ class ImageProcessor:
         self._spoiler = spoiler_manager
         self._pack_loader = prompt_pack_loader
         self._timeout = timeout or OLLAMA_TIMEOUT
+        self._language = language
 
     @property
     def timeout(self) -> int:
@@ -110,6 +112,7 @@ class ImageProcessor:
             prompt_pack=prompt_pack,
             client_type=client_type,
             assistant_mode=assistant_mode,
+            language=self._language,
         )
 
         # 8. Call Ollama
@@ -157,6 +160,7 @@ class ImageProcessor:
             client_type=client_type,
             user_question=question,
             assistant_mode=assistant_mode,
+            language=self._language,
         )
 
         if image_bytes:

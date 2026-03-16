@@ -76,9 +76,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await mqtt.async_publish(hass, "gaming_assistant/command", "analyze")
 
         async def handle_start(call: ServiceCall) -> None:
+            """Start the gaming assistant.
+
+            If a camera is configured (or watchers were previously active),
+            start the built-in camera watcher.  Also send the legacy MQTT
+            command so external workers are started too.
+            """
+            for coord in hass.data[DOMAIN].values():
+                if not isinstance(coord, GamingAssistantCoordinator):
+                    continue
+                camera = coord.configured_camera
+                if camera and not coord.active_camera_watchers:
+                    await coord.async_watch_camera(camera)
+                    _LOGGER.info("Start: camera watcher started for %s", camera)
+                break
+            # Also send legacy MQTT command for external workers
             await mqtt.async_publish(hass, "gaming_assistant/command", "start")
 
         async def handle_stop(call: ServiceCall) -> None:
+            """Stop the gaming assistant.
+
+            Stops all active camera watchers and sends the legacy MQTT stop
+            command for external workers.
+            """
+            for coord in hass.data[DOMAIN].values():
+                if not isinstance(coord, GamingAssistantCoordinator):
+                    continue
+                if coord.active_camera_watchers:
+                    await coord.async_stop_watch_camera()
+                    _LOGGER.info("Stop: all camera watchers stopped")
+                break
+            # Also send legacy MQTT command for external workers
             await mqtt.async_publish(hass, "gaming_assistant/command", "stop")
 
         async def handle_process_image(call: ServiceCall) -> None:

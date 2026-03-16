@@ -100,6 +100,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._spoiler.load()
         self._pack_loader = PromptPackLoader()
         self._pack_loader.load_all()
+        # Resolve language from HA config (e.g. "de", "en", "fr")
+        self._language = self._resolve_language(hass)
+
         self._image_processor = ImageProcessor(
             ollama_host=config.get(CONF_OLLAMA_HOST, "http://localhost:11434"),
             model=config.get(CONF_MODEL, "qwen2.5vl"),
@@ -107,7 +110,34 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             spoiler_manager=self._spoiler,
             prompt_pack_loader=self._pack_loader,
             timeout=self._analysis_timeout,
+            language=self._language,
         )
+
+    # -- language resolution --------------------------------------------------
+
+    @staticmethod
+    def _resolve_language(hass: HomeAssistant) -> str:
+        """Map HA language code to a human-readable language name for the LLM."""
+        _LANG_MAP = {
+            "de": "German (Deutsch)",
+            "en": "English",
+            "fr": "French (Français)",
+            "es": "Spanish (Español)",
+            "it": "Italian (Italiano)",
+            "nl": "Dutch (Nederlands)",
+            "pt": "Portuguese (Português)",
+            "pl": "Polish (Polski)",
+            "ru": "Russian (Русский)",
+            "ja": "Japanese (日本語)",
+            "zh": "Chinese (中文)",
+            "ko": "Korean (한국어)",
+        }
+        lang_code = getattr(hass.config, "language", "en") or "en"
+        # HA may use "de" or "de-DE" format; take the base code
+        base = lang_code.split("-")[0].lower()
+        if base == "en":
+            return ""  # English is the default, no explicit instruction needed
+        return _LANG_MAP.get(base, base)
 
     # -- public properties ---------------------------------------------------
 

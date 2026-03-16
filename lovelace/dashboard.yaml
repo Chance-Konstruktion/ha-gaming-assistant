@@ -98,15 +98,15 @@ cards:
         name: Start Agent
         icon: mdi:play
         tap_action:
-          action: call-service
-          service: gaming_assistant.start
+          action: perform-action
+          perform_action: gaming_assistant.start
 
       - type: button
         name: Stop Agent
         icon: mdi:stop
         tap_action:
-          action: call-service
-          service: gaming_assistant.stop
+          action: perform-action
+          perform_action: gaming_assistant.stop
 
       - type: button
         name: Clear History
