@@ -77,12 +77,18 @@ def fetch_snapshot(
 # ---------------------------------------------------------------------------
 # MQTT setup
 # ---------------------------------------------------------------------------
-def build_mqtt_client(broker: str, port: int, username: str, password: str):
-    """Create and connect the MQTT client."""
+def build_mqtt_client(
+    broker: str, port: int, username: str, password: str, client_id: str = ""
+):
+    """Create and connect the MQTT client with Last Will (LWT)."""
     client = mqtt.Client(client_id="gaming_assistant_capture_ipcam", clean_session=True)
 
     if username:
         client.username_pw_set(username, password)
+
+    if client_id:
+        lwt_topic = f"gaming_assistant/{client_id}/status"
+        client.will_set(lwt_topic, payload="offline", qos=1, retain=True)
 
     running = {"active": True}
 
@@ -90,6 +96,11 @@ def build_mqtt_client(broker: str, port: int, username: str, password: str):
         if rc == 0:
             log.info("MQTT connected to %s:%d", broker, port)
             c.subscribe(TOPIC_CMD)
+            if client_id:
+                c.publish(
+                    f"gaming_assistant/{client_id}/status",
+                    "online", qos=1, retain=True,
+                )
         else:
             log.error("MQTT connection failed (rc=%d)", rc)
 
@@ -160,7 +171,7 @@ def main():
     log.info("Change detection: %s", "ON" if args.detect_change else "OFF")
 
     client, running = build_mqtt_client(
-        args.broker, args.port, args.user, args.password
+        args.broker, args.port, args.user, args.password, client_id
     )
     time.sleep(1)
 

@@ -51,7 +51,7 @@ cards:
   - type: markdown
     content: |
       ### Current Tip
-      > {{ states('sensor.gaming_assistant_tip') }}
+      > {{ state_attr('sensor.gaming_assistant_tip', 'full_tip') or states('sensor.gaming_assistant_tip') }}
 
       {% if state_attr('sensor.gaming_assistant_tip', 'game') %}
       **Game:** {{ state_attr('sensor.gaming_assistant_tip', 'game') }}
@@ -75,7 +75,7 @@ cards:
     content: |
       ### Session Summary
       {% if states('sensor.gaming_assistant_session_summary') != 'No summary yet' %}
-      > {{ states('sensor.gaming_assistant_session_summary') }}
+      > {{ state_attr('sensor.gaming_assistant_session_summary', 'full_summary') or states('sensor.gaming_assistant_session_summary') }}
 
       {% if state_attr('sensor.gaming_assistant_session_summary', 'game') %}
       **Game:** {{ state_attr('sensor.gaming_assistant_session_summary', 'game') }}

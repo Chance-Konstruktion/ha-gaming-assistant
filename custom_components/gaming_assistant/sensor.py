@@ -50,11 +50,16 @@ class GamingAssistantTipSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self) -> str:
-        return self._coordinator.tip
+        tip = self._coordinator.tip
+        # HA state has a 255-char limit; truncate for state, full tip in attributes
+        if len(tip) > 250:
+            return tip[:247] + "..."
+        return tip
 
     @property
     def extra_state_attributes(self) -> dict:
         return {
+            "full_tip": self._coordinator.tip,
             "gaming_mode": self._coordinator.gaming_mode,
             "worker_status": self._coordinator.status,
             "game": self._coordinator.current_game,
@@ -228,11 +233,17 @@ class GamingAssistantSessionSummarySensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self) -> str:
-        return self._coordinator.last_summary or "No summary yet"
+        summary = self._coordinator.last_summary
+        if not summary:
+            return "No summary yet"
+        if len(summary) > 250:
+            return summary[:247] + "..."
+        return summary
 
     @property
     def extra_state_attributes(self) -> dict:
         return {
+            "full_summary": self._coordinator.last_summary,
             "game": self._coordinator.last_summary_game,
             "timestamp": self._coordinator.last_summary_timestamp,
         }
