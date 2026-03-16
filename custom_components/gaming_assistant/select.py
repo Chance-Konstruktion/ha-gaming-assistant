@@ -12,6 +12,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     ASSISTANT_MODES,
     DOMAIN,
+    SOURCE_TYPES,
     SPOILER_LEVELS,
 )
 from .coordinator import GamingAssistantCoordinator
@@ -29,6 +30,7 @@ async def async_setup_entry(
     async_add_entities([
         AssistantModeSelect(coordinator),
         SpoilerLevelSelect(coordinator),
+        SourceTypeSelect(coordinator),
     ])
 
 
@@ -74,3 +76,25 @@ class SpoilerLevelSelect(CoordinatorEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         self._coordinator.set_default_spoiler_level(option)
+
+
+class SourceTypeSelect(CoordinatorEntity, SelectEntity):
+    """Select entity to switch the source type (auto/console/tabletop)."""
+
+    _attr_name = "Gaming Assistant Source Type"
+    _attr_unique_id = "gaming_assistant_source_type"
+    _attr_icon = "mdi:video-input-component"
+    _attr_options = SOURCE_TYPES
+    _attr_translation_key = "source_type"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def current_option(self) -> str:
+        return self._coordinator.source_type
+
+    async def async_select_option(self, option: str) -> None:
+        self._coordinator.set_source_type(option)

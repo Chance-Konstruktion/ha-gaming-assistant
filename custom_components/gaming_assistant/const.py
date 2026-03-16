@@ -46,6 +46,10 @@ ATTR_GAMING_MODE = "gaming_mode"
 ASSISTANT_MODES = ["coach", "coplay", "opponent", "analyst"]
 DEFAULT_ASSISTANT_MODE = "coach"
 
+# Source Types (how the camera sees the game)
+SOURCE_TYPES = ["auto", "console", "tabletop"]
+DEFAULT_SOURCE_TYPE = "auto"
+
 # TTS / Announce
 CONF_TTS_ENTITY = "tts_entity"
 CONF_TTS_TARGET = "tts_target"

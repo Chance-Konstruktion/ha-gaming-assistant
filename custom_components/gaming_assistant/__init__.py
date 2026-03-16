@@ -36,7 +36,7 @@ _ALL_SERVICES = (
     "clear_history", "capture_from_camera",
     "watch_camera", "stop_watch_camera",
     "announce", "summarize_session", "configure",
-    "set_game_hint", "list_game_packs",
+    "set_game_hint", "list_game_packs", "set_source_type",
 )
 
 
@@ -370,6 +370,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     coord.set_default_game_hint(game_hint)
                     break
 
+        async def handle_set_source_type(call: ServiceCall) -> None:
+            """Set the source type (auto, console, tabletop)."""
+            source_type = call.data.get("source_type", "auto")
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    coord.set_source_type(source_type)
+                    break
+
         async def handle_list_game_packs(call: ServiceCall) -> None:
             """Return available prompt packs (mainly for internal use)."""
             for coord in hass.data[DOMAIN].values():
@@ -440,6 +448,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "summarize_session", handle_summarize_session)
         hass.services.async_register(DOMAIN, "configure", handle_configure)
         hass.services.async_register(DOMAIN, "set_game_hint", handle_set_game_hint)
+        hass.services.async_register(DOMAIN, "set_source_type", handle_set_source_type)
         hass.services.async_register(DOMAIN, "list_game_packs", handle_list_game_packs)
 
     _LOGGER.info("Gaming Assistant integration loaded successfully")
