@@ -415,7 +415,7 @@ class GamingAssistantPanel extends HTMLElement {
             </div>
             <div class="control-item">
               <label>${t("aiModel")}</label>
-              <input type="text" id="setup-model" placeholder="qwen2.5vl">
+              <select id="setup-model"></select>
             </div>
           </div>
           <button class="btn-save" id="btn-save-setup">${t("save")}</button>
@@ -487,7 +487,7 @@ class GamingAssistantPanel extends HTMLElement {
       data.tts_entity = tts || "";
       const spk = $("setup-speaker").value;
       data.tts_target = spk || "";
-      const model = $("setup-model").value.trim();
+      const model = $("setup-model").value;
       if (model) data.model = model;
 
       await this._callDomainService("configure", data);
@@ -660,11 +660,45 @@ class GamingAssistantPanel extends HTMLElement {
         return `<option value="${e}">${name}</option>`;
       }).join("");
 
+    // AI Model dropdown – fetch from Ollama, fall back to known models
+    const modelSelect = $("setup-model");
+    const fallbackModels = ["qwen2.5vl", "llava", "llava:13b", "bakllava", "llama3.2-vision"];
+    this._populateModelDropdown(modelSelect, fallbackModels);
+
     // Try to set current values from config entry
-    this._loadCurrentConfig(camSelect, ttsSelect, spkSelect, $("setup-model"));
+    this._loadCurrentConfig(camSelect, ttsSelect, spkSelect, modelSelect);
   }
 
-  async _loadCurrentConfig(camSelect, ttsSelect, spkSelect, modelInput) {
+  async _populateModelDropdown(selectEl, fallbackModels) {
+    // Start with fallback models immediately so the dropdown is never empty
+    selectEl.innerHTML = fallbackModels
+      .map((m) => `<option value="${m}">${m}</option>`).join("");
+
+    // Try fetching live models from Ollama
+    if (!this._hass) return;
+    try {
+      const entries = await this._hass.callWS({ type: "config_entries/get", domain: DOMAIN });
+      if (!entries || entries.length === 0) return;
+      const entry = entries[0];
+      const ollamaHost = (entry.data && entry.data.ollama_host) || "http://localhost:11434";
+
+      const resp = await fetch(`${ollamaHost}/api/tags`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const models = (data.models || []).map((m) => m.name).sort();
+      if (models.length > 0) {
+        const current = selectEl.value;
+        selectEl.innerHTML = models
+          .map((m) => `<option value="${m}">${m}</option>`).join("");
+        // Restore selection if it exists in new list
+        if (models.includes(current)) selectEl.value = current;
+      }
+    } catch (_e) {
+      // Keep fallback models – already populated
+    }
+  }
+
+  async _loadCurrentConfig(camSelect, ttsSelect, spkSelect, modelSelect) {
     if (!this._hass) return;
     try {
       const entries = await this._hass.callWS({
@@ -672,9 +706,7 @@ class GamingAssistantPanel extends HTMLElement {
         domain: DOMAIN,
       });
       if (entries && entries.length > 0) {
-        // Get full entry details with options
         const entry = entries[0];
-        // Options are merged with data at runtime; try callWS for entry details
         try {
           const detail = await this._hass.callWS({
             type: "config_entries/get_single",
@@ -686,11 +718,19 @@ class GamingAssistantPanel extends HTMLElement {
           if (merged.camera_entity) camSelect.value = merged.camera_entity;
           if (merged.tts_entity) ttsSelect.value = merged.tts_entity;
           if (merged.tts_target) spkSelect.value = merged.tts_target;
-          if (merged.model) modelInput.value = merged.model;
+          if (merged.model) {
+            // Ensure the configured model is in the dropdown
+            const exists = Array.from(modelSelect.options).some((o) => o.value === merged.model);
+            if (!exists) {
+              const opt = document.createElement("option");
+              opt.value = merged.model;
+              opt.textContent = merged.model;
+              modelSelect.insertBefore(opt, modelSelect.firstChild);
+            }
+            modelSelect.value = merged.model;
+          }
         } catch (_e) {
-          // get_single might not exist in all HA versions; fall back
-          // Use known defaults from the integration
-          modelInput.value = modelInput.value || "qwen2.5vl";
+          modelSelect.value = "qwen2.5vl";
         }
       }
     } catch (err) {
@@ -702,9 +742,11 @@ class GamingAssistantPanel extends HTMLElement {
     const state = this._getState(entityId);
     if (!state || !state.attributes) return;
     const options = state.attributes.options || [];
+    if (options.length === 0) return;
     const current = state.state;
     const optKey = options.join(",");
-    if (selectEl.dataset.optKey !== optKey) {
+    // Always rebuild if empty or options changed
+    if (selectEl.options.length === 0 || selectEl.dataset.optKey !== optKey) {
       selectEl.innerHTML = options.map((o) => `<option value="${o}">${o}</option>`).join("");
       selectEl.dataset.optKey = optKey;
     }
