@@ -85,6 +85,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def _setup_mqtt(_event=None) -> None:
         """Set up MQTT subscriptions once MQTT is ready."""
+        # Fetch available Ollama models for the panel dropdown
+        try:
+            await coordinator.async_fetch_available_models()
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.debug("Could not fetch Ollama models on startup")
+
         try:
             await coordinator.async_setup_mqtt()
         except Exception:  # pylint: disable=broad-except

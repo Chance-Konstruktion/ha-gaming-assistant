@@ -41,6 +41,14 @@ const I18N = {
     sourceAuto: "Automatisch",
     sourceConsole: "Konsole / Handheld",
     sourceTabletop: "Brettspiel / Karten",
+    modeCoach: "Coach",
+    modeCoplay: "Mitspieler",
+    modeOpponent: "Gegner",
+    modeAnalyst: "Analyst",
+    spoilerNone: "Keine",
+    spoilerLow: "Niedrig",
+    spoilerMedium: "Mittel",
+    spoilerHigh: "Hoch",
     spoilerLevel: "Spoiler-Stufe",
     intervalS: "Intervall (s)",
     timeoutS: "Timeout (s)",
@@ -93,6 +101,14 @@ const I18N = {
     sourceAuto: "Auto-detect",
     sourceConsole: "Console / Handheld",
     sourceTabletop: "Board game / Cards",
+    modeCoach: "Coach",
+    modeCoplay: "Co-Player",
+    modeOpponent: "Opponent",
+    modeAnalyst: "Analyst",
+    spoilerNone: "None",
+    spoilerLow: "Low",
+    spoilerMedium: "Medium",
+    spoilerHigh: "High",
     spoilerLevel: "Spoiler Level",
     intervalS: "Interval (s)",
     timeoutS: "Timeout (s)",
@@ -326,7 +342,12 @@ class GamingAssistantPanel extends HTMLElement {
           <div class="controls-grid">
             <div class="control-item">
               <label>${t("mode")}</label>
-              <select id="ctrl-mode"></select>
+              <select id="ctrl-mode">
+                <option value="coach">${t("modeCoach")}</option>
+                <option value="coplay">${t("modeCoplay")}</option>
+                <option value="opponent">${t("modeOpponent")}</option>
+                <option value="analyst">${t("modeAnalyst")}</option>
+              </select>
             </div>
             <div class="control-item">
               <label>${t("game")}</label>
@@ -343,7 +364,12 @@ class GamingAssistantPanel extends HTMLElement {
             </div>
             <div class="control-item">
               <label>${t("spoilerLevel")}</label>
-              <select id="ctrl-spoiler"></select>
+              <select id="ctrl-spoiler">
+                <option value="none">${t("spoilerNone")}</option>
+                <option value="low">${t("spoilerLow")}</option>
+                <option value="medium" selected>${t("spoilerMedium")}</option>
+                <option value="high">${t("spoilerHigh")}</option>
+              </select>
             </div>
             <div class="control-item">
               <label>${t("intervalS")}</label>
@@ -667,6 +693,8 @@ class GamingAssistantPanel extends HTMLElement {
     const statusState = this._getState(ENTITIES.status);
     if (statusState && statusState.attributes) {
       this._updateGameDropdown($("ctrl-game"), statusState.attributes);
+      // Refresh model dropdown when server-side models arrive
+      this._updateModelDropdown($("setup-model"), statusState.attributes);
     }
 
     // Setup dropdowns (populate once from hass.states)
@@ -708,42 +736,17 @@ class GamingAssistantPanel extends HTMLElement {
         return `<option value="${e}">${name}</option>`;
       }).join("");
 
-    // AI Model dropdown – fetch from Ollama, fall back to known models
+    // AI Model dropdown – use models from coordinator (fetched server-side)
     const modelSelect = $("setup-model");
+    const statusForModels = this._getState(ENTITIES.status);
+    const serverModels = (statusForModels && statusForModels.attributes && statusForModels.attributes.available_models) || [];
     const fallbackModels = ["qwen2.5vl", "llava", "llava:13b", "bakllava", "llama3.2-vision"];
-    this._populateModelDropdown(modelSelect, fallbackModels);
+    const modelList = serverModels.length > 0 ? serverModels : fallbackModels;
+    modelSelect.innerHTML = modelList
+      .map((m) => `<option value="${m}">${m}</option>`).join("");
 
     // Try to set current values from config entry
     this._loadCurrentConfig(camSelect, ttsSelect, spkSelect, modelSelect);
-  }
-
-  async _populateModelDropdown(selectEl, fallbackModels) {
-    // Start with fallback models immediately so the dropdown is never empty
-    selectEl.innerHTML = fallbackModels
-      .map((m) => `<option value="${m}">${m}</option>`).join("");
-
-    // Try fetching live models from Ollama
-    if (!this._hass) return;
-    try {
-      const entries = await this._hass.callWS({ type: "config_entries/get", domain: DOMAIN });
-      if (!entries || entries.length === 0) return;
-      const entry = entries[0];
-      const ollamaHost = (entry.data && entry.data.ollama_host) || "http://localhost:11434";
-
-      const resp = await fetch(`${ollamaHost}/api/tags`);
-      if (!resp.ok) return;
-      const data = await resp.json();
-      const models = (data.models || []).map((m) => m.name).sort();
-      if (models.length > 0) {
-        const current = selectEl.value;
-        selectEl.innerHTML = models
-          .map((m) => `<option value="${m}">${m}</option>`).join("");
-        // Restore selection if it exists in new list
-        if (models.includes(current)) selectEl.value = current;
-      }
-    } catch (_e) {
-      // Keep fallback models – already populated
-    }
   }
 
   async _loadCurrentConfig(camSelect, ttsSelect, spkSelect, modelSelect) {
@@ -806,17 +809,41 @@ class GamingAssistantPanel extends HTMLElement {
 
   _updateSelect(selectEl, entityId) {
     const state = this._getState(entityId);
-    if (!state || !state.attributes) return;
-    const options = state.attributes.options || [];
-    if (options.length === 0) return;
+    if (!state) return;
     const current = state.state;
-    const optKey = options.join(",");
-    // Always rebuild if empty or options changed
-    if (selectEl.options.length === 0 || selectEl.dataset.optKey !== optKey) {
-      selectEl.innerHTML = options.map((o) => `<option value="${o}">${o}</option>`).join("");
-      selectEl.dataset.optKey = optKey;
+    // If entity has options and the select is empty, populate it
+    // (pre-populated selects with localized labels are kept as-is)
+    if (state.attributes) {
+      const options = state.attributes.options || [];
+      if (options.length > 0 && selectEl.options.length === 0) {
+        selectEl.innerHTML = options.map((o) => `<option value="${o}">${o}</option>`).join("");
+      }
     }
-    if (selectEl.value !== current) selectEl.value = current;
+    // Sync selected value from entity state
+    if (current && selectEl.value !== current) selectEl.value = current;
+  }
+
+  _updateModelDropdown(selectEl, attrs) {
+    if (!selectEl) return;
+    const models = attrs.available_models || [];
+    if (models.length === 0) return;
+    const modelKey = models.join(",");
+    if (selectEl.dataset.modelKey === modelKey) return;
+    const current = selectEl.value;
+    selectEl.innerHTML = models.map((m) => `<option value="${m}">${m}</option>`).join("");
+    selectEl.dataset.modelKey = modelKey;
+    // Restore previous selection or add it if not in list
+    if (current) {
+      if (models.includes(current)) {
+        selectEl.value = current;
+      } else {
+        const opt = document.createElement("option");
+        opt.value = current;
+        opt.textContent = current;
+        selectEl.insertBefore(opt, selectEl.firstChild);
+        selectEl.value = current;
+      }
+    }
   }
 
   _escapeHtml(text) {

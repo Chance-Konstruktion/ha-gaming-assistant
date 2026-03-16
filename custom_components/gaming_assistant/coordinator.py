@@ -133,6 +133,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._last_summary_game: str = ""
         self._last_summary_timestamp: str = ""
 
+        # Available Ollama models (fetched on startup, refreshable)
+        self._available_models: list[str] = []
+
         # Resolve language from HA config (e.g. "de", "en", "fr")
         self._language = self._resolve_language(hass)
 
@@ -565,6 +568,27 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         return self._last_analysis
 
     # -- MQTT setup with retry -----------------------------------------------
+
+    async def async_fetch_available_models(self) -> list[str]:
+        """Fetch available models from Ollama and cache the result."""
+        import requests as req
+
+        host = self.config.get(CONF_OLLAMA_HOST, "http://localhost:11434").rstrip("/")
+
+        def _fetch():
+            try:
+                resp = req.get(f"{host}/api/tags", timeout=5)
+                resp.raise_for_status()
+                data = resp.json()
+                return sorted(m["name"] for m in data.get("models", []))
+            except Exception as err:
+                _LOGGER.warning("Could not fetch Ollama models from %s: %s", host, err)
+                return []
+
+        models = await self.hass.async_add_executor_job(_fetch)
+        self._available_models = models
+        self.async_set_updated_data(self._build_data())
+        return models
 
     async def async_setup_mqtt(self) -> None:
         """Subscribe to MQTT topics with exponential-backoff retry."""
@@ -1019,6 +1043,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "registered_workers": self._registered_workers,
             "default_game_hint": self._default_game_hint,
             "source_type": self._source_type,
+            "available_models": self._available_models,
         }
 
     async def _async_update_data(self) -> dict:
