@@ -1,10 +1,24 @@
 ################################################################################
-# Gaming Assistant – Automation Examples (v0.4)
+# Gaming Assistant – Automation Examples (v0.9)
 # Add these to your automations.yaml or import via the UI
 ################################################################################
 
-# -- 1. Read tip aloud when gaming mode is active -----------------------------
-- alias: "Gaming Assistant – Speak Tip"
+# -- 1a. Read tip aloud via built-in announce service --------------------------
+#    (Simplest approach — uses TTS configured in the integration settings)
+- alias: "Gaming Assistant – Announce Tip (built-in)"
+  description: "Reads new tips aloud using the built-in announce service."
+  trigger:
+    - platform: event
+      event_type: gaming_assistant_new_tip
+  action:
+    - service: gaming_assistant.announce
+      data:
+        message: "{{ trigger.event.data.tip }}"
+  mode: single
+
+# -- 1b. Read tip aloud via manual TTS call (legacy approach) -----------------
+#    (If you prefer direct TTS control or don't have announce configured)
+- alias: "Gaming Assistant – Speak Tip (manual TTS)"
   description: "Reads new AI tips aloud while gaming mode is on."
   trigger:
     - platform: state
@@ -88,4 +102,17 @@
       data:
         category: lore
         level: none
+  mode: single
+
+# -- 6. Event-based notification with game context ----------------------------
+- alias: "Gaming Assistant – Event Notify with Game"
+  description: "Send a notification with game context when a new tip is generated."
+  trigger:
+    - platform: event
+      event_type: gaming_assistant_new_tip
+  action:
+    - service: notify.mobile_app_your_phone  # Change to your notify service
+      data:
+        title: "Gaming Tip ({{ trigger.event.data.game }})"
+        message: "{{ trigger.event.data.tip }}"
   mode: single

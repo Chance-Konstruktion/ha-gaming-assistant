@@ -60,6 +60,11 @@ passthrough mode.
 | `llava` | ~8 GB | Good general purpose |
 | `bakllava` | ~6 GB | Lighter option |
 | `llama3.2-vision` | ~10 GB | Excellent, needs more VRAM |
+| `ministral:3b` | ~2 GB | Lightweight, good for low-VRAM setups |
+
+> **Small models (3B):** Models like Ministral 3B work but produce shorter,
+> less detailed tips. The integration automatically keeps prompts concise.
+> Best for simple games (board games, card games) or when hardware is limited.
 
 ---
 
@@ -76,11 +81,12 @@ passthrough mode.
 
 Go to **Settings -> Devices & Services -> Add Integration -> Gaming Assistant**
 
-The config flow has 4 steps:
+The config flow has 5 steps:
 1. **Ollama Host** -- URL of your Ollama server
 2. **Model & Interval** -- Choose a vision model, capture interval, and timeout
 3. **Spoiler Level** -- Default spoiler level (none/low/medium/high)
 4. **Camera** -- Optionally select a HA camera to auto-watch
+5. **Voice Announcements** -- TTS engine, speaker, and auto-announce toggle
 
 > **Note:** The config flow validates the Ollama connection. If the server is
 > unreachable you'll see an error and can correct the URL.
@@ -316,6 +322,38 @@ data:
   client_type: console
 ```
 
+### Voice Announcements (TTS)
+
+Have tips read aloud by your Home Assistant voice assistant (e.g. Piper):
+
+**Manual announce:**
+
+```yaml
+service: gaming_assistant.announce
+data:
+  tts_entity: tts.piper
+  media_player_entity_id: media_player.living_room
+```
+
+**Auto-announce:** Enable `switch.gaming_assistant_auto_announce` to have every
+new tip automatically spoken. Configure the TTS engine and speaker in the
+integration settings (Step 5 of the config flow or Options).
+
+**Event-based automations:** Every new tip fires a `gaming_assistant_new_tip`
+event with `tip`, `game`, `client_id`, and `assistant_mode` data. Use this in
+custom automations:
+
+```yaml
+trigger:
+  - platform: event
+    event_type: gaming_assistant_new_tip
+action:
+  - service: notify.mobile_app_your_phone
+    data:
+      title: "Gaming Tip ({{ trigger.event.data.game }})"
+      message: "{{ trigger.event.data.tip }}"
+```
+
 ### Game-Specific Prompt Packs
 
 The integration includes prompt packs for popular games that provide tailored
@@ -352,6 +390,7 @@ Clear history via `gaming_assistant.clear_history`.
 | `select.gaming_assistant_spoiler_level` | Select | Default spoiler level (None / Low / Medium / High) |
 | `number.gaming_assistant_interval` | Number (slider) | Capture/analysis interval (5–120 s) |
 | `number.gaming_assistant_timeout` | Number (slider) | Analysis timeout (10–300 s) |
+| `switch.gaming_assistant_auto_announce` | Switch | Auto-announce new tips via TTS |
 
 ### Sensors
 
@@ -383,6 +422,7 @@ Clear history via `gaming_assistant.clear_history`.
 | `gaming_assistant.capture_from_camera` | One-shot capture from a HA camera entity |
 | `gaming_assistant.watch_camera` | Continuous camera monitoring at interval |
 | `gaming_assistant.stop_watch_camera` | Stop camera watcher(s) |
+| `gaming_assistant.announce` | Speak current tip (or custom message) via TTS |
 
 > **Note:** Assistant mode, spoiler level, interval, and timeout are now
 > controlled via entities (see above) instead of services.
@@ -487,6 +527,20 @@ Same as Android agent, plus:
 ---
 
 ## Changelog
+
+### 0.9.0 -- "Voice & Language"
+- **Added:** `gaming_assistant.announce` service -- speak tips via any HA TTS
+  engine (e.g. Piper) to any media player/speaker.
+- **Added:** `switch.gaming_assistant_auto_announce` entity -- toggle automatic
+  TTS announcements for every new tip.
+- **Added:** `gaming_assistant_new_tip` event fired on every new tip, carrying
+  `tip`, `game`, `client_id`, and `assistant_mode` data for custom automations.
+- **Added:** Config flow step 5 for TTS setup (engine, speaker, auto-announce).
+- **Added:** TTS settings in options flow for reconfiguration.
+- **Added:** Automatic language detection from Home Assistant language settings.
+  The AI now responds in the user's configured language (German, French, etc.).
+- **Improved:** Prompt Builder supports compact prompts for small models (3B).
+- **Changed:** Config flow updated to 5 steps (added TTS step).
 
 ### 0.8.0 -- "Dashboard Entities"
 - **Added:** Select entity for assistant mode -- switch between Coach,
