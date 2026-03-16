@@ -1,5 +1,5 @@
 ################################################################################
-# Gaming Assistant – Lovelace Dashboard (v0.9)
+# Gaming Assistant – Lovelace Dashboard (v0.9.1)
 # Copy this into a manual card or your dashboard YAML
 ################################################################################
 
@@ -48,36 +48,55 @@ cards:
         name: Auto Summary
 
   # -- Current tip -----------------------------------------------------------
+  # Uses the full_tip attribute to avoid the 255-char HA state limit.
   - type: markdown
     content: |
       ### Current Tip
-      > {{ state_attr('sensor.gaming_assistant_tip', 'full_tip') or states('sensor.gaming_assistant_tip') }}
-
+      {% set tip = state_attr('sensor.gaming_assistant_tip', 'full_tip') or states('sensor.gaming_assistant_tip') %}
+      {% if tip and tip != 'Waiting for tips...' %}
+      > {{ tip }}
       {% if state_attr('sensor.gaming_assistant_tip', 'game') %}
+
       **Game:** {{ state_attr('sensor.gaming_assistant_tip', 'game') }}
+      {% endif %}
+      {% else %}
+      _Waiting for tips..._
       {% endif %}
 
   # -- Tip History -----------------------------------------------------------
+  # Each tip is clearly separated with a horizontal rule and numbered.
+  # Wrapped in a scrollable container via card_mod (if installed) or
+  # limited to last 10 tips to keep the dashboard readable.
   - type: markdown
     content: |
       ### Recent Tips
       {% set tips = state_attr('sensor.gaming_assistant_history', 'recent_tips') %}
       {% if tips %}
       {% for entry in tips | reverse %}
-      {{ loop.index }}. {{ entry.tip }}
+      **{{ loop.index }}.** {{ entry.tip }}
+      {% if not loop.last %}
+      ---
+      {% endif %}
       {% endfor %}
       {% else %}
       _No tips yet._
       {% endif %}
+    card_mod:
+      style: |
+        ha-markdown {
+          max-height: 400px;
+          overflow-y: auto;
+        }
 
   # -- Session Summary -------------------------------------------------------
   - type: markdown
     content: |
       ### Session Summary
-      {% if states('sensor.gaming_assistant_session_summary') != 'No summary yet' %}
-      > {{ state_attr('sensor.gaming_assistant_session_summary', 'full_summary') or states('sensor.gaming_assistant_session_summary') }}
-
+      {% set summary = state_attr('sensor.gaming_assistant_session_summary', 'full_summary') or states('sensor.gaming_assistant_session_summary') %}
+      {% if summary and summary != 'No summary yet' %}
+      > {{ summary }}
       {% if state_attr('sensor.gaming_assistant_session_summary', 'game') %}
+
       **Game:** {{ state_attr('sensor.gaming_assistant_session_summary', 'game') }}
       {% endif %}
       {% else %}

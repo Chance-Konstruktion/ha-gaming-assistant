@@ -250,7 +250,52 @@ Interaktive Steuerung und aktive Assistenz bei strengen Sicherheitsgrenzen.
 
 ---
 
-## Phase 5 (v0.9.x): Community & Ökosystem
+## Phase 5 (v1.0.x): Player 2 / Agent Mode
+
+### Ziel
+Die KI soll nicht nur beraten, sondern aktiv Spiele spielen können – als Gegner oder Mitspieler.
+
+### Sicherheitsprinzip: vgamepad statt pyautogui
+**Entscheidung:** Für die Eingabesteuerung wird `vgamepad` (virtueller Xbox/PlayStation-Controller)
+statt `pyautogui` (Maus/Tastatur) verwendet. Ein Gamepad kann NUR Spiel-Inputs senden und hat
+KEINEN Zugriff auf das Betriebssystem (kein Alt-Tab, kein Terminal, kein Dateisystem).
+Das ist eine **natürliche Sandbox** für die KI.
+
+### 5.1 Action Output Format (Prompt Builder)
+**Status: Geplant**
+- Neuer Modus `action` im PromptBuilder
+- KI gibt strukturierte JSON-Befehle aus: `{"action": "press_button", "button": "A"}`
+- Schema-Validierung der KI-Ausgabe vor Ausführung
+
+### 5.2 Schach-Bot (erster Player-2-Prototyp)
+**Status: Geplant**
+- Opponent-Modus + strukturierte Zugausgabe
+- Für physisches Schach: KI ansagt Zug via TTS ("Springer auf f3")
+- Für PC-Schach: Optional vgamepad-Steuerung für Controller-Schachspiele
+
+### 5.3 Virtueller Controller (vgamepad)
+**Status: Geplant**
+- Xbox 360 / DualShock 4 Controller-Emulation via `vgamepad`
+- Worker-Erweiterung: empfängt Action-Befehle per MQTT, führt Controller-Inputs aus
+- Whitelist-System: nur erlaubte Buttons/Achsen pro Spiel
+- Audit-Log jeder ausgeführten Aktion
+
+### 5.4 ViZDoom-Integration (Forschung)
+**Status: Forschungsphase**
+- Separater Agent-Prozess auf dem Gaming-PC
+- MQTT-Anbindung an Home Assistant
+- **Hybrid-Architektur:** ViZDoom für Reflexe (Bewegung, Zielen), LLM für Strategie (Heilen, Waffen wechseln)
+- Referenz: https://github.com/Farama-Foundation/ViZDoom
+- Ziel: 60 FPS Gameplay, nicht 7000 FPS Training
+
+### 5.5 Generalisierung
+- Framework für weitere Spiele (Action-Plugins pro Spiel-Typ)
+- Unterstützung für rundenbasierte (Schach, Civ) und Echtzeit-Spiele (DOOM)
+- Geschwindigkeits-Grenze: Rundenbasiert = LLM direkt, Echtzeit = ViZDoom + LLM-Strategie
+
+---
+
+## Phase 6 (v1.x): Community & Ökosystem
 
 ### Ziel
 Inhalte und Nutzung skalieren über Community-Beiträge.
@@ -367,7 +412,8 @@ Empfohlener Codex-Workflow je Task:
 - **0.6.x**: Erweiterte Spoiler-/Prompt-Intelligenz.
 - **0.7.x**: Overlay + Dashboard UX.
 - **0.8.x**: Voice + sicherer Agent Mode (experimentell).
-- **0.9.x**: Community-Ökosystem + Multi-Client-Reife.
+- **0.9.x**: Session Summary + Prompt-Optimierung + LWT.
+- **1.0.x**: Player 2 / Agent Mode (vgamepad, ViZDoom).
 - **1.0.0**: Stabil, dokumentiert, breite Community-Freigabe.
 
 ## 8.2 Definition of Done (DoD)
