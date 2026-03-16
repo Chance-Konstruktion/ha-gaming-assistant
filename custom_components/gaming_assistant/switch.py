@@ -24,6 +24,7 @@ async def async_setup_entry(
     coordinator: GamingAssistantCoordinator = hass.data[DOMAIN][config_entry.entry_id]
     async_add_entities([
         AutoAnnounceSwitch(coordinator),
+        AutoSummarySwitch(coordinator),
     ])
 
 
@@ -49,3 +50,27 @@ class AutoAnnounceSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs) -> None:
         self._coordinator.set_auto_announce(False)
+
+
+class AutoSummarySwitch(CoordinatorEntity, SwitchEntity):
+    """Switch to toggle automatic session summaries."""
+
+    _attr_name = "Gaming Assistant Auto Summary"
+    _attr_unique_id = "gaming_assistant_auto_summary"
+    _attr_icon = "mdi:text-box-check"
+    _attr_translation_key = "auto_summary"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def is_on(self) -> bool:
+        return self._coordinator.auto_summary
+
+    async def async_turn_on(self, **kwargs) -> None:
+        self._coordinator.set_auto_summary(True)
+
+    async def async_turn_off(self, **kwargs) -> None:
+        self._coordinator.set_auto_summary(False)

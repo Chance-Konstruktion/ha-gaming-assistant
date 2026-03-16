@@ -354,13 +354,34 @@ action:
       message: "{{ trigger.event.data.tip }}"
 ```
 
+### Session Summaries
+
+After a gaming session ends (5 minutes of inactivity), the integration can
+automatically generate a concise summary of the session's key insights.
+
+**Manual summary:**
+
+```yaml
+service: gaming_assistant.summarize_session
+data:
+  game: "Elden Ring"  # optional, uses current game if empty
+```
+
+**Auto-summary:** Enable `switch.gaming_assistant_auto_summary` to automatically
+summarize every session that has 3+ tips. The summary is stored in
+`sensor.gaming_assistant_session_summary`.
+
+**Session-end event:** When a session ends, a `gaming_assistant_session_ended`
+event fires with `game`, `tip_count`, and `summary` data.
+
 ### Game-Specific Prompt Packs
 
 The integration includes prompt packs for popular games that provide tailored
 coaching.
 
 **Video games:** Elden Ring, Dark Souls III, Baldur's Gate 3,
-Minecraft, Zelda: Tears of the Kingdom.
+Minecraft, Zelda: Tears of the Kingdom, Zelda: Breath of the Wild,
+Stardew Valley, Hades, Mario Kart.
 
 **Tabletop games:** Chess, Poker, Settlers of Catan, UNO.
 
@@ -391,6 +412,7 @@ Clear history via `gaming_assistant.clear_history`.
 | `number.gaming_assistant_interval` | Number (slider) | Capture/analysis interval (5–120 s) |
 | `number.gaming_assistant_timeout` | Number (slider) | Analysis timeout (10–300 s) |
 | `switch.gaming_assistant_auto_announce` | Switch | Auto-announce new tips via TTS |
+| `switch.gaming_assistant_auto_summary` | Switch | Auto-summarize sessions on end |
 
 ### Sensors
 
@@ -405,6 +427,7 @@ Clear history via `gaming_assistant.clear_history`.
 | `sensor.gaming_assistant_last_analysis` | Timestamp of last successful analysis |
 | `sensor.gaming_assistant_active_watchers` | Number of active camera watchers |
 | `sensor.gaming_assistant_registered_workers` | Auto-discovered workers via MQTT |
+| `sensor.gaming_assistant_session_summary` | Last session summary (attributes: game, timestamp) |
 | `binary_sensor.gaming_mode` | ON when a game is detected |
 
 ## Services
@@ -423,6 +446,7 @@ Clear history via `gaming_assistant.clear_history`.
 | `gaming_assistant.watch_camera` | Continuous camera monitoring at interval |
 | `gaming_assistant.stop_watch_camera` | Stop camera watcher(s) |
 | `gaming_assistant.announce` | Speak current tip (or custom message) via TTS |
+| `gaming_assistant.summarize_session` | Generate a summary of the last gaming session |
 
 > **Note:** Assistant mode, spoiler level, interval, and timeout are now
 > controlled via entities (see above) instead of services.
@@ -539,6 +563,16 @@ Same as Android agent, plus:
 - **Added:** TTS settings in options flow for reconfiguration.
 - **Added:** Automatic language detection from Home Assistant language settings.
   The AI now responds in the user's configured language (German, French, etc.).
+- **Added:** Session tracking with automatic end detection (5 min inactivity).
+- **Added:** `gaming_assistant.summarize_session` service -- generate a 2-3
+  sentence summary of the last gaming session.
+- **Added:** `switch.gaming_assistant_auto_summary` entity -- auto-generate
+  session summaries when a session ends (requires 3+ tips).
+- **Added:** `sensor.gaming_assistant_session_summary` -- shows the last
+  session summary with game name and timestamp as attributes.
+- **Added:** `gaming_assistant_session_ended` event for session-end automations.
+- **Added:** 4 new prompt packs: Stardew Valley, Hades, Breath of the Wild,
+  Mario Kart.
 - **Improved:** Prompt Builder supports compact prompts for small models (3B).
 - **Changed:** Config flow updated to 5 steps (added TTS step).
 

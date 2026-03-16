@@ -174,3 +174,43 @@ class PromptBuilder:
                 parts.append("Do NOT repeat any previous tips. Give a NEW insight.")
 
         return "\n\n".join(parts)
+
+    @staticmethod
+    def build_summary(
+        game: str,
+        tips: list[str],
+        language: str = "",
+        compact: bool = False,
+    ) -> str:
+        """Build a prompt for summarizing a gaming session."""
+        parts: list[str] = []
+
+        if language:
+            parts.append(
+                f"Respond in {language}." if compact
+                else f"IMPORTANT: Always respond in {language}."
+            )
+
+        if compact:
+            parts.append(
+                f"Summarize this {game} session in 2-3 sentences. "
+                "Focus on patterns and improvement areas."
+            )
+        else:
+            parts.append(
+                f"Summarize the key insights from this {game} gaming session "
+                "in 2-3 concise sentences. Focus on recurring patterns, "
+                "good decisions, and areas for improvement."
+            )
+
+        tip_list = "\n".join(f"- {t}" for t in tips)
+        parts.append(f"Tips given during the session:\n{tip_list}")
+
+        if compact:
+            parts.append("Be brief and actionable.")
+        else:
+            parts.append(
+                "Create a helpful, encouraging summary the player can learn from."
+            )
+
+        return "\n\n".join(parts)

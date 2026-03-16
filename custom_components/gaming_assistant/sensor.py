@@ -32,6 +32,7 @@ async def async_setup_entry(
         GamingAssistantLastAnalysisSensor(coordinator),
         GamingAssistantActiveWatchersSensor(coordinator),
         GamingAssistantRegisteredWorkersSensor(coordinator),
+        GamingAssistantSessionSummarySensor(coordinator),
     ])
 
 
@@ -211,3 +212,27 @@ class GamingAssistantRegisteredWorkersSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         return {"workers": self._coordinator.registered_workers}
+
+
+class GamingAssistantSessionSummarySensor(CoordinatorEntity, SensorEntity):
+    """Shows the last session summary."""
+
+    _attr_name = "Gaming Assistant Session Summary"
+    _attr_unique_id = "gaming_assistant_session_summary"
+    _attr_icon = "mdi:text-box-outline"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def native_value(self) -> str:
+        return self._coordinator.last_summary or "No summary yet"
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {
+            "game": self._coordinator.last_summary_game,
+            "timestamp": self._coordinator.last_summary_timestamp,
+        }

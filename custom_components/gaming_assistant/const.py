@@ -55,6 +55,14 @@ DEFAULT_AUTO_ANNOUNCE = False
 # Event fired on every new tip (for automations)
 EVENT_NEW_TIP = "gaming_assistant_new_tip"
 
+# Event fired when a gaming session ends
+EVENT_SESSION_ENDED = "gaming_assistant_session_ended"
+
+# Session Summary
+CONF_AUTO_SUMMARY = "auto_summary"
+DEFAULT_AUTO_SUMMARY = False
+SESSION_END_DELAY = 300  # 5 minutes of inactivity before session ends
+
 # Image Processing
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB hard limit for base64-decoded images
 IMAGE_DEDUP_WINDOW_SECONDS = 60
