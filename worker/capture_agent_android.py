@@ -144,8 +144,10 @@ def detect_foreground_app(device: str | None = None) -> str:
 # ---------------------------------------------------------------------------
 # MQTT setup
 # ---------------------------------------------------------------------------
-def build_mqtt_client(broker: str, port: int, username: str, password: str):
-    """Create and connect the MQTT client."""
+def build_mqtt_client(
+    broker: str, port: int, username: str, password: str, client_id: str = ""
+):
+    """Create and connect the MQTT client with Last Will (LWT)."""
     client = mqtt.Client(
         client_id="gaming_assistant_capture_android", clean_session=True
     )
@@ -153,12 +155,22 @@ def build_mqtt_client(broker: str, port: int, username: str, password: str):
     if username:
         client.username_pw_set(username, password)
 
+    # Set Last Will and Testament — broker publishes this if we disconnect unexpectedly
+    if client_id:
+        lwt_topic = f"gaming_assistant/{client_id}/status"
+        client.will_set(lwt_topic, payload="offline", qos=1, retain=True)
+
     running = {"active": True}
 
     def on_connect(c, userdata, flags, rc):
         if rc == 0:
             log.info("MQTT connected to %s:%d", broker, port)
             c.subscribe(TOPIC_CMD)
+            if client_id:
+                c.publish(
+                    f"gaming_assistant/{client_id}/status",
+                    "online", qos=1, retain=True,
+                )
         else:
             log.error("MQTT connection failed (rc=%d)", rc)
 
@@ -240,7 +252,7 @@ def main():
     log.info("ADB connection verified")
 
     client, running = build_mqtt_client(
-        args.broker, args.port, args.user, args.password
+        args.broker, args.port, args.user, args.password, client_id
     )
     time.sleep(1)  # Let MQTT connect
 
