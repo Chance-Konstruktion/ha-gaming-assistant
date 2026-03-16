@@ -28,7 +28,7 @@ _ALL_SERVICES = (
     "process_image", "ask", "set_spoiler_level", "set_spoiler_profile",
     "clear_history", "capture_from_camera",
     "watch_camera", "stop_watch_camera",
-    "announce",
+    "announce", "summarize_session",
 )
 
 
@@ -313,6 +313,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     )
                     break
 
+        async def handle_summarize_session(call: ServiceCall) -> None:
+            """Generate a summary of the current or last gaming session."""
+            game = call.data.get("game", "")
+
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_summarize_session(game=game)
+                    break
+
         hass.services.async_register(DOMAIN, "analyze", handle_analyze)
         hass.services.async_register(DOMAIN, "start", handle_start)
         hass.services.async_register(DOMAIN, "stop", handle_stop)
@@ -325,6 +334,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "watch_camera", handle_watch_camera)
         hass.services.async_register(DOMAIN, "stop_watch_camera", handle_stop_watch_camera)
         hass.services.async_register(DOMAIN, "announce", handle_announce)
+        hass.services.async_register(DOMAIN, "summarize_session", handle_summarize_session)
 
     _LOGGER.info("Gaming Assistant integration loaded successfully")
     return True

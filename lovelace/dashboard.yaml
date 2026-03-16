@@ -1,5 +1,5 @@
 ################################################################################
-# Gaming Assistant – Lovelace Dashboard (v0.8)
+# Gaming Assistant – Lovelace Dashboard (v0.9)
 # Copy this into a manual card or your dashboard YAML
 ################################################################################
 
@@ -44,6 +44,8 @@ cards:
         name: Timeout
       - entity: switch.gaming_assistant_auto_announce
         name: Auto Announce
+      - entity: switch.gaming_assistant_auto_summary
+        name: Auto Summary
 
   # -- Current tip -----------------------------------------------------------
   - type: markdown
@@ -66,6 +68,20 @@ cards:
       {% endfor %}
       {% else %}
       _No tips yet._
+      {% endif %}
+
+  # -- Session Summary -------------------------------------------------------
+  - type: markdown
+    content: |
+      ### Session Summary
+      {% if states('sensor.gaming_assistant_session_summary') != 'No summary yet' %}
+      > {{ states('sensor.gaming_assistant_session_summary') }}
+
+      {% if state_attr('sensor.gaming_assistant_session_summary', 'game') %}
+      **Game:** {{ state_attr('sensor.gaming_assistant_session_summary', 'game') }}
+      {% endif %}
+      {% else %}
+      _No session summary yet._
       {% endif %}
 
   # -- Diagnostics -----------------------------------------------------------
@@ -123,3 +139,10 @@ cards:
         tap_action:
           action: call-service
           service: gaming_assistant.announce
+
+      - type: button
+        name: Summarize
+        icon: mdi:text-box-outline
+        tap_action:
+          action: call-service
+          service: gaming_assistant.summarize_session

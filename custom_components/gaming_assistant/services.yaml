@@ -255,6 +255,20 @@ stop_watch_camera:
         entity:
           domain: camera
 
+summarize_session:
+  name: Summarize Session
+  description: >
+    Generate a summary of the current or last gaming session.
+    Analyzes all tips given during the session and produces a concise
+    2-3 sentence summary highlighting patterns and improvement areas.
+  fields:
+    game:
+      name: Game
+      description: Game name (leave empty to use current/last session)
+      required: false
+      selector:
+        text:
+
 announce:
   name: Announce Tip
   description: >

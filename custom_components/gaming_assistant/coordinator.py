@@ -16,6 +16,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import (
     ASSISTANT_MODES,
     CONF_AUTO_ANNOUNCE,
+    CONF_AUTO_SUMMARY,
     CONF_CAMERA_ENTITY,
     CONF_DEFAULT_SPOILER,
     CONF_INTERVAL,
@@ -26,20 +27,24 @@ from .const import (
     CONF_TTS_TARGET,
     DEFAULT_ASSISTANT_MODE,
     DEFAULT_AUTO_ANNOUNCE,
+    DEFAULT_AUTO_SUMMARY,
     DEFAULT_INTERVAL,
     DEFAULT_SPOILER_LEVEL,
     DEFAULT_TIMEOUT,
     DOMAIN,
     EVENT_NEW_TIP,
+    EVENT_SESSION_ENDED,
     MQTT_IMAGE_TOPIC,
     MQTT_META_TOPIC,
     MQTT_MODE_TOPIC,
     MQTT_STATUS_TOPIC,
     MQTT_TIP_TOPIC,
     MQTT_WORKER_REGISTER_TOPIC,
+    SESSION_END_DELAY,
 )
 from .history import HistoryManager
 from .image_processor import ImageProcessor
+from .prompt_builder import PromptBuilder
 from .prompt_packs import PromptPackLoader
 from .spoiler import SpoilerManager
 
@@ -109,6 +114,16 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._tts_entity: str = config.get(CONF_TTS_ENTITY, "")
         self._tts_target: str = config.get(CONF_TTS_TARGET, "")
         self._auto_announce: bool = config.get(CONF_AUTO_ANNOUNCE, DEFAULT_AUTO_ANNOUNCE)
+
+        # Session tracking
+        self._session_start: float | None = None
+        self._session_game: str = ""
+        self._session_tips: list[str] = []
+        self._session_end_timer: asyncio.TimerHandle | None = None
+        self._auto_summary: bool = config.get(CONF_AUTO_SUMMARY, DEFAULT_AUTO_SUMMARY)
+        self._last_summary: str = ""
+        self._last_summary_game: str = ""
+        self._last_summary_timestamp: str = ""
 
         # Resolve language from HA config (e.g. "de", "en", "fr")
         self._language = self._resolve_language(hass)
@@ -351,6 +366,129 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         except Exception as err:
             _LOGGER.error("TTS announce failed: %s", err)
 
+    # -- Session tracking / summary ------------------------------------------
+
+    @property
+    def auto_summary(self) -> bool:
+        return self._auto_summary
+
+    def set_auto_summary(self, enabled: bool) -> None:
+        """Toggle automatic session summaries on/off."""
+        self._auto_summary = enabled
+        _LOGGER.info("Auto-summary set to: %s", enabled)
+        self.async_set_updated_data(self._build_data())
+
+    @property
+    def last_summary(self) -> str:
+        return self._last_summary
+
+    @property
+    def last_summary_game(self) -> str:
+        return self._last_summary_game
+
+    @property
+    def last_summary_timestamp(self) -> str:
+        return self._last_summary_timestamp
+
+    def _session_track_tip(self, tip: str, game: str) -> None:
+        """Track a tip for the current session."""
+        now = time.monotonic()
+
+        # Start a new session if none is active or game changed
+        if self._session_start is None or (game and game != self._session_game):
+            self._session_start = now
+            self._session_game = game
+            self._session_tips = []
+            _LOGGER.debug("New session started for game: %s", game or "unknown")
+
+        self._session_tips.append(tip)
+
+        # Reset the session-end timer
+        if self._session_end_timer is not None:
+            self._session_end_timer.cancel()
+        loop = self.hass.loop
+        self._session_end_timer = loop.call_later(
+            SESSION_END_DELAY, lambda: self.hass.async_create_task(self._end_session())
+        )
+
+    async def _end_session(self) -> None:
+        """End the current session and optionally generate a summary."""
+        if not self._session_tips or not self._session_start:
+            self._session_start = None
+            self._session_end_timer = None
+            return
+
+        game = self._session_game or "Unknown"
+        tip_count = len(self._session_tips)
+        tips = list(self._session_tips)
+
+        _LOGGER.info(
+            "Session ended for %s (%d tips in session)", game, tip_count
+        )
+
+        summary = ""
+        if self._auto_summary and tip_count >= 3:
+            summary = await self.async_summarize_session(game, tips)
+
+        # Fire session-ended event
+        self.hass.bus.async_fire(
+            EVENT_SESSION_ENDED,
+            {
+                "game": game,
+                "tip_count": tip_count,
+                "summary": summary,
+            },
+        )
+
+        # Reset session state
+        self._session_start = None
+        self._session_game = ""
+        self._session_tips = []
+        self._session_end_timer = None
+        self.async_set_updated_data(self._build_data())
+
+    async def async_summarize_session(
+        self, game: str = "", tips: list[str] | None = None
+    ) -> str:
+        """Generate a summary of the current or provided session tips.
+
+        If *tips* is not provided, uses the tips from the current session
+        or falls back to recent history.
+        """
+        game = game or self._session_game or self._current_game or "Unknown"
+
+        if tips is None:
+            if self._session_tips:
+                tips = list(self._session_tips)
+            else:
+                # Fall back to recent history
+                entries = await self._history.get_recent(game, 20)
+                tips = [e["tip"] for e in entries if "tip" in e]
+
+        if not tips:
+            return "No tips found for this game."
+
+        compact = PromptBuilder.is_small_model(
+            self.config.get(CONF_MODEL, "qwen2.5vl")
+        )
+        prompt = PromptBuilder.build_summary(
+            game=game,
+            tips=tips,
+            language=self._language,
+            compact=compact,
+        )
+
+        summary = await self._image_processor._call_ollama_text(prompt)
+
+        if summary:
+            self._last_summary = summary
+            self._last_summary_game = game
+            self._last_summary_timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
+            _LOGGER.info("Session summary generated for %s", game)
+            self.async_set_updated_data(self._build_data())
+
+        return summary or "Could not generate summary."
+
     def _fire_new_tip_event(self, tip: str, game: str, client_id: str) -> None:
         """Fire an event so automations can react to new tips."""
         self.hass.bus.async_fire(
@@ -555,6 +693,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                     self._recent_tips = self._recent_tips[-5:]
                 self._status = "idle"
                 _LOGGER.info("New tip generated: %s", tip[:80])
+
+                # Track tip for session summary
+                self._session_track_tip(tip, self._current_game)
 
                 # Fire event for automations
                 self._fire_new_tip_event(tip, self._current_game, client_id)
@@ -763,6 +904,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 if len(self._recent_tips) > 5:
                     self._recent_tips = self._recent_tips[-5:]
 
+                # Track tip for session summary
+                self._session_track_tip(answer, self._current_game)
+
                 # Fire event for automations
                 self._fire_new_tip_event(answer, self._current_game, "ask")
 
@@ -782,7 +926,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     # -- cleanup -------------------------------------------------------------
 
     async def async_shutdown(self) -> None:
-        """Stop all camera watchers and unsubscribe MQTT."""
+        """Stop all camera watchers, cancel timers, and unsubscribe MQTT."""
+        if self._session_end_timer is not None:
+            self._session_end_timer.cancel()
+            self._session_end_timer = None
         await self.async_stop_watch_camera()  # stops all
         self.async_unsubscribe()
 

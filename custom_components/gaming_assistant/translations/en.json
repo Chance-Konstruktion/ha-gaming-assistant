@@ -77,6 +77,14 @@
       "timeout": {
         "name": "Analysis Timeout"
       }
+    },
+    "switch": {
+      "auto_announce": {
+        "name": "Auto Announce"
+      },
+      "auto_summary": {
+        "name": "Auto Session Summary"
+      }
     }
   }
 }
