@@ -1,8 +1,8 @@
 /**
  * Gaming Assistant – Home Assistant Sidebar Panel
  *
- * A self-contained custom element that renders directly in the HA sidebar.
- * No build step, no dependencies – just vanilla JS + HA websocket API.
+ * Self-contained custom element for the HA sidebar.
+ * Supports DE/EN based on HA language setting.
  */
 
 const DOMAIN = "gaming_assistant";
@@ -25,17 +25,117 @@ const ENTITIES = {
   sessionSummary: `sensor.${DOMAIN}_session_summary`,
 };
 
+const I18N = {
+  de: {
+    title: "Gaming Assistent",
+    active: "Aktiv",
+    inactive: "Inaktiv",
+    tips: "Tipps",
+    controls: "Steuerung",
+    mode: "Modus",
+    spoilerLevel: "Spoiler-Stufe",
+    intervalS: "Intervall (s)",
+    timeoutS: "Timeout (s)",
+    autoAnnounce: "Auto-Ansage (TTS)",
+    autoSummary: "Auto-Zusammenfassung",
+    actions: "Aktionen",
+    start: "Start",
+    stop: "Stopp",
+    analyzeNow: "Jetzt analysieren",
+    announce: "Ansagen",
+    summarize: "Zusammenfassen",
+    clearHistory: "Verlauf leeren",
+    confirmClear: "Gesamten Tipp-Verlauf leeren?",
+    askTitle: "Frage an die KI",
+    askPlaceholder: "Stelle eine Frage zum Spiel\u2026",
+    askSend: "Fragen",
+    askSending: "Wird gesendet\u2026",
+    currentTip: "Aktueller Tipp",
+    waitingForTips: "Warte auf Tipps\u2026",
+    game: "Spiel",
+    tipHistory: "Tipp-Verlauf",
+    noTipsYet: "Noch keine Tipps.",
+    sessionSummary: "Sitzungs\u00FCbersicht",
+    diagSetup: "Diagnose & Einstellungen",
+    latency: "Latenz (s)",
+    frames: "Frames",
+    watchers: "Watchers",
+    errors: "Fehler",
+    camera: "Kamera",
+    noCamera: "\u2014 Keine Kamera \u2014",
+    ttsEngine: "Sprachausgabe (TTS)",
+    noTts: "\u2014 Keine TTS \u2014",
+    speaker: "Lautsprecher",
+    defaultSpeaker: "\u2014 Standard \u2014",
+    aiModel: "KI-Modell",
+    save: "Speichern",
+    saved: "Gespeichert!",
+  },
+  en: {
+    title: "Gaming Assistant",
+    active: "Active",
+    inactive: "Inactive",
+    tips: "Tips",
+    controls: "Controls",
+    mode: "Mode",
+    spoilerLevel: "Spoiler Level",
+    intervalS: "Interval (s)",
+    timeoutS: "Timeout (s)",
+    autoAnnounce: "Auto Announce (TTS)",
+    autoSummary: "Auto Summary",
+    actions: "Actions",
+    start: "Start",
+    stop: "Stop",
+    analyzeNow: "Analyze Now",
+    announce: "Announce",
+    summarize: "Summarize",
+    clearHistory: "Clear History",
+    confirmClear: "Clear all tip history?",
+    askTitle: "Ask the AI",
+    askPlaceholder: "Ask a question about the game\u2026",
+    askSend: "Ask",
+    askSending: "Sending\u2026",
+    currentTip: "Current Tip",
+    waitingForTips: "Waiting for tips\u2026",
+    game: "Game",
+    tipHistory: "Tip History",
+    noTipsYet: "No tips yet.",
+    sessionSummary: "Session Summary",
+    diagSetup: "Diagnostics & Setup",
+    latency: "Latency (s)",
+    frames: "Frames",
+    watchers: "Watchers",
+    errors: "Errors",
+    camera: "Camera",
+    noCamera: "\u2014 No camera \u2014",
+    ttsEngine: "Text-to-Speech (TTS)",
+    noTts: "\u2014 No TTS \u2014",
+    speaker: "Speaker",
+    defaultSpeaker: "\u2014 Default \u2014",
+    aiModel: "AI Model",
+    save: "Save",
+    saved: "Saved!",
+  },
+};
+
 class GamingAssistantPanel extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
     this._hass = null;
-    this._unsubscribe = null;
+    this._rendered = false;
+    this._lang = "en";
+    this._setupPopulated = false;
   }
 
   set hass(hass) {
     this._hass = hass;
-    if (!this._rendered) {
+    const lang = (hass.language || "en").substring(0, 2);
+    const langChanged = lang !== this._lang;
+    this._lang = lang;
+
+    if (!this._rendered || langChanged) {
+      this._setupPopulated = false;
       this._render();
       this._rendered = true;
     }
@@ -46,22 +146,12 @@ class GamingAssistantPanel extends HTMLElement {
     this._panel = panel;
   }
 
-  connectedCallback() {
-    if (this._hass && !this._rendered) {
-      this._render();
-      this._rendered = true;
-      this._updateStates();
-    }
-  }
-
-  disconnectedCallback() {
-    if (this._unsubscribe) {
-      this._unsubscribe();
-      this._unsubscribe = null;
-    }
+  _t(key) {
+    return (I18N[this._lang] || I18N.en)[key] || I18N.en[key] || key;
   }
 
   _render() {
+    const t = (k) => this._t(k);
     this.shadowRoot.innerHTML = `
       <style>
         :host {
@@ -78,363 +168,257 @@ class GamingAssistantPanel extends HTMLElement {
           background: var(--primary-background-color, #fafafa);
           min-height: 100vh;
         }
-        .container {
-          max-width: 900px;
-          margin: 0 auto;
-          padding: 16px;
-        }
+        .container { max-width: 900px; margin: 0 auto; padding: 16px; }
         h1 {
-          font-size: 24px;
-          font-weight: 400;
-          margin: 0 0 16px 0;
-          display: flex;
-          align-items: center;
-          gap: 8px;
+          font-size: 24px; font-weight: 400; margin: 0 0 16px 0;
+          display: flex; align-items: center; gap: 8px;
         }
         h1 .icon { font-size: 28px; }
 
-        /* Status bar */
-        .status-bar {
-          display: flex;
-          gap: 12px;
-          margin-bottom: 16px;
-          flex-wrap: wrap;
-        }
+        .status-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
         .status-chip {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 6px 14px;
-          border-radius: 20px;
-          font-size: 13px;
-          font-weight: 500;
-          background: var(--bg);
-          border: 1px solid var(--border);
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+          background: var(--bg); border: 1px solid var(--border);
         }
-        .status-chip.active {
-          background: var(--success);
-          color: #fff;
-          border-color: var(--success);
-        }
-        .status-chip .dot {
-          width: 8px; height: 8px;
-          border-radius: 50%;
-          background: var(--text2);
-        }
+        .status-chip.active { background: var(--success); color: #fff; border-color: var(--success); }
+        .status-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text2); }
         .status-chip.active .dot { background: #fff; }
 
-        /* Cards */
         .card {
-          background: var(--bg);
-          border-radius: 12px;
-          padding: 16px;
-          margin-bottom: 16px;
-          border: 1px solid var(--border);
+          background: var(--bg); border-radius: 12px; padding: 16px;
+          margin-bottom: 16px; border: 1px solid var(--border);
         }
         .card h2 {
-          font-size: 16px;
-          font-weight: 500;
-          margin: 0 0 12px 0;
-          display: flex;
-          align-items: center;
-          gap: 8px;
+          font-size: 16px; font-weight: 500; margin: 0 0 12px 0;
+          display: flex; align-items: center; gap: 8px;
         }
 
-        /* Current tip */
         .tip-box {
           background: var(--primary-background-color, #f5f5f5);
-          border-left: 4px solid var(--primary);
-          padding: 12px 16px;
-          border-radius: 0 8px 8px 0;
-          font-size: 14px;
-          line-height: 1.6;
-          white-space: pre-wrap;
-          word-wrap: break-word;
+          border-left: 4px solid var(--primary); padding: 12px 16px;
+          border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.6;
+          white-space: pre-wrap; word-wrap: break-word;
         }
-        .tip-box.empty {
-          color: var(--text2);
-          font-style: italic;
-          border-left-color: var(--border);
-        }
-        .tip-game {
-          margin-top: 8px;
-          font-size: 12px;
-          color: var(--text2);
-        }
+        .tip-box.empty { color: var(--text2); font-style: italic; border-left-color: var(--border); }
+        .tip-game { margin-top: 8px; font-size: 12px; color: var(--text2); }
 
-        /* Controls grid */
-        .controls-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
+        .ask-row { display: flex; gap: 8px; }
+        .ask-row input[type="text"] {
+          flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+          border-radius: 8px; background: var(--primary-background-color, #f5f5f5);
+          color: var(--text); font-size: 14px; outline: none; box-sizing: border-box;
         }
-        @media (max-width: 600px) {
-          .controls-grid { grid-template-columns: 1fr; }
+        .ask-row input[type="text"]:focus { border-color: var(--primary); }
+        .ask-row button {
+          padding: 10px 20px; border: none; border-radius: 8px;
+          background: var(--primary); color: #fff; font-size: 14px;
+          font-weight: 500; cursor: pointer; white-space: nowrap; transition: 0.15s;
         }
+        .ask-row button:hover { opacity: 0.85; }
+        .ask-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 600px) { .controls-grid { grid-template-columns: 1fr; } }
         .control-item label {
-          display: block;
-          font-size: 12px;
-          color: var(--text2);
-          margin-bottom: 4px;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
+          display: block; font-size: 12px; color: var(--text2);
+          margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;
         }
-        .control-item select,
-        .control-item input[type="number"] {
-          width: 100%;
-          padding: 8px 12px;
-          border: 1px solid var(--border);
-          border-radius: 8px;
-          background: var(--primary-background-color, #f5f5f5);
-          color: var(--text);
-          font-size: 14px;
-          box-sizing: border-box;
-          outline: none;
+        .control-item select, .control-item input[type="number"], .control-item input[type="text"] {
+          width: 100%; padding: 8px 12px; border: 1px solid var(--border);
+          border-radius: 8px; background: var(--primary-background-color, #f5f5f5);
+          color: var(--text); font-size: 14px; box-sizing: border-box; outline: none;
         }
-        .control-item select:focus,
-        .control-item input:focus {
-          border-color: var(--primary);
-        }
+        .control-item select:focus, .control-item input:focus { border-color: var(--primary); }
 
-        /* Switches */
-        .switch-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 8px 0;
-        }
-        .switch-row + .switch-row {
-          border-top: 1px solid var(--border);
-        }
+        .switch-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+        .switch-row + .switch-row { border-top: 1px solid var(--border); }
         .switch-label { font-size: 14px; }
-        .toggle {
-          position: relative;
-          width: 48px; height: 26px;
-          cursor: pointer;
-        }
-        .toggle input {
-          opacity: 0; width: 0; height: 0;
-        }
+        .toggle { position: relative; width: 48px; height: 26px; cursor: pointer; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
         .toggle .slider {
-          position: absolute;
-          top: 0; left: 0; right: 0; bottom: 0;
-          background: var(--border);
-          border-radius: 13px;
-          transition: 0.2s;
+          position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+          background: var(--border); border-radius: 13px; transition: 0.2s;
         }
         .toggle .slider::before {
-          content: "";
-          position: absolute;
-          width: 20px; height: 20px;
-          left: 3px; bottom: 3px;
-          background: #fff;
-          border-radius: 50%;
-          transition: 0.2s;
+          content: ""; position: absolute; width: 20px; height: 20px;
+          left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s;
         }
-        .toggle input:checked + .slider {
-          background: var(--primary);
-        }
-        .toggle input:checked + .slider::before {
-          transform: translateX(22px);
-        }
+        .toggle input:checked + .slider { background: var(--primary); }
+        .toggle input:checked + .slider::before { transform: translateX(22px); }
 
-        /* Action buttons */
-        .actions {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
+        .actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 16px;
-          border: 1px solid var(--border);
-          border-radius: 8px;
-          background: var(--bg);
-          color: var(--text);
-          font-size: 13px;
-          cursor: pointer;
-          transition: 0.15s;
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px;
+          background: var(--bg); color: var(--text); font-size: 13px;
+          cursor: pointer; transition: 0.15s;
         }
-        .btn:hover {
-          background: var(--primary);
-          color: #fff;
-          border-color: var(--primary);
+        .btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .btn.danger:hover { background: var(--danger); border-color: var(--danger); }
+        .btn.success { background: var(--success); color: #fff; border-color: var(--success); }
+        .btn.success:hover { opacity: 0.85; }
+        .btn-save {
+          padding: 8px 24px; border: none; border-radius: 8px;
+          background: var(--primary); color: #fff; font-size: 13px; font-weight: 500;
+          cursor: pointer; transition: 0.15s; margin-top: 12px;
         }
-        .btn.danger:hover {
-          background: var(--danger);
-          border-color: var(--danger);
-        }
-        .btn.success {
-          background: var(--success);
-          color: #fff;
-          border-color: var(--success);
-        }
-        .btn.success:hover {
-          opacity: 0.85;
-        }
+        .btn-save:hover { opacity: 0.85; }
+        .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* History */
-        .history-list {
-          max-height: 400px;
-          overflow-y: auto;
-          padding-right: 4px;
-        }
+        .history-list { max-height: 400px; overflow-y: auto; padding-right: 4px; }
         .history-item {
-          padding: 10px 0;
-          font-size: 13px;
-          line-height: 1.5;
+          padding: 10px 0; font-size: 13px; line-height: 1.5;
           border-bottom: 1px solid var(--border);
         }
         .history-item:last-child { border-bottom: none; }
-        .history-num {
-          display: inline-block;
-          width: 24px;
-          font-weight: 600;
-          color: var(--primary);
-        }
+        .history-num { display: inline-block; width: 24px; font-weight: 600; color: var(--primary); }
 
-        /* Diagnostics */
-        .diag-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-          gap: 12px;
-        }
+        .diag-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
         .diag-item {
-          text-align: center;
-          padding: 12px 8px;
-          background: var(--primary-background-color, #f5f5f5);
-          border-radius: 8px;
+          text-align: center; padding: 12px 8px;
+          background: var(--primary-background-color, #f5f5f5); border-radius: 8px;
         }
-        .diag-value {
-          font-size: 24px;
-          font-weight: 600;
-          color: var(--primary);
-        }
-        .diag-label {
-          font-size: 11px;
-          color: var(--text2);
-          text-transform: uppercase;
-          margin-top: 4px;
-        }
+        .diag-value { font-size: 24px; font-weight: 600; color: var(--primary); }
+        .diag-label { font-size: 11px; color: var(--text2); text-transform: uppercase; margin-top: 4px; }
 
-        /* Session summary */
+        .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+        @media (max-width: 600px) { .setup-grid { grid-template-columns: 1fr; } }
+        .setup-grid .full-width { grid-column: 1 / -1; }
+
         .summary-box {
-          background: var(--primary-background-color, #f5f5f5);
-          padding: 12px 16px;
-          border-radius: 8px;
-          font-size: 14px;
-          line-height: 1.6;
-          white-space: pre-wrap;
-          word-wrap: break-word;
+          background: var(--primary-background-color, #f5f5f5); padding: 12px 16px;
+          border-radius: 8px; font-size: 14px; line-height: 1.6;
+          white-space: pre-wrap; word-wrap: break-word;
+        }
+        .section-divider {
+          border: none; border-top: 1px solid var(--border); margin: 16px 0 12px;
         }
       </style>
 
       <div class="container">
-        <h1><span class="icon">&#127918;</span> Gaming Assistant</h1>
+        <h1><span class="icon">&#127918;</span> ${t("title")}</h1>
 
-        <!-- Status Bar -->
         <div class="status-bar">
-          <span class="status-chip" id="chip-gaming"><span class="dot"></span> <span id="chip-gaming-text">Inactive</span></span>
+          <span class="status-chip" id="chip-gaming"><span class="dot"></span> <span id="chip-gaming-text">${t("inactive")}</span></span>
           <span class="status-chip" id="chip-status"><span class="dot"></span> <span id="chip-status-text">--</span></span>
-          <span class="status-chip" id="chip-tips">Tips: <strong id="chip-tips-count">0</strong></span>
+          <span class="status-chip" id="chip-tips">${t("tips")}: <strong id="chip-tips-count">0</strong></span>
         </div>
 
-        <!-- Current Tip -->
+        <!-- 1. Controls (top) -->
         <div class="card">
-          <h2>Current Tip</h2>
-          <div class="tip-box empty" id="current-tip">Waiting for tips...</div>
-          <div class="tip-game" id="current-tip-game"></div>
-        </div>
-
-        <!-- Controls -->
-        <div class="card">
-          <h2>Controls</h2>
+          <h2>${t("controls")}</h2>
           <div class="controls-grid">
             <div class="control-item">
-              <label>Mode</label>
+              <label>${t("mode")}</label>
               <select id="ctrl-mode"></select>
             </div>
             <div class="control-item">
-              <label>Spoiler Level</label>
+              <label>${t("spoilerLevel")}</label>
               <select id="ctrl-spoiler"></select>
             </div>
             <div class="control-item">
-              <label>Interval (s)</label>
+              <label>${t("intervalS")}</label>
               <input type="number" id="ctrl-interval" min="5" max="120" step="1">
             </div>
             <div class="control-item">
-              <label>Timeout (s)</label>
+              <label>${t("timeoutS")}</label>
               <input type="number" id="ctrl-timeout" min="10" max="300" step="5">
             </div>
           </div>
           <div style="margin-top: 12px;">
             <div class="switch-row">
-              <span class="switch-label">Auto Announce (TTS)</span>
-              <label class="toggle">
-                <input type="checkbox" id="ctrl-auto-announce">
-                <span class="slider"></span>
-              </label>
+              <span class="switch-label">${t("autoAnnounce")}</span>
+              <label class="toggle"><input type="checkbox" id="ctrl-auto-announce"><span class="slider"></span></label>
             </div>
             <div class="switch-row">
-              <span class="switch-label">Auto Summary</span>
-              <label class="toggle">
-                <input type="checkbox" id="ctrl-auto-summary">
-                <span class="slider"></span>
-              </label>
+              <span class="switch-label">${t("autoSummary")}</span>
+              <label class="toggle"><input type="checkbox" id="ctrl-auto-summary"><span class="slider"></span></label>
             </div>
           </div>
         </div>
 
-        <!-- Actions -->
+        <!-- 2. Actions -->
         <div class="card">
-          <h2>Actions</h2>
+          <h2>${t("actions")}</h2>
           <div class="actions">
-            <button class="btn success" id="btn-start">&#9654; Start</button>
-            <button class="btn" id="btn-stop">&#9632; Stop</button>
-            <button class="btn" id="btn-analyze">&#128247; Analyze Now</button>
-            <button class="btn" id="btn-announce">&#128226; Announce</button>
-            <button class="btn" id="btn-summarize">&#128196; Summarize</button>
-            <button class="btn danger" id="btn-clear">&#128465; Clear History</button>
+            <button class="btn success" id="btn-start">&#9654; ${t("start")}</button>
+            <button class="btn" id="btn-stop">&#9632; ${t("stop")}</button>
+            <button class="btn" id="btn-analyze">&#128247; ${t("analyzeNow")}</button>
+            <button class="btn" id="btn-announce">&#128226; ${t("announce")}</button>
+            <button class="btn" id="btn-summarize">&#128196; ${t("summarize")}</button>
+            <button class="btn danger" id="btn-clear">&#128465; ${t("clearHistory")}</button>
           </div>
         </div>
 
-        <!-- History -->
+        <!-- 3. Current Tip + Ask -->
         <div class="card">
-          <h2>Tip History</h2>
+          <h2>${t("currentTip")}</h2>
+          <div class="tip-box empty" id="current-tip">${t("waitingForTips")}</div>
+          <div class="tip-game" id="current-tip-game"></div>
+          <hr class="section-divider">
+          <h2>${t("askTitle")}</h2>
+          <div class="ask-row">
+            <input type="text" id="ask-input" placeholder="${t("askPlaceholder")}">
+            <button id="btn-ask">${t("askSend")}</button>
+          </div>
+        </div>
+
+        <!-- 4. Tip History -->
+        <div class="card">
+          <h2>${t("tipHistory")}</h2>
           <div class="history-list" id="history-list">
-            <em style="color: var(--text2)">No tips yet.</em>
+            <em style="color: var(--text2)">${t("noTipsYet")}</em>
           </div>
         </div>
 
         <!-- Session Summary -->
         <div class="card" id="summary-card" style="display:none;">
-          <h2>Session Summary</h2>
+          <h2>${t("sessionSummary")}</h2>
           <div class="summary-box" id="session-summary"></div>
         </div>
 
-        <!-- Diagnostics -->
+        <!-- 5. Diagnostics & Setup -->
         <div class="card">
-          <h2>Diagnostics</h2>
+          <h2>${t("diagSetup")}</h2>
           <div class="diag-grid">
             <div class="diag-item">
               <div class="diag-value" id="diag-latency">--</div>
-              <div class="diag-label">Latency (s)</div>
+              <div class="diag-label">${t("latency")}</div>
             </div>
             <div class="diag-item">
               <div class="diag-value" id="diag-frames">0</div>
-              <div class="diag-label">Frames</div>
+              <div class="diag-label">${t("frames")}</div>
             </div>
             <div class="diag-item">
               <div class="diag-value" id="diag-watchers">0</div>
-              <div class="diag-label">Watchers</div>
+              <div class="diag-label">${t("watchers")}</div>
             </div>
             <div class="diag-item">
               <div class="diag-value" id="diag-errors">0</div>
-              <div class="diag-label">Errors</div>
+              <div class="diag-label">${t("errors")}</div>
             </div>
           </div>
+          <hr class="section-divider">
+          <div class="setup-grid">
+            <div class="control-item">
+              <label>${t("camera")}</label>
+              <select id="setup-camera"></select>
+            </div>
+            <div class="control-item">
+              <label>${t("speaker")}</label>
+              <select id="setup-speaker"></select>
+            </div>
+            <div class="control-item">
+              <label>${t("ttsEngine")}</label>
+              <select id="setup-tts"></select>
+            </div>
+            <div class="control-item">
+              <label>${t("aiModel")}</label>
+              <input type="text" id="setup-model" placeholder="qwen2.5vl">
+            </div>
+          </div>
+          <button class="btn-save" id="btn-save-setup">${t("save")}</button>
         </div>
       </div>
     `;
@@ -445,7 +429,7 @@ class GamingAssistantPanel extends HTMLElement {
   _bindEvents() {
     const $ = (id) => this.shadowRoot.getElementById(id);
 
-    // Select/Number controls
+    // Controls
     $("ctrl-mode").addEventListener("change", (e) =>
       this._callService("select", "select_option", ENTITIES.mode, { option: e.target.value })
     );
@@ -458,8 +442,6 @@ class GamingAssistantPanel extends HTMLElement {
     $("ctrl-timeout").addEventListener("change", (e) =>
       this._callService("number", "set_value", ENTITIES.timeout, { value: Number(e.target.value) })
     );
-
-    // Switches
     $("ctrl-auto-announce").addEventListener("change", (e) =>
       this._callService("switch", e.target.checked ? "turn_on" : "turn_off", ENTITIES.autoAnnounce)
     );
@@ -467,36 +449,60 @@ class GamingAssistantPanel extends HTMLElement {
       this._callService("switch", e.target.checked ? "turn_on" : "turn_off", ENTITIES.autoSummary)
     );
 
-    // Action buttons
-    $("btn-start").addEventListener("click", () =>
-      this._callDomainService("start")
-    );
-    $("btn-stop").addEventListener("click", () =>
-      this._callDomainService("stop")
-    );
-    $("btn-analyze").addEventListener("click", () =>
-      this._callDomainService("analyze")
-    );
-    $("btn-announce").addEventListener("click", () =>
-      this._callDomainService("announce")
-    );
-    $("btn-summarize").addEventListener("click", () =>
-      this._callDomainService("summarize_session")
-    );
+    // Ask
+    const askInput = $("ask-input");
+    const askBtn = $("btn-ask");
+    const submitQuestion = async () => {
+      const question = askInput.value.trim();
+      if (!question) return;
+      askBtn.disabled = true;
+      askBtn.textContent = this._t("askSending");
+      await this._callDomainService("ask", { question });
+      askBtn.disabled = false;
+      askBtn.textContent = this._t("askSend");
+      askInput.value = "";
+      askInput.focus();
+    };
+    askBtn.addEventListener("click", submitQuestion);
+    askInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submitQuestion(); });
+
+    // Actions
+    $("btn-start").addEventListener("click", () => this._callDomainService("start"));
+    $("btn-stop").addEventListener("click", () => this._callDomainService("stop"));
+    $("btn-analyze").addEventListener("click", () => this._callDomainService("analyze"));
+    $("btn-announce").addEventListener("click", () => this._callDomainService("announce"));
+    $("btn-summarize").addEventListener("click", () => this._callDomainService("summarize_session"));
     $("btn-clear").addEventListener("click", () => {
-      if (confirm("Clear all tip history?")) {
-        this._callDomainService("clear_history");
-      }
+      if (confirm(this._t("confirmClear"))) this._callDomainService("clear_history");
+    });
+
+    // Setup save
+    $("btn-save-setup").addEventListener("click", async () => {
+      const btn = $("btn-save-setup");
+      btn.disabled = true;
+      const data = {};
+      const cam = $("setup-camera").value;
+      data.camera_entity = cam || "";
+      const tts = $("setup-tts").value;
+      data.tts_entity = tts || "";
+      const spk = $("setup-speaker").value;
+      data.tts_target = spk || "";
+      const model = $("setup-model").value.trim();
+      if (model) data.model = model;
+
+      await this._callDomainService("configure", data);
+      btn.textContent = this._t("saved");
+      setTimeout(() => {
+        btn.textContent = this._t("save");
+        btn.disabled = false;
+      }, 2000);
     });
   }
 
   async _callService(domain, service, entityId, data = {}) {
     if (!this._hass) return;
     try {
-      await this._hass.callService(domain, service, {
-        entity_id: entityId,
-        ...data,
-      });
+      await this._hass.callService(domain, service, { entity_id: entityId, ...data });
     } catch (err) {
       console.error(`Gaming Assistant: ${domain}.${service} failed:`, err);
     }
@@ -526,7 +532,7 @@ class GamingAssistantPanel extends HTMLElement {
     const chipGaming = $("chip-gaming");
     if (chipGaming) {
       chipGaming.classList.toggle("active", isActive);
-      $("chip-gaming-text").textContent = isActive ? "Active" : "Inactive";
+      $("chip-gaming-text").textContent = isActive ? this._t("active") : this._t("inactive");
     }
 
     // Status chip
@@ -539,9 +545,7 @@ class GamingAssistantPanel extends HTMLElement {
 
     // Tips count
     const history = this._getState(ENTITIES.history);
-    if (history) {
-      $("chip-tips-count").textContent = history.state || "0";
-    }
+    if (history) $("chip-tips-count").textContent = history.state || "0";
 
     // Current tip
     const tip = this._getState(ENTITIES.tip);
@@ -552,51 +556,42 @@ class GamingAssistantPanel extends HTMLElement {
         tipBox.textContent = fullTip;
         tipBox.classList.remove("empty");
       } else {
-        tipBox.textContent = "Waiting for tips...";
+        tipBox.textContent = this._t("waitingForTips");
         tipBox.classList.add("empty");
       }
       const game = tip.attributes && tip.attributes.game;
-      $("current-tip-game").textContent = game ? `Game: ${game}` : "";
+      $("current-tip-game").textContent = game ? `${this._t("game")}: ${game}` : "";
     }
 
-    // Controls: populate select options and set values
+    // Mode & Spoiler selects
     this._updateSelect($("ctrl-mode"), ENTITIES.mode);
     this._updateSelect($("ctrl-spoiler"), ENTITIES.spoiler);
 
+    // Number inputs
     const interval = this._getState(ENTITIES.interval);
     const intEl = $("ctrl-interval");
-    if (interval && document.activeElement !== intEl) {
-      intEl.value = interval.state;
-    }
-
+    if (interval && this.shadowRoot.activeElement !== intEl) intEl.value = interval.state;
     const timeout = this._getState(ENTITIES.timeout);
     const toEl = $("ctrl-timeout");
-    if (timeout && document.activeElement !== toEl) {
-      toEl.value = timeout.state;
-    }
+    if (timeout && this.shadowRoot.activeElement !== toEl) toEl.value = timeout.state;
 
     // Switches
     const autoAnn = this._getState(ENTITIES.autoAnnounce);
     if (autoAnn) $("ctrl-auto-announce").checked = autoAnn.state === "on";
-
     const autoSum = this._getState(ENTITIES.autoSummary);
     if (autoSum) $("ctrl-auto-summary").checked = autoSum.state === "on";
 
-    // History list
+    // History
     if (history && history.attributes && history.attributes.recent_tips) {
       const tips = history.attributes.recent_tips;
       const listEl = $("history-list");
       if (tips.length > 0) {
-        listEl.innerHTML = tips
-          .slice()
-          .reverse()
-          .map(
-            (entry, i) =>
-              `<div class="history-item"><span class="history-num">${i + 1}.</span>${this._escapeHtml(entry.tip)}</div>`
-          )
-          .join("");
+        listEl.innerHTML = tips.slice().reverse()
+          .map((entry, i) =>
+            `<div class="history-item"><span class="history-num">${i + 1}.</span>${this._escapeHtml(entry.tip)}</div>`
+          ).join("");
       } else {
-        listEl.innerHTML = '<em style="color: var(--text2)">No tips yet.</em>';
+        listEl.innerHTML = `<em style="color: var(--text2)">${this._t("noTipsYet")}</em>`;
       }
     }
 
@@ -604,8 +599,7 @@ class GamingAssistantPanel extends HTMLElement {
     const summary = this._getState(ENTITIES.sessionSummary);
     const summaryCard = $("summary-card");
     if (summary) {
-      const fullSummary =
-        (summary.attributes && summary.attributes.full_summary) || summary.state;
+      const fullSummary = (summary.attributes && summary.attributes.full_summary) || summary.state;
       if (fullSummary && fullSummary !== "No summary yet") {
         $("session-summary").textContent = fullSummary;
         summaryCard.style.display = "";
@@ -620,36 +614,101 @@ class GamingAssistantPanel extends HTMLElement {
       const val = parseFloat(latency.state);
       $("diag-latency").textContent = isNaN(val) ? "--" : val.toFixed(1);
     }
-
     const frames = this._getState(ENTITIES.frames);
     if (frames) $("diag-frames").textContent = frames.state || "0";
-
     const watchers = this._getState(ENTITIES.watchers);
     if (watchers) $("diag-watchers").textContent = watchers.state || "0";
-
     const errors = this._getState(ENTITIES.errorCount);
     if (errors) $("diag-errors").textContent = errors.state || "0";
+
+    // Setup dropdowns (populate once from hass.states)
+    if (!this._setupPopulated) {
+      this._populateSetupDropdowns();
+      this._setupPopulated = true;
+    }
+  }
+
+  _populateSetupDropdowns() {
+    if (!this._hass) return;
+    const $ = (id) => this.shadowRoot.getElementById(id);
+    const states = this._hass.states;
+
+    // Camera dropdown
+    const camSelect = $("setup-camera");
+    const cameras = Object.keys(states).filter((e) => e.startsWith("camera.")).sort();
+    camSelect.innerHTML = `<option value="">${this._t("noCamera")}</option>`
+      + cameras.map((e) => {
+        const name = states[e].attributes.friendly_name || e;
+        return `<option value="${e}">${name}</option>`;
+      }).join("");
+
+    // TTS dropdown
+    const ttsSelect = $("setup-tts");
+    const ttsEntities = Object.keys(states).filter((e) => e.startsWith("tts.")).sort();
+    ttsSelect.innerHTML = `<option value="">${this._t("noTts")}</option>`
+      + ttsEntities.map((e) => {
+        const name = states[e].attributes.friendly_name || e;
+        return `<option value="${e}">${name}</option>`;
+      }).join("");
+
+    // Speaker (media_player) dropdown
+    const spkSelect = $("setup-speaker");
+    const players = Object.keys(states).filter((e) => e.startsWith("media_player.")).sort();
+    spkSelect.innerHTML = `<option value="">${this._t("defaultSpeaker")}</option>`
+      + players.map((e) => {
+        const name = states[e].attributes.friendly_name || e;
+        return `<option value="${e}">${name}</option>`;
+      }).join("");
+
+    // Try to set current values from config entry
+    this._loadCurrentConfig(camSelect, ttsSelect, spkSelect, $("setup-model"));
+  }
+
+  async _loadCurrentConfig(camSelect, ttsSelect, spkSelect, modelInput) {
+    if (!this._hass) return;
+    try {
+      const entries = await this._hass.callWS({
+        type: "config_entries/get",
+        domain: DOMAIN,
+      });
+      if (entries && entries.length > 0) {
+        // Get full entry details with options
+        const entry = entries[0];
+        // Options are merged with data at runtime; try callWS for entry details
+        try {
+          const detail = await this._hass.callWS({
+            type: "config_entries/get_single",
+            entry_id: entry.entry_id,
+          });
+          const opts = detail.options || {};
+          const data = detail.data || {};
+          const merged = { ...data, ...opts };
+          if (merged.camera_entity) camSelect.value = merged.camera_entity;
+          if (merged.tts_entity) ttsSelect.value = merged.tts_entity;
+          if (merged.tts_target) spkSelect.value = merged.tts_target;
+          if (merged.model) modelInput.value = merged.model;
+        } catch (_e) {
+          // get_single might not exist in all HA versions; fall back
+          // Use known defaults from the integration
+          modelInput.value = modelInput.value || "qwen2.5vl";
+        }
+      }
+    } catch (err) {
+      console.warn("Gaming Assistant: Could not load config entries:", err);
+    }
   }
 
   _updateSelect(selectEl, entityId) {
     const state = this._getState(entityId);
     if (!state || !state.attributes) return;
-
     const options = state.attributes.options || [];
     const current = state.state;
-
-    // Only rebuild if options changed
     const optKey = options.join(",");
     if (selectEl.dataset.optKey !== optKey) {
-      selectEl.innerHTML = options
-        .map((o) => `<option value="${o}">${o}</option>`)
-        .join("");
+      selectEl.innerHTML = options.map((o) => `<option value="${o}">${o}</option>`).join("");
       selectEl.dataset.optKey = optKey;
     }
-
-    if (selectEl.value !== current) {
-      selectEl.value = current;
-    }
+    if (selectEl.value !== current) selectEl.value = current;
   }
 
   _escapeHtml(text) {

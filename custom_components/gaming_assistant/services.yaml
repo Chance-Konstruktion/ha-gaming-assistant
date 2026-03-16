@@ -269,6 +269,38 @@ summarize_session:
       selector:
         text:
 
+configure:
+  name: Configure
+  description: Update runtime configuration (camera, TTS, model) from the panel.
+  fields:
+    camera_entity:
+      name: Camera Entity
+      description: Camera entity to use for watching
+      required: false
+      selector:
+        entity:
+          domain: camera
+    tts_entity:
+      name: TTS Entity
+      description: TTS service entity (e.g. tts.piper)
+      required: false
+      selector:
+        entity:
+          domain: tts
+    tts_target:
+      name: Media Player
+      description: Media player / speaker for announcements
+      required: false
+      selector:
+        entity:
+          domain: media_player
+    model:
+      name: AI Model
+      description: Ollama vision model name
+      required: false
+      selector:
+        text:
+
 announce:
   name: Announce Tip
   description: >

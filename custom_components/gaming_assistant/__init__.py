@@ -10,7 +10,14 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 
-from .const import CONF_CAMERA_ENTITY, DOMAIN, MAX_IMAGE_BYTES
+from .const import (
+    CONF_CAMERA_ENTITY,
+    CONF_MODEL,
+    CONF_TTS_ENTITY,
+    CONF_TTS_TARGET,
+    DOMAIN,
+    MAX_IMAGE_BYTES,
+)
 from .coordinator import GamingAssistantCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -28,7 +35,7 @@ _ALL_SERVICES = (
     "process_image", "ask", "set_spoiler_level", "set_spoiler_profile",
     "clear_history", "capture_from_camera",
     "watch_camera", "stop_watch_camera",
-    "announce", "summarize_session",
+    "announce", "summarize_session", "configure",
 )
 
 
@@ -354,6 +361,50 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     await coord.async_summarize_session(game=game)
                     break
 
+        async def handle_configure(call: ServiceCall) -> None:
+            """Update runtime configuration (camera, TTS, model) from the panel."""
+            camera = call.data.get("camera_entity")
+            tts_entity = call.data.get("tts_entity")
+            tts_target = call.data.get("tts_target")
+            model = call.data.get("model")
+
+            for eid, coord in hass.data[DOMAIN].items():
+                if not isinstance(coord, GamingAssistantCoordinator):
+                    continue
+                if camera is not None:
+                    coord._tts_entity = coord._tts_entity  # keep
+                    # Stop old watcher, start new one if non-empty
+                    if coord.active_camera_watchers:
+                        await coord.async_stop_watch_camera()
+                    if camera:
+                        await coord.async_watch_camera(camera)
+                if tts_entity is not None:
+                    coord._tts_entity = tts_entity
+                if tts_target is not None:
+                    coord._tts_target = tts_target
+                if model is not None and model:
+                    coord._image_processor._model = model
+
+                # Persist to config entry options
+                cfg_entry = hass.config_entries.async_get_entry(
+                    coord._config_entry_id
+                )
+                if cfg_entry:
+                    new_options = dict(cfg_entry.options)
+                    if camera is not None:
+                        new_options[CONF_CAMERA_ENTITY] = camera
+                    if tts_entity is not None:
+                        new_options[CONF_TTS_ENTITY] = tts_entity
+                    if tts_target is not None:
+                        new_options[CONF_TTS_TARGET] = tts_target
+                    if model is not None and model:
+                        new_options[CONF_MODEL] = model
+                    hass.config_entries.async_update_entry(
+                        cfg_entry, options=new_options
+                    )
+                _LOGGER.info("Configuration updated from panel")
+                break
+
         hass.services.async_register(DOMAIN, "analyze", handle_analyze)
         hass.services.async_register(DOMAIN, "start", handle_start)
         hass.services.async_register(DOMAIN, "stop", handle_stop)
@@ -367,6 +418,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "stop_watch_camera", handle_stop_watch_camera)
         hass.services.async_register(DOMAIN, "announce", handle_announce)
         hass.services.async_register(DOMAIN, "summarize_session", handle_summarize_session)
+        hass.services.async_register(DOMAIN, "configure", handle_configure)
 
     _LOGGER.info("Gaming Assistant integration loaded successfully")
     return True
