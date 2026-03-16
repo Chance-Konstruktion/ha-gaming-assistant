@@ -29,6 +29,15 @@
         "data": {
           "camera_entity": "Camera Entity"
         }
+      },
+      "tts": {
+        "title": "Voice Announcements",
+        "description": "Optionally configure text-to-speech to have tips read aloud. Select a TTS engine (e.g. Piper) and a speaker (media player). You can also enable auto-announce to speak every new tip automatically.",
+        "data": {
+          "tts_entity": "TTS Engine",
+          "tts_target": "Speaker (Media Player)",
+          "auto_announce": "Auto-announce new tips"
+        }
       }
     },
     "error": {
@@ -44,7 +53,10 @@
         "title": "Settings",
         "data": {
           "model": "Vision Model",
-          "camera_entity": "Camera Entity"
+          "camera_entity": "Camera Entity",
+          "tts_entity": "TTS Engine",
+          "tts_target": "Speaker (Media Player)",
+          "auto_announce": "Auto-announce new tips"
         }
       }
     }
@@ -76,6 +88,11 @@
       },
       "timeout": {
         "name": "Analysis Timeout"
+      }
+    },
+    "switch": {
+      "auto_announce": {
+        "name": "Auto Announce"
       }
     }
   }

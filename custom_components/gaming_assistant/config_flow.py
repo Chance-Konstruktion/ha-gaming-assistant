@@ -12,12 +12,16 @@ from homeassistant.core import callback
 from homeassistant.helpers import entity_registry as er
 
 from .const import (
+    CONF_AUTO_ANNOUNCE,
     CONF_CAMERA_ENTITY,
     CONF_DEFAULT_SPOILER,
     CONF_INTERVAL,
     CONF_MODEL,
     CONF_OLLAMA_HOST,
     CONF_TIMEOUT,
+    CONF_TTS_ENTITY,
+    CONF_TTS_TARGET,
+    DEFAULT_AUTO_ANNOUNCE,
     DEFAULT_INTERVAL,
     DEFAULT_MODEL,
     DEFAULT_OLLAMA_HOST,
@@ -83,6 +87,7 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._interval: int = DEFAULT_INTERVAL
         self._timeout: int = DEFAULT_TIMEOUT
         self._spoiler_level: str = DEFAULT_SPOILER_LEVEL
+        self._camera_entity: str = ""
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -160,18 +165,8 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.ConfigFlowResult:
         """Step 4 – optionally select a camera entity to auto-watch."""
         if user_input is not None:
-            camera_entity = user_input.get(CONF_CAMERA_ENTITY, "")
-            return self.async_create_entry(
-                title="Gaming Assistant",
-                data={
-                    CONF_OLLAMA_HOST: self._ollama_host,
-                    CONF_MODEL: self._model,
-                    CONF_INTERVAL: self._interval,
-                    CONF_TIMEOUT: self._timeout,
-                    CONF_DEFAULT_SPOILER: self._spoiler_level,
-                    CONF_CAMERA_ENTITY: camera_entity,
-                },
-            )
+            self._camera_entity = user_input.get(CONF_CAMERA_ENTITY, "")
+            return await self.async_step_tts()
 
         # Build list of available camera entities
         camera_entities = self._get_camera_entities()
@@ -191,13 +186,76 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(schema_fields),
         )
 
+    async def async_step_tts(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Step 5 – optionally configure TTS for automatic tip announcements."""
+        if user_input is not None:
+            tts_entity = user_input.get(CONF_TTS_ENTITY, "")
+            tts_target = user_input.get(CONF_TTS_TARGET, "")
+            auto_announce = user_input.get(CONF_AUTO_ANNOUNCE, DEFAULT_AUTO_ANNOUNCE)
+            return self.async_create_entry(
+                title="Gaming Assistant",
+                data={
+                    CONF_OLLAMA_HOST: self._ollama_host,
+                    CONF_MODEL: self._model,
+                    CONF_INTERVAL: self._interval,
+                    CONF_TIMEOUT: self._timeout,
+                    CONF_DEFAULT_SPOILER: self._spoiler_level,
+                    CONF_CAMERA_ENTITY: self._camera_entity,
+                    CONF_TTS_ENTITY: tts_entity,
+                    CONF_TTS_TARGET: tts_target,
+                    CONF_AUTO_ANNOUNCE: auto_announce,
+                },
+            )
+
+        # Build list of available TTS entities
+        tts_entities = self._get_entities_by_domain("tts")
+        media_players = self._get_entities_by_domain("media_player")
+
+        schema_fields: dict = {}
+
+        # TTS engine entity (e.g. tts.piper)
+        if tts_entities:
+            tts_options = {"": "— No TTS (skip) —"}
+            tts_options.update({eid: eid for eid in sorted(tts_entities)})
+            schema_fields[vol.Optional(CONF_TTS_ENTITY, default="")] = vol.In(
+                tts_options
+            )
+        else:
+            schema_fields[vol.Optional(CONF_TTS_ENTITY, default="")] = str
+
+        # Target media_player (speaker)
+        if media_players:
+            mp_options = {"": "— Default speaker —"}
+            mp_options.update({eid: eid for eid in sorted(media_players)})
+            schema_fields[vol.Optional(CONF_TTS_TARGET, default="")] = vol.In(
+                mp_options
+            )
+        else:
+            schema_fields[vol.Optional(CONF_TTS_TARGET, default="")] = str
+
+        # Auto-announce toggle
+        schema_fields[
+            vol.Optional(CONF_AUTO_ANNOUNCE, default=DEFAULT_AUTO_ANNOUNCE)
+        ] = bool
+
+        return self.async_show_form(
+            step_id="tts",
+            data_schema=vol.Schema(schema_fields),
+        )
+
     def _get_camera_entities(self) -> list[str]:
         """Return all camera entity IDs registered in HA."""
+        return self._get_entities_by_domain("camera")
+
+    def _get_entities_by_domain(self, domain: str) -> list[str]:
+        """Return all entity IDs for a given domain registered in HA."""
         registry = er.async_get(self.hass)
         return [
             entry.entity_id
             for entry in registry.entities.values()
-            if entry.domain == "camera" and not entry.disabled
+            if entry.domain == domain and not entry.disabled
         ]
 
     @staticmethod
@@ -226,6 +284,9 @@ class GamingAssistantOptionsFlow(config_entries.OptionsFlow):
 
         default_model = current.get(CONF_MODEL, DEFAULT_MODEL)
         default_camera = current.get(CONF_CAMERA_ENTITY, "")
+        default_tts = current.get(CONF_TTS_ENTITY, "")
+        default_tts_target = current.get(CONF_TTS_TARGET, "")
+        default_auto_announce = current.get(CONF_AUTO_ANNOUNCE, DEFAULT_AUTO_ANNOUNCE)
 
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
@@ -233,15 +294,21 @@ class GamingAssistantOptionsFlow(config_entries.OptionsFlow):
         if default_model not in models:
             models = [default_model, *models]
 
-        # Build camera options
+        # Build entity options
         registry = er.async_get(self.hass)
-        camera_entities = [
-            entry.entity_id
-            for entry in registry.entities.values()
-            if entry.domain == "camera" and not entry.disabled
-        ]
-        camera_options = {"": "— No camera (use external worker) —"}
-        camera_options.update({eid: eid for eid in sorted(camera_entities)})
+
+        def _entity_options(domain: str, empty_label: str) -> dict[str, str]:
+            entities = [
+                e.entity_id for e in registry.entities.values()
+                if e.domain == domain and not e.disabled
+            ]
+            opts = {"": empty_label}
+            opts.update({eid: eid for eid in sorted(entities)})
+            return opts
+
+        camera_options = _entity_options("camera", "— No camera (use external worker) —")
+        tts_options = _entity_options("tts", "— No TTS —")
+        mp_options = _entity_options("media_player", "— Default speaker —")
 
         return self.async_show_form(
             step_id="init",
@@ -251,6 +318,15 @@ class GamingAssistantOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_CAMERA_ENTITY, default=default_camera
                     ): vol.In(camera_options),
+                    vol.Optional(
+                        CONF_TTS_ENTITY, default=default_tts
+                    ): vol.In(tts_options),
+                    vol.Optional(
+                        CONF_TTS_TARGET, default=default_tts_target
+                    ): vol.In(mp_options),
+                    vol.Optional(
+                        CONF_AUTO_ANNOUNCE, default=default_auto_announce
+                    ): bool,
                 }
             ),
         )

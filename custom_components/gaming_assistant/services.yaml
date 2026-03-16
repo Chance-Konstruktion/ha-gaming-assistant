@@ -254,3 +254,31 @@ stop_watch_camera:
       selector:
         entity:
           domain: camera
+
+announce:
+  name: Announce Tip
+  description: >
+    Speak the current tip (or a custom message) via a TTS service.
+    Uses the configured TTS entity and media player by default.
+    You can override both per call.
+  fields:
+    message:
+      name: Message
+      description: Custom message to speak (leave empty to announce the current tip)
+      required: false
+      selector:
+        text:
+    tts_entity:
+      name: TTS Entity
+      description: TTS entity to use (e.g. tts.piper). Overrides configured default.
+      required: false
+      selector:
+        entity:
+          domain: tts
+    media_player_entity_id:
+      name: Media Player
+      description: Media player / speaker to announce on. Overrides configured default.
+      required: false
+      selector:
+        entity:
+          domain: media_player

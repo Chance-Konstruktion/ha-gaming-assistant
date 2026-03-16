@@ -15,17 +15,22 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     ASSISTANT_MODES,
+    CONF_AUTO_ANNOUNCE,
     CONF_CAMERA_ENTITY,
     CONF_DEFAULT_SPOILER,
     CONF_INTERVAL,
     CONF_MODEL,
     CONF_OLLAMA_HOST,
     CONF_TIMEOUT,
+    CONF_TTS_ENTITY,
+    CONF_TTS_TARGET,
     DEFAULT_ASSISTANT_MODE,
+    DEFAULT_AUTO_ANNOUNCE,
     DEFAULT_INTERVAL,
     DEFAULT_SPOILER_LEVEL,
     DEFAULT_TIMEOUT,
     DOMAIN,
+    EVENT_NEW_TIP,
     MQTT_IMAGE_TOPIC,
     MQTT_META_TOPIC,
     MQTT_MODE_TOPIC,
@@ -100,6 +105,11 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._spoiler.load()
         self._pack_loader = PromptPackLoader()
         self._pack_loader.load_all()
+        # TTS / Announce
+        self._tts_entity: str = config.get(CONF_TTS_ENTITY, "")
+        self._tts_target: str = config.get(CONF_TTS_TARGET, "")
+        self._auto_announce: bool = config.get(CONF_AUTO_ANNOUNCE, DEFAULT_AUTO_ANNOUNCE)
+
         # Resolve language from HA config (e.g. "de", "en", "fr")
         self._language = self._resolve_language(hass)
 
@@ -274,6 +284,84 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             self._registered_workers[client_id] = worker_info
             _LOGGER.info("New worker registered: %s (%s)", client_id, worker_info.get("type"))
         self.async_set_updated_data(self._build_data())
+
+    # -- TTS / Announce properties ---------------------------------------------
+
+    @property
+    def tts_entity(self) -> str:
+        return self._tts_entity
+
+    @property
+    def tts_target(self) -> str:
+        return self._tts_target
+
+    @property
+    def auto_announce(self) -> bool:
+        return self._auto_announce
+
+    def set_auto_announce(self, enabled: bool) -> None:
+        """Toggle auto-announce on/off."""
+        self._auto_announce = enabled
+        _LOGGER.info("Auto-announce set to: %s", enabled)
+        self.async_set_updated_data(self._build_data())
+
+    async def async_announce(
+        self,
+        message: str = "",
+        tts_entity: str = "",
+        media_player_entity_id: str = "",
+    ) -> None:
+        """Speak a message (or the current tip) via TTS.
+
+        Falls back to configured defaults if no explicit entity is given.
+        """
+        text = message or self._tip
+        if not text or text == "Waiting for tips...":
+            _LOGGER.warning("Nothing to announce – no tip available yet")
+            return
+
+        tts_eid = tts_entity or self._tts_entity
+        target = media_player_entity_id or self._tts_target
+
+        if not tts_eid:
+            _LOGGER.error(
+                "Cannot announce: no TTS entity configured. "
+                "Set one in Settings → Integrations → Gaming Assistant → Configure, "
+                "or pass tts_entity to the announce service call."
+            )
+            return
+
+        if not target:
+            _LOGGER.error(
+                "Cannot announce: no media_player target configured. "
+                "Set one in Settings → Integrations → Gaming Assistant → Configure, "
+                "or pass media_player_entity_id to the announce service call."
+            )
+            return
+
+        service_data = {
+            "entity_id": tts_eid,
+            "media_player_entity_id": target,
+            "message": text,
+        }
+
+        try:
+            await self.hass.services.async_call("tts", "speak", service_data)
+            _LOGGER.info("Announced tip via %s → %s", tts_eid, target)
+        except Exception as err:
+            _LOGGER.error("TTS announce failed: %s", err)
+
+    def _fire_new_tip_event(self, tip: str, game: str, client_id: str) -> None:
+        """Fire an event so automations can react to new tips."""
+        self.hass.bus.async_fire(
+            EVENT_NEW_TIP,
+            {
+                "tip": tip,
+                "game": game,
+                "client_id": client_id,
+                "assistant_mode": self._assistant_mode,
+            },
+        )
 
     @property
     def configured_camera(self) -> str:
@@ -467,6 +555,13 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                     self._recent_tips = self._recent_tips[-5:]
                 self._status = "idle"
                 _LOGGER.info("New tip generated: %s", tip[:80])
+
+                # Fire event for automations
+                self._fire_new_tip_event(tip, self._current_game, client_id)
+
+                # Auto-announce via TTS if enabled
+                if self._auto_announce and self._tts_entity:
+                    self.hass.async_create_task(self.async_announce(tip))
             else:
                 self._frames_processed += 1
                 self._status = "idle"
@@ -667,6 +762,14 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 })
                 if len(self._recent_tips) > 5:
                     self._recent_tips = self._recent_tips[-5:]
+
+                # Fire event for automations
+                self._fire_new_tip_event(answer, self._current_game, "ask")
+
+                # Auto-announce via TTS if enabled
+                if self._auto_announce and self._tts_entity:
+                    self.hass.async_create_task(self.async_announce(answer))
+
             self._status = "idle"
             self.async_set_updated_data(self._build_data())
             return answer
