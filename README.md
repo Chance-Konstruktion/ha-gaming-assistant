@@ -25,10 +25,12 @@ Gaming PC / Android / Tabletop Camera (Capture Agent)
       ├── Prompt Pack Loader (video games + tabletop)
       ├── Dynamic Prompt Builder
       ├── Camera Watcher (continuous HA camera monitoring)
+      ├── Conversation Agent (HA Assist voice control)
       ├── Ollama Vision LLM Call
       └── Sensors + Entities + Services
          │
-    Automations
+    Automations / Voice
+      ├── HA Assist ("switch mode to opponent", free-form questions)
       ├── TTS (speak tips aloud)
       ├── RGB lights
       ├── Notifications
@@ -374,6 +376,33 @@ summarize every session that has 3+ tips. The summary is stored in
 **Session-end event:** When a session ends, a `gaming_assistant_session_ended`
 event fires with `game`, `tip_count`, and `summary` data.
 
+### Voice Control (HA Assist)
+
+The Gaming Assistant registers as a native **conversation agent** for Home
+Assistant's Assist pipeline. This means you can talk to it through any
+voice-enabled device (e.g. Home Assistant Voice PE, phone app, or browser).
+
+**Setup:**
+1. Go to **Settings → Voice assistants**
+2. Create or edit a voice assistant
+3. Select **Gaming Assistant** as the conversation agent
+
+**Supported voice commands:**
+
+| Command (EN) | Command (DE) | Action |
+|-------------|-------------|--------|
+| "switch mode to opponent" | "wechsel modus auf gegner" | Change assistant mode |
+| "set spoiler to low" | "ändere spoiler auf niedrig" | Change spoiler level |
+| "start" | "starte" | Start capture/monitoring |
+| "stop" | "stoppe" | Stop capture/monitoring |
+| "current tip" | "aktueller tipp" | Read back the latest tip |
+| "session summary" | "zusammenfassung" | Read the session summary |
+| "analyze" | "analysiere" | Trigger immediate analysis |
+
+Any input that doesn't match a command is forwarded to Ollama as a free-form
+question -- so "How do I beat this boss?" or "Was ist mein nächster Zug?"
+works naturally.
+
 ### Game-Specific Prompt Packs
 
 The integration includes prompt packs for popular games that provide tailored
@@ -402,6 +431,12 @@ Clear history via `gaming_assistant.clear_history`.
 ---
 
 ## Entities
+
+### Conversation
+
+| Entity | Type | Description |
+|--------|------|-------------|
+| `conversation.gaming_assistant` | Conversation | Voice control via HA Assist (select as conversation agent) |
 
 ### Controls (adjustable from the dashboard)
 
@@ -551,6 +586,23 @@ Same as Android agent, plus:
 ---
 
 ## Changelog
+
+### 0.9.1 -- "Voice Control"
+- **Added:** Conversation agent for Home Assistant Assist -- control the Gaming
+  Assistant entirely by voice. Registered as a native HA conversation entity so
+  it appears in the Assist pipeline settings.
+- **Added:** Voice commands (English & German) for:
+  - Mode switching ("switch mode to opponent" / "wechsel modus auf gegner")
+  - Spoiler control ("set spoiler to low" / "ändere spoiler auf niedrig")
+  - Start/stop ("start" / "stoppe")
+  - Current tip ("current tip" / "aktueller tipp")
+  - Session summary ("session summary" / "zusammenfassung")
+  - Screenshot analysis ("analyze" / "analysiere")
+- **Added:** Free-form questions via Assist are forwarded to the Ollama-backed
+  ask pipeline -- e.g. "How do I beat this boss?" works as natural conversation.
+- **Fixed:** Windows batch files (`gaming_assistant.bat`, `build_exe.bat`) now
+  reliably find Python using py launcher, python3, and common install paths
+  instead of failing on Windows Store app aliases.
 
 ### 0.9.0 -- "Voice & Language"
 - **Added:** `gaming_assistant.announce` service -- speak tips via any HA TTS

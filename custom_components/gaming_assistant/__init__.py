@@ -28,6 +28,7 @@ PLATFORMS: list[Platform] = [
     Platform.SELECT,
     Platform.NUMBER,
     Platform.SWITCH,
+    Platform.CONVERSATION,
 ]
 
 _ALL_SERVICES = (
