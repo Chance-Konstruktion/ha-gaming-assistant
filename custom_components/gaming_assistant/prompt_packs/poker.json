@@ -12,5 +12,12 @@
     "lore": "high",
     "mechanics": "high"
   },
-  "additional_context": "Focus on reading the visible community cards, the player's hole cards (if visible), chip stacks, and betting action. Consider position at the table, number of players remaining, and pot size when giving advice."
+  "additional_context": "Focus on reading the visible community cards, the player's hole cards (if visible), chip stacks, and betting action. Consider position at the table, number of players remaining, and pot size when giving advice.",
+  "state_schema": {
+    "phase": ["preflop", "flop", "turn", "river"],
+    "hand_strength": ["high card", "pair", "two pair", "three of a kind", "straight", "flush", "full house", "four of a kind", "straight flush"],
+    "momentum": ["ahead", "behind", "even"],
+    "pot_size": "estimated pot size",
+    "position": ["early", "middle", "late", "button", "blinds"]
+  }
 }

@@ -12,5 +12,12 @@
     "lore": "high",
     "mechanics": "high"
   },
-  "additional_context": "UNO is a card game where players match colors or numbers. Action cards (Skip, Reverse, Draw Two) and Wild cards (Wild, Wild Draw Four) are key tactical elements. Track how many cards opponents have and advise when to call UNO."
+  "additional_context": "UNO is a card game where players match colors or numbers. Action cards (Skip, Reverse, Draw Two) and Wild cards (Wild, Wild Draw Four) are key tactical elements. Track how many cards opponents have and advise when to call UNO.",
+  "state_schema": {
+    "cards_in_hand": "number of cards the player has",
+    "top_card": "current top card on discard pile",
+    "color": ["red", "blue", "green", "yellow"],
+    "opponent_cards": "number of cards opponents have",
+    "momentum": ["ahead", "behind", "even"]
+  }
 }

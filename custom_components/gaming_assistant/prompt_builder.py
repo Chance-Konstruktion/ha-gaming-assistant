@@ -119,6 +119,7 @@ class PromptBuilder:
         assistant_mode: str = "coach",
         language: str = "",
         compact: bool = False,
+        state_context: str = "",
     ) -> str:
         """Assemble the full prompt in the correct order.
 
@@ -171,6 +172,10 @@ class PromptBuilder:
                 parts.append("\n".join(lines[-2:]) if len(lines) > 2 else history_context)
             else:
                 parts.append(history_context)
+
+        # 5b. Game state context (from state engine)
+        if state_context:
+            parts.append(state_context)
 
         # 6. User question (ask-mode) or mode-specific instruction
         if user_question:

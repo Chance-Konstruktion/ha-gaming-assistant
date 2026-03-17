@@ -44,6 +44,7 @@ from .const import (
     MQTT_WORKER_REGISTER_TOPIC,
     SESSION_END_DELAY,
 )
+from .game_state import GameStateManager
 from .history import HistoryManager
 from .image_processor import ImageProcessor
 from .prompt_builder import PromptBuilder
@@ -118,6 +119,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._spoiler.load()
         self._pack_loader = PromptPackLoader()
         self._pack_loader.load_all()
+        self._game_state = GameStateManager(hass.config.config_dir)
         # TTS / Announce
         self._tts_entity: str = config.get(CONF_TTS_ENTITY, "")
         self._tts_target: str = config.get(CONF_TTS_TARGET, "")
@@ -147,6 +149,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             prompt_pack_loader=self._pack_loader,
             timeout=self._analysis_timeout,
             language=self._language,
+            game_state_manager=self._game_state,
         )
 
     # -- language resolution --------------------------------------------------
@@ -185,7 +188,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             name="Gaming Assistant",
             manufacturer="Chance-Konstruktion",
             model=self.config.get(CONF_MODEL, "qwen2.5vl"),
-            sw_version="0.9.1",
+            sw_version="0.10.0",
             configuration_url=self.config.get(CONF_OLLAMA_HOST, ""),
         )
 
@@ -236,6 +239,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     @property
     def pack_loader(self) -> PromptPackLoader:
         return self._pack_loader
+
+    @property
+    def game_state_manager(self) -> GameStateManager:
+        return self._game_state
 
     @property
     def analysis_interval(self) -> int:

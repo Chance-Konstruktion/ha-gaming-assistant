@@ -587,6 +587,19 @@ Same as Android agent, plus:
 
 ## Changelog
 
+### 0.10.0 -- "State Engine" (in progress)
+- **Added:** Game State Engine (`game_state.py`) -- structured per-game state
+  tracking across frames with rolling window (last 10 snapshots).
+- **Added:** Automatic observation extraction from LLM tips: health, score,
+  phase, momentum, chess moves, and prompt-pack-specific fields via `state_schema`.
+- **Added:** State context injection into prompts -- the LLM now sees changes
+  since the last frame (e.g. "health: 100 → 60") and recent state history.
+- **Added:** `state_schema` field in prompt packs for game-specific state
+  tracking (Chess, Catan, Poker, UNO, Elden Ring).
+- **Added:** Compact vs full state formatting for small/large models.
+- **Added:** Optional state persistence to disk (JSON per game).
+- **Added:** 32 new unit tests for the state engine.
+
 ### 0.9.1 -- "Voice Control"
 - **Added:** Conversation agent for Home Assistant Assist -- control the Gaming
   Assistant entirely by voice. Registered as a native HA conversation entity so
