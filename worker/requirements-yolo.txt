@@ -1,0 +1,7 @@
+# Requirements for the YOLO Object Detection Worker
+# Install on a machine with a GPU for best performance
+ultralytics>=8.0.0
+paho-mqtt>=1.6.1
+Pillow>=10.0.0
+# GPU support (install matching CUDA version):
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121

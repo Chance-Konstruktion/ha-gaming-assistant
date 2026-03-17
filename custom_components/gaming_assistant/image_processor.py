@@ -6,16 +6,14 @@ import base64
 import hashlib
 import logging
 
-import requests
-
 from .const import (
     HISTORY_CONTEXT_SIZE,
     OLLAMA_NUM_PREDICT,
-    OLLAMA_RETRY_DELAY,
     OLLAMA_TIMEOUT,
 )
 from .game_state import GameStateManager, extract_observations_from_tip
 from .history import HistoryManager
+from .llm_backend import LLMBackend, OllamaBackend, create_backend
 from .prompt_builder import PromptBuilder
 from .spoiler import SpoilerManager
 
@@ -32,11 +30,12 @@ class ImageProcessor:
     4. Game detection (via metadata)
     5. Load spoiler settings
     6. Load history
-    7. Build prompt
-    8. Ollama call (image + prompt)
+    7. Build prompt (with state context)
+    8. LLM call (image + prompt) via pluggable backend
     9. Parse response
-    10. Store in history
-    11. Return tip
+    10. Extract game state observations
+    11. Store in history
+    12. Return tip
     """
 
     def __init__(
@@ -49,6 +48,7 @@ class ImageProcessor:
         timeout: int | None = None,
         language: str = "",
         game_state_manager: GameStateManager | None = None,
+        llm_backend: LLMBackend | None = None,
     ) -> None:
         self._ollama_host = ollama_host.rstrip("/")
         self._model = model
@@ -59,6 +59,17 @@ class ImageProcessor:
         self._language = language
         self._game_state = game_state_manager
         self._compact = PromptBuilder.is_small_model(model)
+
+        # LLM backend: use provided backend or create default Ollama backend
+        if llm_backend:
+            self._backend = llm_backend
+        else:
+            self._backend = OllamaBackend(
+                host=self._ollama_host,
+                model=self._model,
+                timeout=self._timeout,
+            )
+
         if self._compact:
             _LOGGER.info(
                 "Small model detected (%s) — using compact prompts", model
@@ -71,6 +82,18 @@ class ImageProcessor:
     @timeout.setter
     def timeout(self, value: int) -> None:
         self._timeout = value
+        self._backend.timeout = value
+
+    @property
+    def backend(self) -> LLMBackend:
+        """Return the current LLM backend."""
+        return self._backend
+
+    @backend.setter
+    def backend(self, value: LLMBackend) -> None:
+        """Swap the LLM backend at runtime."""
+        self._backend = value
+        _LOGGER.info("LLM backend changed to: %s (%s)", value.backend_type, value.model)
 
     async def process(
         self,
@@ -132,9 +155,12 @@ class ImageProcessor:
             state_context=state_context,
         )
 
-        # 8. Call Ollama
+        # 8. Call LLM backend
         image_b64 = base64.b64encode(image_bytes).decode("utf-8")
-        tip = await self._call_ollama(prompt, image_b64)
+        response = await self._backend.generate(
+            prompt, image_b64, max_tokens=OLLAMA_NUM_PREDICT
+        )
+        tip = response.text
 
         if not tip:
             return ""
@@ -200,10 +226,16 @@ class ImageProcessor:
 
         if image_bytes:
             image_b64 = base64.b64encode(image_bytes).decode("utf-8")
-            answer = await self._call_ollama(prompt, image_b64)
+            response = await self._backend.generate(
+                prompt, image_b64, max_tokens=OLLAMA_NUM_PREDICT
+            )
+            answer = response.text
             image_hash = hashlib.md5(image_bytes).hexdigest()
         else:
-            answer = await self._call_ollama_text(prompt)
+            response = await self._backend.generate_text(
+                prompt, max_tokens=OLLAMA_NUM_PREDICT
+            )
+            answer = response.text
             image_hash = None
 
         if answer and image_hash:
@@ -211,99 +243,18 @@ class ImageProcessor:
 
         return answer
 
-    @staticmethod
-    def _clean_response(text: str) -> str:
-        """Strip incomplete trailing sentences caused by num_predict cutoff."""
-        if not text:
-            return text
-        # If the text ends with proper punctuation, it's complete
-        if text[-1] in ".!?)\"'":
-            return text
-        # Find the last sentence-ending punctuation
-        for i in range(len(text) - 1, -1, -1):
-            if text[i] in ".!?)":
-                return text[:i + 1]
-        # No sentence end found -- return as-is (better than nothing)
-        return text
+    # -- backward compatibility aliases --------------------------------------
 
     async def _call_ollama(self, prompt: str, image_b64: str) -> str:
-        """Send image + prompt to Ollama and return the response."""
-        url = f"{self._ollama_host}/api/generate"
-        payload = {
-            "model": self._model,
-            "prompt": prompt,
-            "images": [image_b64],
-            "stream": False,
-            "options": {
-                "temperature": 0.4,
-                "num_predict": OLLAMA_NUM_PREDICT,
-            },
-        }
-
-        loop = asyncio.get_event_loop()
-
-        for attempt in range(2):  # 1 retry
-            try:
-                response = await loop.run_in_executor(
-                    None,
-                    lambda: requests.post(url, json=payload, timeout=self._timeout),
-                )
-                response.raise_for_status()
-                raw = response.json().get("response", "").strip()
-                return self._clean_response(raw)
-            except requests.exceptions.Timeout:
-                _LOGGER.warning(
-                    "Ollama timeout (attempt %d/2), retrying in %ds",
-                    attempt + 1, OLLAMA_RETRY_DELAY,
-                )
-                if attempt == 0:
-                    await asyncio.sleep(OLLAMA_RETRY_DELAY)
-            except requests.exceptions.ConnectionError:
-                _LOGGER.error("Cannot reach Ollama at %s", self._ollama_host)
-                return ""
-            except Exception as err:
-                _LOGGER.exception("Ollama call failed: %s", err)
-                return ""
-
-        _LOGGER.error("Ollama request failed after retries")
-        return ""
+        """Legacy method — delegates to backend.generate()."""
+        response = await self._backend.generate(
+            prompt, image_b64, max_tokens=OLLAMA_NUM_PREDICT
+        )
+        return response.text
 
     async def _call_ollama_text(self, prompt: str) -> str:
-        """Send text-only prompt to Ollama and return the response."""
-        url = f"{self._ollama_host}/api/generate"
-        payload = {
-            "model": self._model,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.4,
-                "num_predict": OLLAMA_NUM_PREDICT,
-            },
-        }
-
-        loop = asyncio.get_event_loop()
-
-        for attempt in range(2):
-            try:
-                response = await loop.run_in_executor(
-                    None,
-                    lambda: requests.post(url, json=payload, timeout=self._timeout),
-                )
-                response.raise_for_status()
-                return response.json().get("response", "").strip()
-            except requests.exceptions.Timeout:
-                _LOGGER.warning(
-                    "Ollama text timeout (attempt %d/2), retrying in %ds",
-                    attempt + 1, OLLAMA_RETRY_DELAY,
-                )
-                if attempt == 0:
-                    await asyncio.sleep(OLLAMA_RETRY_DELAY)
-            except requests.exceptions.ConnectionError:
-                _LOGGER.error("Cannot reach Ollama at %s", self._ollama_host)
-                return ""
-            except Exception as err:
-                _LOGGER.exception("Ollama text call failed: %s", err)
-                return ""
-
-        _LOGGER.error("Ollama text request failed after retries")
-        return ""
+        """Legacy method — delegates to backend.generate_text()."""
+        response = await self._backend.generate_text(
+            prompt, max_tokens=OLLAMA_NUM_PREDICT
+        )
+        return response.text

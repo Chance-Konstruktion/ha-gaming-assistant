@@ -4,6 +4,10 @@ DOMAIN = "gaming_assistant"
 
 CONF_OLLAMA_HOST = "ollama_host"
 CONF_MODEL = "model"
+CONF_LLM_BACKEND = "llm_backend"
+CONF_LLM_API_KEY = "llm_api_key"
+CONF_LLM_ALLOW_IMAGES = "llm_allow_images"
+DEFAULT_LLM_BACKEND = "ollama"
 CONF_INTERVAL = "interval"
 CONF_TIMEOUT = "analysis_timeout"
 CONF_CAMERA_ENTITY = "camera_entity"
@@ -22,6 +26,7 @@ MQTT_STATUS_TOPIC = "gaming_assistant/status"
 MQTT_IMAGE_TOPIC = "gaming_assistant/+/image"  # + = client_id wildcard
 MQTT_META_TOPIC = "gaming_assistant/+/meta"
 MQTT_WORKER_REGISTER_TOPIC = "gaming_assistant/+/register"
+MQTT_DETECTIONS_TOPIC = "gaming_assistant/+/detections"
 
 # Spoiler Levels
 SPOILER_CATEGORIES = [

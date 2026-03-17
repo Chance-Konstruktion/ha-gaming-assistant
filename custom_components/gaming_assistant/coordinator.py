@@ -16,6 +16,10 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import (
     ASSISTANT_MODES,
     CONF_AUTO_ANNOUNCE,
+    CONF_LLM_ALLOW_IMAGES,
+    CONF_LLM_API_KEY,
+    CONF_LLM_BACKEND,
+    DEFAULT_LLM_BACKEND,
     DEFAULT_SOURCE_TYPE,
     SOURCE_TYPES,
     CONF_AUTO_SUMMARY,
@@ -41,12 +45,14 @@ from .const import (
     MQTT_MODE_TOPIC,
     MQTT_STATUS_TOPIC,
     MQTT_TIP_TOPIC,
+    MQTT_DETECTIONS_TOPIC,
     MQTT_WORKER_REGISTER_TOPIC,
     SESSION_END_DELAY,
 )
 from .game_state import GameStateManager
 from .history import HistoryManager
 from .image_processor import ImageProcessor
+from .llm_backend import LLMBackend, create_backend, PROVIDER_PRESETS
 from .prompt_builder import PromptBuilder
 from .prompt_packs import PromptPackLoader
 from .spoiler import SpoilerManager
@@ -141,6 +147,16 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         # Resolve language from HA config (e.g. "de", "en", "fr")
         self._language = self._resolve_language(hass)
 
+        # Create LLM backend
+        self._llm_backend = create_backend(
+            provider=config.get(CONF_LLM_BACKEND, DEFAULT_LLM_BACKEND),
+            host=config.get(CONF_OLLAMA_HOST, "http://localhost:11434"),
+            model=config.get(CONF_MODEL, "qwen2.5vl"),
+            timeout=self._analysis_timeout,
+            api_key=config.get(CONF_LLM_API_KEY, ""),
+            allow_images=config.get(CONF_LLM_ALLOW_IMAGES, True),
+        )
+
         self._image_processor = ImageProcessor(
             ollama_host=config.get(CONF_OLLAMA_HOST, "http://localhost:11434"),
             model=config.get(CONF_MODEL, "qwen2.5vl"),
@@ -150,6 +166,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             timeout=self._analysis_timeout,
             language=self._language,
             game_state_manager=self._game_state,
+            llm_backend=self._llm_backend,
         )
 
     # -- language resolution --------------------------------------------------
@@ -243,6 +260,14 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     @property
     def game_state_manager(self) -> GameStateManager:
         return self._game_state
+
+    @property
+    def llm_backend(self) -> LLMBackend:
+        return self._llm_backend
+
+    @property
+    def llm_backend_type(self) -> str:
+        return self._llm_backend.backend_type
 
     @property
     def analysis_interval(self) -> int:
@@ -577,22 +602,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     # -- MQTT setup with retry -----------------------------------------------
 
     async def async_fetch_available_models(self) -> list[str]:
-        """Fetch available models from Ollama and cache the result."""
-        import requests as req
-
-        host = self.config.get(CONF_OLLAMA_HOST, "http://localhost:11434").rstrip("/")
-
-        def _fetch():
-            try:
-                resp = req.get(f"{host}/api/tags", timeout=5)
-                resp.raise_for_status()
-                data = resp.json()
-                return sorted(m["name"] for m in data.get("models", []))
-            except Exception as err:
-                _LOGGER.warning("Could not fetch Ollama models from %s: %s", host, err)
-                return []
-
-        models = await self.hass.async_add_executor_job(_fetch)
+        """Fetch available models from the current LLM backend."""
+        models = await self._llm_backend.list_models()
         self._available_models = models
         self.async_set_updated_data(self._build_data())
         return models
@@ -698,6 +709,19 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             except (json.JSONDecodeError, UnicodeDecodeError) as err:
                 _LOGGER.warning("Invalid register payload from %s: %s", client_id, err)
 
+        @callback
+        def detections_received(msg) -> None:
+            """Handle YOLO detections from external worker."""
+            client_id = msg.topic.split("/")[1]
+            try:
+                payload = msg.payload
+                if isinstance(payload, bytes):
+                    payload = payload.decode("utf-8")
+                data = json.loads(payload)
+                self._handle_yolo_detections(client_id, data)
+            except (json.JSONDecodeError, UnicodeDecodeError) as err:
+                _LOGGER.warning("Invalid detections from %s: %s", client_id, err)
+
         unsub_tip = await mqtt.async_subscribe(
             self.hass, MQTT_TIP_TOPIC, tip_received, 0
         )
@@ -716,11 +740,56 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         unsub_register = await mqtt.async_subscribe(
             self.hass, MQTT_WORKER_REGISTER_TOPIC, worker_register_received, 0
         )
+        unsub_detections = await mqtt.async_subscribe(
+            self.hass, MQTT_DETECTIONS_TOPIC, detections_received, 0
+        )
 
         self._unsubscribe_callbacks = [
             unsub_tip, unsub_mode, unsub_status, unsub_image, unsub_meta,
-            unsub_register,
+            unsub_register, unsub_detections,
         ]
+
+    # -- YOLO detection handling -----------------------------------------------
+
+    def _handle_yolo_detections(
+        self, client_id: str, data: dict[str, Any]
+    ) -> None:
+        """Process structured detections from the YOLO worker.
+
+        Detections are fed into the game state engine as observations
+        so the LLM can use them for context.
+        """
+        detections = data.get("detections", [])
+        if not detections:
+            return
+
+        game = self._current_game or "unknown"
+        inference_ms = data.get("inference_ms", 0)
+
+        # Build observations from detections
+        observations: dict[str, Any] = {
+            "yolo_objects": [d["class"] for d in detections[:10]],
+            "yolo_count": len(detections),
+            "yolo_inference_ms": inference_ms,
+        }
+
+        # Extract prominent objects by confidence
+        if detections:
+            top = max(detections, key=lambda d: d.get("confidence", 0))
+            observations["yolo_top_object"] = top["class"]
+            observations["yolo_top_confidence"] = top.get("confidence", 0)
+
+        # Feed into game state engine
+        self._game_state.update(
+            game, observations, source=f"yolo:{client_id}"
+        )
+
+        _LOGGER.debug(
+            "YOLO detections from %s: %d objects (%.0fms)",
+            client_id,
+            len(detections),
+            inference_ms,
+        )
 
     # -- Image processing pipeline -------------------------------------------
 

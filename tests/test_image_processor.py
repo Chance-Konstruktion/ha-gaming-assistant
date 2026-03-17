@@ -1,4 +1,4 @@
-"""Unit tests for ImageProcessor – timeout configuration and metrics support."""
+"""Unit tests for ImageProcessor – timeout configuration and backend integration."""
 
 import asyncio
 import sys
@@ -22,6 +22,7 @@ for mod in _HA_MODULES:
     sys.modules.setdefault(mod, MagicMock())
 
 from custom_components.gaming_assistant.image_processor import ImageProcessor
+from custom_components.gaming_assistant.llm_backend import LLMResponse, OllamaBackend
 from custom_components.gaming_assistant.history import HistoryManager
 from custom_components.gaming_assistant.spoiler import SpoilerManager
 from custom_components.gaming_assistant.const import OLLAMA_TIMEOUT
@@ -61,7 +62,7 @@ class TestImageProcessorTimeout(unittest.TestCase):
         self.assertEqual(proc._timeout, 120)
 
     def test_timeout_used_in_call(self):
-        """Verify the configured timeout is passed to requests.post."""
+        """Verify the configured timeout is passed to the backend."""
         proc = self._make_processor(timeout=180)
 
         mock_response = MagicMock()
@@ -69,7 +70,7 @@ class TestImageProcessorTimeout(unittest.TestCase):
         mock_response.raise_for_status = MagicMock()
         mock_response.json.return_value = {"response": "Test tip"}
 
-        with patch("custom_components.gaming_assistant.image_processor.requests.post", return_value=mock_response) as mock_post:
+        with patch("custom_components.gaming_assistant.llm_backend.requests.post", return_value=mock_response) as mock_post:
             result = _run(proc._call_ollama("test prompt", "base64data"))
             self.assertEqual(result, "Test tip")
             _, kwargs = mock_post.call_args
@@ -83,7 +84,7 @@ class TestImageProcessorTimeout(unittest.TestCase):
         mock_response.raise_for_status = MagicMock()
         mock_response.json.return_value = {"response": "Tip"}
 
-        with patch("custom_components.gaming_assistant.image_processor.requests.post", return_value=mock_response) as mock_post:
+        with patch("custom_components.gaming_assistant.llm_backend.requests.post", return_value=mock_response) as mock_post:
             _run(proc._call_ollama_text("prompt"))
             _, kwargs = mock_post.call_args
             self.assertEqual(kwargs["timeout"], OLLAMA_TIMEOUT)
@@ -116,7 +117,7 @@ class TestImageProcessorErrorHandling(unittest.TestCase):
         import requests
         proc = self._make_processor()
         with patch(
-            "custom_components.gaming_assistant.image_processor.requests.post",
+            "custom_components.gaming_assistant.llm_backend.requests.post",
             side_effect=requests.exceptions.ConnectionError("refused"),
         ):
             result = _run(proc._call_ollama("prompt", "img"))
@@ -126,11 +127,44 @@ class TestImageProcessorErrorHandling(unittest.TestCase):
         import requests
         proc = self._make_processor()
         with patch(
-            "custom_components.gaming_assistant.image_processor.requests.post",
+            "custom_components.gaming_assistant.llm_backend.requests.post",
             side_effect=requests.exceptions.Timeout("timed out"),
         ):
             result = _run(proc._call_ollama("prompt", "img"))
             self.assertEqual(result, "")
+
+
+class TestImageProcessorBackendSwap(unittest.TestCase):
+    """Tests for swapping LLM backends at runtime."""
+
+    def _make_processor(self):
+        history = MagicMock(spec=HistoryManager)
+        spoiler = MagicMock(spec=SpoilerManager)
+        spoiler.get_settings.return_value = {}
+        spoiler.generate_prompt_block.return_value = ""
+        return ImageProcessor(
+            ollama_host="http://localhost:11434",
+            model="test",
+            history_manager=history,
+            spoiler_manager=spoiler,
+        )
+
+    def test_default_backend_is_ollama(self):
+        proc = self._make_processor()
+        self.assertEqual(proc.backend.backend_type, "ollama")
+
+    def test_backend_swap(self):
+        from custom_components.gaming_assistant.llm_backend import OpenAICompatibleBackend
+        proc = self._make_processor()
+
+        new_backend = OpenAICompatibleBackend(
+            host="https://api.openai.com",
+            model="gpt-4o",
+            api_key="test-key",
+        )
+        proc.backend = new_backend
+        self.assertEqual(proc.backend.backend_type, "openai")
+        self.assertEqual(proc.backend.model, "gpt-4o")
 
 
 if __name__ == "__main__":
