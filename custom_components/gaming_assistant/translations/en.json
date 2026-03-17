@@ -50,6 +50,11 @@
     }
   },
   "entity": {
+    "conversation": {
+      "gaming_assistant": {
+        "name": "Gaming Assistant"
+      }
+    },
     "select": {
       "assistant_mode": {
         "name": "Assistant Mode",
