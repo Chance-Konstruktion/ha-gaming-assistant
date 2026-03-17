@@ -253,6 +253,62 @@ class TestExtractObservations(unittest.TestCase):
         self.assertEqual(obs, {})
 
 
+class TestTrendDetection(unittest.TestCase):
+    """Tests for detect_trends functionality."""
+
+    def setUp(self):
+        self.gsm = GameStateManager(window_size=10)
+
+    def test_declining_numeric_trend(self):
+        for hp in [100, 80, 60]:
+            self.gsm.update("chess", {"health": hp})
+        trends = self.gsm.detect_trends("chess")
+        self.assertTrue(any("declining" in t for t in trends))
+
+    def test_increasing_numeric_trend(self):
+        for score in [10, 20, 30]:
+            self.gsm.update("chess", {"score": score})
+        trends = self.gsm.detect_trends("chess")
+        self.assertTrue(any("increasing" in t for t in trends))
+
+    def test_stable_value(self):
+        for _ in range(4):
+            self.gsm.update("chess", {"phase": "middlegame"})
+        trends = self.gsm.detect_trends("chess")
+        self.assertTrue(any("stable" in t and "middlegame" in t for t in trends))
+
+    def test_value_shift(self):
+        self.gsm.update("chess", {"momentum": "equal"})
+        self.gsm.update("chess", {"momentum": "equal"})
+        self.gsm.update("chess", {"momentum": "winning"})
+        trends = self.gsm.detect_trends("chess")
+        self.assertTrue(any("shifted" in t for t in trends))
+
+    def test_not_enough_snapshots(self):
+        self.gsm.update("chess", {"health": 100})
+        trends = self.gsm.detect_trends("chess")
+        self.assertEqual(trends, [])
+
+    def test_format_trends_for_prompt(self):
+        for hp in [100, 80, 60]:
+            self.gsm.update("chess", {"health": hp})
+        result = self.gsm.format_trends_for_prompt("chess")
+        self.assertIn("health", result)
+        self.assertIn("declining", result)
+
+    def test_format_trends_compact(self):
+        for hp in [100, 80, 60]:
+            self.gsm.update("chess", {"health": hp})
+        result = self.gsm.format_trends_for_prompt("chess", compact=True)
+        self.assertTrue(result.startswith("Trends:"))
+
+    def test_trends_included_in_prompt_format(self):
+        for hp in [100, 80, 60]:
+            self.gsm.update("chess", {"health": hp})
+        result = self.gsm.format_for_prompt("chess")
+        self.assertIn("declining", result)
+
+
 class TestPromptBuilderWithState(unittest.TestCase):
     """Test that state_context is included in prompts."""
 

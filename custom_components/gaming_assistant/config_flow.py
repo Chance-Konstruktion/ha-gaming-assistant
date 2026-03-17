@@ -16,6 +16,9 @@ from .const import (
     CONF_CAMERA_ENTITY,
     CONF_DEFAULT_SPOILER,
     CONF_INTERVAL,
+    CONF_LLM_ALLOW_IMAGES,
+    CONF_LLM_API_KEY,
+    CONF_LLM_BACKEND,
     CONF_MODEL,
     CONF_OLLAMA_HOST,
     CONF_TIMEOUT,
@@ -23,6 +26,7 @@ from .const import (
     CONF_TTS_TARGET,
     DEFAULT_AUTO_ANNOUNCE,
     DEFAULT_INTERVAL,
+    DEFAULT_LLM_BACKEND,
     DEFAULT_MODEL,
     DEFAULT_OLLAMA_HOST,
     DEFAULT_SPOILER_LEVEL,
@@ -30,6 +34,7 @@ from .const import (
     DOMAIN,
     SPOILER_LEVELS,
 )
+from .llm_backend import PROVIDER_PRESETS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,7 +81,7 @@ def _schema_model_step(
 
 
 class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Three-step config flow: 1) host  2) model  3) spoiler defaults."""
+    """Config flow: 1) backend  2) host/key  3) model  4) spoiler  5) camera  6) tts."""
 
     VERSION = 1
 
@@ -88,39 +93,84 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._timeout: int = DEFAULT_TIMEOUT
         self._spoiler_level: str = DEFAULT_SPOILER_LEVEL
         self._camera_entity: str = ""
+        self._llm_backend: str = DEFAULT_LLM_BACKEND
+        self._llm_api_key: str = ""
+        self._llm_allow_images: bool = True
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Step 1 – enter Ollama host URL."""
+        """Step 1 – choose LLM backend provider."""
         if self._async_current_entries():
             return self.async_abort(reason="single_instance_allowed")
 
-        errors: dict[str, str] = {}
-
         if user_input is not None:
-            host = user_input[CONF_OLLAMA_HOST].rstrip("/")
-            self._ollama_host = host
+            self._llm_backend = user_input[CONF_LLM_BACKEND]
+            preset = PROVIDER_PRESETS.get(self._llm_backend, {})
+            self._ollama_host = preset.get("host", DEFAULT_OLLAMA_HOST)
+            self._llm_allow_images = preset.get("allow_images", True)
+            if preset.get("model"):
+                self._model = preset["model"]
+            return await self.async_step_connection()
 
-            models = await self.hass.async_add_executor_job(
-                _fetch_ollama_models, host
-            )
-
-            if models is None:
-                errors["base"] = "cannot_connect"
-            else:
-                self._models = models
-                return await self.async_step_model()
+        # Build provider selection
+        provider_options = {
+            pid: f"{p['description']}"
+            for pid, p in PROVIDER_PRESETS.items()
+        }
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
                 {
                     vol.Required(
-                        CONF_OLLAMA_HOST, default=self._ollama_host
-                    ): str,
+                        CONF_LLM_BACKEND, default=DEFAULT_LLM_BACKEND
+                    ): vol.In(provider_options),
                 }
             ),
+        )
+
+    async def async_step_connection(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Step 2 – enter host URL and API key (if needed)."""
+        errors: dict[str, str] = {}
+        preset = PROVIDER_PRESETS.get(self._llm_backend, {})
+        needs_key = preset.get("api_key_required", False)
+
+        if user_input is not None:
+            host = user_input[CONF_OLLAMA_HOST].rstrip("/")
+            self._ollama_host = host
+            self._llm_api_key = user_input.get(CONF_LLM_API_KEY, "")
+
+            if needs_key and not self._llm_api_key:
+                errors["base"] = "api_key_required"
+            else:
+                # Try to connect and fetch models
+                if self._llm_backend == "ollama":
+                    models = await self.hass.async_add_executor_job(
+                        _fetch_ollama_models, host
+                    )
+                    if models is None:
+                        errors["base"] = "cannot_connect"
+                    else:
+                        self._models = models
+                else:
+                    # For cloud providers, we trust the preset model list
+                    self._models = [preset.get("model", "")] if preset.get("model") else FALLBACK_MODELS
+
+                if not errors:
+                    return await self.async_step_model()
+
+        schema_fields: dict = {
+            vol.Required(CONF_OLLAMA_HOST, default=self._ollama_host): str,
+        }
+        if needs_key:
+            schema_fields[vol.Required(CONF_LLM_API_KEY, default="")] = str
+
+        return self.async_show_form(
+            step_id="connection",
+            data_schema=vol.Schema(schema_fields),
             errors=errors,
         )
 
@@ -197,8 +247,11 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(
                 title="Gaming Assistant",
                 data={
+                    CONF_LLM_BACKEND: self._llm_backend,
                     CONF_OLLAMA_HOST: self._ollama_host,
                     CONF_MODEL: self._model,
+                    CONF_LLM_API_KEY: self._llm_api_key,
+                    CONF_LLM_ALLOW_IMAGES: self._llm_allow_images,
                     CONF_INTERVAL: self._interval,
                     CONF_TIMEOUT: self._timeout,
                     CONF_DEFAULT_SPOILER: self._spoiler_level,

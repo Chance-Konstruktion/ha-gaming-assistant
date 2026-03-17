@@ -217,6 +217,11 @@ class GameStateManager:
                     "Recent state history:\n" + "\n".join(trend_lines)
                 )
 
+        # Detected trends (both modes)
+        trend_str = self.format_trends_for_prompt(game, compact=compact)
+        if trend_str:
+            parts.append(trend_str)
+
         if not parts:
             return ""
 
@@ -285,6 +290,100 @@ class GameStateManager:
     def tracked_games(self) -> list[str]:
         """Return list of games with active state tracking."""
         return list(self._states.keys())
+
+    # -- trend detection -----------------------------------------------------
+
+    def detect_trends(
+        self, game: str, min_snapshots: int = 3
+    ) -> list[str]:
+        """Analyse recent snapshots for trends and patterns.
+
+        Returns a list of human-readable trend descriptions like:
+        - "health declining: 100 → 80 → 60 over 3 frames"
+        - "phase stable at middlegame for 4 frames"
+        - "momentum shifted from losing to winning"
+        """
+        history = self._states.get(game, [])
+        if len(history) < min_snapshots:
+            return []
+
+        recent = history[-min(min_snapshots + 2, len(history)) :]
+        trends: list[str] = []
+
+        # Collect all keys seen across recent snapshots
+        all_keys: set[str] = set()
+        for snap in recent:
+            all_keys.update(snap.observations.keys())
+
+        for key in sorted(all_keys):
+            values = [
+                snap.observations.get(key) for snap in recent
+                if key in snap.observations
+            ]
+            if len(values) < min_snapshots:
+                continue
+
+            # Numeric trend (e.g. health declining)
+            if all(isinstance(v, (int, float)) for v in values):
+                trend = _detect_numeric_trend(key, values)
+                if trend:
+                    trends.append(trend)
+                continue
+
+            # Stable value (e.g. phase stuck at "middlegame")
+            if len(set(str(v) for v in values)) == 1:
+                trends.append(
+                    f"{key} stable at {values[0]} for {len(values)} frames"
+                )
+                continue
+
+            # Value shift (e.g. momentum changed)
+            if len(values) >= 2 and values[-1] != values[-2]:
+                trends.append(
+                    f"{key} shifted from {values[-2]} to {values[-1]}"
+                )
+
+        return trends
+
+    def format_trends_for_prompt(
+        self, game: str, compact: bool = False
+    ) -> str:
+        """Build a trend summary string for the prompt."""
+        trends = self.detect_trends(game)
+        if not trends:
+            return ""
+
+        if compact:
+            return "Trends: " + "; ".join(trends[:3])
+
+        return "Detected trends:\n" + "\n".join(f"  - {t}" for t in trends)
+
+
+def _detect_numeric_trend(
+    key: str, values: list[int | float]
+) -> str | None:
+    """Detect monotonic increase, decrease, or stability in numeric values."""
+    if len(values) < 2:
+        return None
+
+    diffs = [values[i + 1] - values[i] for i in range(len(values) - 1)]
+
+    if all(d < 0 for d in diffs):
+        return (
+            f"{key} declining: "
+            + " → ".join(str(v) for v in values)
+            + f" over {len(values)} frames"
+        )
+    if all(d > 0 for d in diffs):
+        return (
+            f"{key} increasing: "
+            + " → ".join(str(v) for v in values)
+            + f" over {len(values)} frames"
+        )
+    if all(d == 0 for d in diffs):
+        return None  # Handled by stable-value check in caller
+
+    return None
 
 
 def extract_observations_from_tip(

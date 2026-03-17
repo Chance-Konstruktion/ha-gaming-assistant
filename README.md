@@ -587,18 +587,36 @@ Same as Android agent, plus:
 
 ## Changelog
 
-### 0.10.0 -- "State Engine" (in progress)
+### 0.10.0 -- "State Engine & Multi-LLM"
 - **Added:** Game State Engine (`game_state.py`) -- structured per-game state
   tracking across frames with rolling window (last 10 snapshots).
 - **Added:** Automatic observation extraction from LLM tips: health, score,
   phase, momentum, chess moves, and prompt-pack-specific fields via `state_schema`.
+- **Added:** Trend detection -- automatically identifies patterns across frames
+  (e.g. "health declining: 100 → 80 → 60 over 3 frames", "phase stable at
+  middlegame for 4 frames").
 - **Added:** State context injection into prompts -- the LLM now sees changes
   since the last frame (e.g. "health: 100 → 60") and recent state history.
 - **Added:** `state_schema` field in prompt packs for game-specific state
   tracking (Chess, Catan, Poker, UNO, Elden Ring).
-- **Added:** Compact vs full state formatting for small/large models.
-- **Added:** Optional state persistence to disk (JSON per game).
-- **Added:** 32 new unit tests for the state engine.
+- **Added:** LLM Backend Abstraction Layer (`llm_backend.py`) -- pluggable
+  backends for different AI providers:
+  - **Ollama** (local, default)
+  - **OpenAI GPT-4o** (cloud, paid)
+  - **Google Gemini** (cloud, free tier)
+  - **DeepSeek** (cloud, text-only strategy)
+  - **LM Studio** (local, OpenAI-compatible)
+  - **Groq** (cloud, fast inference)
+- **Added:** Config flow step for LLM provider selection with API key input.
+- **Added:** Provider presets with sensible defaults (host, model, image support).
+- **Added:** Privacy-first cloud mode -- text-only backends (DeepSeek, Groq)
+  never receive raw images.
+- **Added:** YOLO Object Detection Worker (`worker/yolo_worker.py`) --
+  optional external GPU service for real-time object detection via MQTT.
+  Runs separately from HA, designed for dedicated GPU hardware.
+- **Added:** MQTT integration for YOLO detections -- structured detection
+  data is fed into the game state engine automatically.
+- **Added:** 191 total unit tests (35 new for LLM backends, trends, etc.).
 
 ### 0.9.1 -- "Voice Control"
 - **Added:** Conversation agent for Home Assistant Assist -- control the Gaming
