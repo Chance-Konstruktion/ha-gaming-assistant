@@ -15,7 +15,7 @@ Der **Gaming Assistant** ist eine Home-Assistant-Integration (HACS), die Gamepla
 - Geräteunabhängig durch Thin-Client-Erfassung (PC, Android, Kameraquellen, HDMI-Bridge).
 - Klare Erweiterbarkeit für Community, Overlay, Sprache und Agent-Mode.
 
-### Aktueller Stand (v0.9.0)
+### Aktueller Stand (v0.9.1)
 - Thin-Client-Architektur aktiv.
 - Capture Agents für PC, Android (ADB), Android TV, IP Webcam.
 - MQTT-basierte Bild- und Metadaten-Pipeline.
@@ -30,6 +30,7 @@ Der **Gaming Assistant** ist eine Home-Assistant-Integration (HACS), die Gamepla
 - **Event-System** (`gaming_assistant_new_tip`).
 - **Automatische Spracherkennung** aus HA-Konfiguration.
 - **Compact-Prompt-Modus** für kleine Modelle (z.B. Ministral 3B).
+- **Conversation Agent** für HA Assist – Sprachsteuerung (EN + DE) mit Intent-Erkennung und Ollama-Fallback.
 
 ---
 
@@ -222,15 +223,20 @@ Tipps sichtbarer und direkter nutzbar machen.
 Interaktive Steuerung und aktive Assistenz bei strengen Sicherheitsgrenzen.
 
 ### 4.10 Sprach-Copilot
-**Status: TTS-Ausgabe implementiert in v0.9.0**
-- `gaming_assistant.announce` Service für TTS-Ausgabe.
-- Auto-Announce Switch-Entity.
-- `gaming_assistant_new_tip` Event für Automationen.
-- Automatische Spracherkennung aus HA-Konfiguration.
+**Status: ✅ Implementiert in v0.9.0 + v0.9.1**
+- `gaming_assistant.announce` Service für TTS-Ausgabe. ✅
+- Auto-Announce Switch-Entity. ✅
+- `gaming_assistant_new_tip` Event für Automationen. ✅
+- Automatische Spracherkennung aus HA-Konfiguration. ✅
+- **Conversation Agent** (`conversation.py`) als nativer HA Assist Agent. ✅
+  - Intent-Erkennung für Modus, Spoiler, Start/Stop, Tipp, Zusammenfassung, Analyse.
+  - Freiform-Fragen werden an Ollama (async_ask) weitergeleitet.
+  - Zweisprachig (EN + DE) mit Regex-basiertem Intent-Matching.
+  - Registriert sich als `conversation`-Plattform → wählbar in HA Assist-Pipeline.
 
-**Noch offen:**
-- STT-Integration (z. B. Whisper/Faster-Whisper/Wyoming).
-- Frage-Antwort-Zyklus: Audio + Bild + Kontext -> Antworttip.
+**Noch offen (optional, niedrige Priorität):**
+- Dedizierte STT-Integration (z. B. Whisper/Faster-Whisper/Wyoming) – funktioniert aber bereits über HA Assist + Wyoming.
+- Bild-Kontext bei Sprachfragen (Audio + Bild + Kontext -> Antworttip).
 
 ### 4.11 Agent Mode (Sicherheitsmodus)
 **Deliverables**

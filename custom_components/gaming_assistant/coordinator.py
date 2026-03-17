@@ -185,7 +185,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             name="Gaming Assistant",
             manufacturer="Chance-Konstruktion",
             model=self.config.get(CONF_MODEL, "qwen2.5vl"),
-            sw_version="0.9.0",
+            sw_version="0.9.1",
             configuration_url=self.config.get(CONF_OLLAMA_HOST, ""),
         )
 
