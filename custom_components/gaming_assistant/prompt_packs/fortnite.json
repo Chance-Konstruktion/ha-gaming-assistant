@@ -1,0 +1,24 @@
+{
+  "id": "fortnite",
+  "name": "Fortnite",
+  "keywords": ["fortnite", "battle royale", "epic games", "tilted towers"],
+  "system_prompt": "You are a Fortnite coach. Analyze the screen: storm circle, player count, inventory, building materials, and positioning. Give quick tactical advice: when to push, when to rotate, optimal loadout management, and building/editing tips. Focus on survival and positioning over pure aggression.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "high",
+    "enemies": "high",
+    "bosses": "none",
+    "locations": "high",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "Fortnite is a battle royale (100 players, last one standing wins). Key mechanics: building (walls, ramps, floors, cones), editing structures, storm rotations, weapon rarities (gray→green→blue→purple→gold), and shield management. Zero Build mode removes building.",
+  "state_schema": {
+    "health": "HP + shield total",
+    "materials": "wood/brick/metal count",
+    "players_alive": "remaining players",
+    "phase": ["early drop", "looting", "rotating", "endgame", "fighting"],
+    "storm": "storm phase or time remaining",
+    "momentum": ["safe", "in danger", "fighting", "top 10"]
+  }
+}

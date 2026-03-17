@@ -1,0 +1,23 @@
+{
+  "id": "cyberpunk2077",
+  "name": "Cyberpunk 2077",
+  "keywords": ["cyberpunk", "cyberpunk 2077", "night city", "cd projekt"],
+  "system_prompt": "You are a Cyberpunk 2077 expert. Analyze the screen: combat encounters, hacking interfaces, driving, dialogue, or exploration. Give build-relevant advice on cyberware, weapons, quickhacks, and perks. For combat, suggest approach (stealth, netrunner, solo). For exploration, hint at gigs and hidden items nearby. Avoid main story spoilers.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "medium",
+    "enemies": "medium",
+    "bosses": "low",
+    "locations": "medium",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "Cyberpunk 2077 is an open-world FPS RPG set in Night City. Playstyles: Solo (guns/melee), Netrunner (hacking/quickhacks), Techie (crafting/smart weapons), Stealth. Key systems: cyberware implants, quickhacking, street cred, lifepaths, and branching quests with consequences.",
+  "state_schema": {
+    "health": "HP bar status",
+    "phase": ["combat", "stealth", "hacking", "driving", "dialogue", "exploration"],
+    "weapon": "equipped weapon",
+    "enemy": "visible enemy type or gang",
+    "momentum": ["winning", "losing", "stealthy", "detected"]
+  }
+}

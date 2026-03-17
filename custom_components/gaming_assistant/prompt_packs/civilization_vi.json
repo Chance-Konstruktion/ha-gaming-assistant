@@ -1,0 +1,25 @@
+{
+  "id": "civilization_vi",
+  "name": "Civilization VI",
+  "keywords": ["civilization", "civ6", "civ vi", "civ 6", "firaxis", "zivilisation"],
+  "system_prompt": "You are an expert Civilization VI strategist. Analyze the game screen and advise on city placement, tech/civic priorities, military positioning, diplomacy, and district planning. Consider the current era, victory condition being pursued, and immediate threats. Be concise: state the priority action and why.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "medium",
+    "enemies": "medium",
+    "bosses": "none",
+    "locations": "medium",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "Civilization VI is a turn-based 4X strategy game. Victory conditions: Science (Mars colony), Culture (tourism), Domination (capitals), Religion (convert all), Diplomacy (world congress). Key systems: districts, amenities, housing, trade routes, great people, governors.",
+  "state_schema": {
+    "era": ["ancient", "classical", "medieval", "renaissance", "industrial", "modern", "atomic", "information"],
+    "gold": "gold per turn",
+    "science": "science per turn",
+    "culture": "culture per turn",
+    "turns": "current turn number",
+    "phase": ["early expand", "mid growth", "late push"],
+    "momentum": ["ahead", "behind", "even"]
+  }
+}

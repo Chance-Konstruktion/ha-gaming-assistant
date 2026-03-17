@@ -47,6 +47,8 @@ from .const import (
     MQTT_TIP_TOPIC,
     MQTT_DETECTIONS_TOPIC,
     MQTT_WORKER_REGISTER_TOPIC,
+    MQTT_YOLO_COMMAND_TOPIC,
+    MQTT_YOLO_STATUS_TOPIC,
     SESSION_END_DELAY,
 )
 from .game_state import GameStateManager
@@ -108,6 +110,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
         # Registered workers: client_id → {name, type, platform, last_seen, ...}
         self._registered_workers: dict[str, dict[str, Any]] = {}
+        self._yolo_workers: dict[str, dict[str, Any]] = {}
 
         # Runtime metrics
         self._latency: float = 0.0
@@ -260,6 +263,23 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     @property
     def game_state_manager(self) -> GameStateManager:
         return self._game_state
+
+    @property
+    def yolo_workers(self) -> dict[str, dict[str, Any]]:
+        """Return status of connected YOLO workers."""
+        return self._yolo_workers
+
+    async def async_send_yolo_command(self, command: str, **kwargs: Any) -> None:
+        """Send a command to YOLO workers via MQTT."""
+        payload = {"command": command, **kwargs}
+        try:
+            await mqtt.async_publish(
+                self.hass, MQTT_YOLO_COMMAND_TOPIC,
+                json.dumps(payload), qos=1,
+            )
+            _LOGGER.info("Sent YOLO command: %s", command)
+        except Exception as err:
+            _LOGGER.warning("Failed to send YOLO command: %s", err)
 
     @property
     def llm_backend(self) -> LLMBackend:
@@ -722,6 +742,25 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             except (json.JSONDecodeError, UnicodeDecodeError) as err:
                 _LOGGER.warning("Invalid detections from %s: %s", client_id, err)
 
+        @callback
+        def yolo_status_received(msg) -> None:
+            """Handle YOLO worker status updates."""
+            worker_id = msg.topic.split("/")[1]
+            try:
+                payload = msg.payload
+                if isinstance(payload, bytes):
+                    payload = payload.decode("utf-8")
+                data = json.loads(payload)
+                status = data.get("status", "unknown")
+                self._yolo_workers[worker_id] = data
+                _LOGGER.info(
+                    "YOLO worker %s: %s (model=%s, backend=%s)",
+                    worker_id, status,
+                    data.get("model", "?"), data.get("backend", "?"),
+                )
+            except (json.JSONDecodeError, UnicodeDecodeError) as err:
+                _LOGGER.warning("Invalid YOLO status from %s: %s", worker_id, err)
+
         unsub_tip = await mqtt.async_subscribe(
             self.hass, MQTT_TIP_TOPIC, tip_received, 0
         )
@@ -743,10 +782,13 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         unsub_detections = await mqtt.async_subscribe(
             self.hass, MQTT_DETECTIONS_TOPIC, detections_received, 0
         )
+        unsub_yolo_status = await mqtt.async_subscribe(
+            self.hass, MQTT_YOLO_STATUS_TOPIC, yolo_status_received, 0
+        )
 
         self._unsubscribe_callbacks = [
             unsub_tip, unsub_mode, unsub_status, unsub_image, unsub_meta,
-            unsub_register, unsub_detections,
+            unsub_register, unsub_detections, unsub_yolo_status,
         ]
 
     # -- YOLO detection handling -----------------------------------------------

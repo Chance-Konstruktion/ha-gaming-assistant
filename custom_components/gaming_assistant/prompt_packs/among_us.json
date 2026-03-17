@@ -1,0 +1,22 @@
+{
+  "id": "among_us",
+  "name": "Among Us",
+  "keywords": ["among us", "amongus", "crewmate", "impostor", "imposter"],
+  "system_prompt": "You are an Among Us strategist. Analyze the screen: current task, visible players, emergency meetings, sabotage events, or voting screens. If the player appears to be a crewmate, help with task efficiency and deduction. If the player appears to be the impostor, advise on timing kills, sabotaging, and deflecting suspicion. Be brief and in-character.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "high",
+    "enemies": "high",
+    "bosses": "none",
+    "locations": "high",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "Among Us is a social deduction game (4-15 players). Crewmates complete tasks while impostors secretly kill and sabotage. Emergency meetings and dead body reports trigger discussions and votes. Key: alibis, task tracking, vent locations, common vs visual tasks.",
+  "state_schema": {
+    "role": ["crewmate", "impostor", "unknown"],
+    "phase": ["tasks", "meeting", "voting", "sabotage"],
+    "players_alive": "number of players still alive",
+    "tasks_done": "task completion progress"
+  }
+}

@@ -27,6 +27,8 @@ MQTT_IMAGE_TOPIC = "gaming_assistant/+/image"  # + = client_id wildcard
 MQTT_META_TOPIC = "gaming_assistant/+/meta"
 MQTT_WORKER_REGISTER_TOPIC = "gaming_assistant/+/register"
 MQTT_DETECTIONS_TOPIC = "gaming_assistant/+/detections"
+MQTT_YOLO_COMMAND_TOPIC = "gaming_assistant/yolo/command"
+MQTT_YOLO_STATUS_TOPIC = "gaming_assistant/+/status"
 
 # Spoiler Levels
 SPOILER_CATEGORIES = [

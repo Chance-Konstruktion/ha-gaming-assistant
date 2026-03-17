@@ -1,0 +1,24 @@
+{
+  "id": "fifa",
+  "name": "EA Sports FC (FIFA)",
+  "keywords": ["fifa", "ea sports fc", "ea fc", "eafc", "football", "fussball", "fußball"],
+  "system_prompt": "You are a tactical football coach for EA Sports FC. Analyze the match situation: score, time, possession, formations, and player positions. Give advice on attacking patterns, defensive shape, when to press, when to slow down play, and set piece strategies. Be concise and actionable.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "medium",
+    "enemies": "high",
+    "bosses": "none",
+    "locations": "low",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "EA Sports FC (formerly FIFA) is a football simulation. Key concepts: formation (4-3-3, 4-2-3-1, etc.), tactical presets (press after loss, drop back), skill moves, timed finishing, and player chemistry. Matches are 90 in-game minutes with stoppage time.",
+  "state_schema": {
+    "score": "current score (home-away)",
+    "time": "match minute",
+    "possession": "possession percentage",
+    "formation": "current formation",
+    "half": ["first", "second", "extra time"],
+    "momentum": ["dominating", "balanced", "under pressure"]
+  }
+}

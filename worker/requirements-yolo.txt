@@ -1,7 +1,22 @@
 # Requirements for the YOLO Object Detection Worker
-# Install on a machine with a GPU for best performance
+# Install on a machine with a GPU for best performance,
+# or use a Raspberry Pi with NCNN/Hailo backend.
 ultralytics>=8.0.0
 paho-mqtt>=1.6.1
 Pillow>=10.0.0
-# GPU support (install matching CUDA version):
+
+# --- Backend-specific (install ONE matching your hardware) ---
+
+# Desktop GPU (NVIDIA CUDA):
 # pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+# Raspberry Pi (NCNN — recommended for RPi 3/4/5 CPU):
+# pip install ncnn
+
+# Raspberry Pi 5 + AI Kit (Hailo-8L NPU, 13 TOPS):
+# pip install hailo-platform
+# Note: requires Hailo SDK and pre-compiled .hef model files
+# See: https://github.com/hailo-ai/hailo-rpi5-examples
+
+# Raspberry Pi (TFLite — lightweight alternative):
+# pip install tflite-runtime
