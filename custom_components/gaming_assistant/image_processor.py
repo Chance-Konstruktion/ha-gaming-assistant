@@ -14,6 +14,7 @@ from .const import (
     OLLAMA_RETRY_DELAY,
     OLLAMA_TIMEOUT,
 )
+from .game_state import GameStateManager, extract_observations_from_tip
 from .history import HistoryManager
 from .prompt_builder import PromptBuilder
 from .spoiler import SpoilerManager
@@ -47,6 +48,7 @@ class ImageProcessor:
         prompt_pack_loader=None,
         timeout: int | None = None,
         language: str = "",
+        game_state_manager: GameStateManager | None = None,
     ) -> None:
         self._ollama_host = ollama_host.rstrip("/")
         self._model = model
@@ -55,6 +57,7 @@ class ImageProcessor:
         self._pack_loader = prompt_pack_loader
         self._timeout = timeout or OLLAMA_TIMEOUT
         self._language = language
+        self._game_state = game_state_manager
         self._compact = PromptBuilder.is_small_model(model)
         if self._compact:
             _LOGGER.info(
@@ -109,6 +112,13 @@ class ImageProcessor:
         recent = await self._history.get_recent(key, HISTORY_CONTEXT_SIZE)
         history_context = HistoryManager.format_for_prompt(recent)
 
+        # 6b. Game state context
+        state_context = ""
+        if self._game_state and game:
+            state_context = self._game_state.format_for_prompt(
+                game, compact=self._compact
+            )
+
         # 7. Build prompt
         prompt = PromptBuilder.build(
             game=game,
@@ -119,6 +129,7 @@ class ImageProcessor:
             assistant_mode=assistant_mode,
             language=self._language,
             compact=self._compact,
+            state_context=state_context,
         )
 
         # 8. Call Ollama
@@ -130,6 +141,16 @@ class ImageProcessor:
 
         # 9. Store in history
         await self._history.add_entry(game, client_id, image_hash, tip)
+
+        # 10. Extract and store game state observations
+        if self._game_state and game:
+            observations = extract_observations_from_tip(
+                tip, game, prompt_pack
+            )
+            if observations:
+                self._game_state.update(
+                    game, observations, tip=tip, source=client_id
+                )
 
         return tip
 
@@ -158,6 +179,12 @@ class ImageProcessor:
         recent = await self._history.get_recent(key, HISTORY_CONTEXT_SIZE)
         history_context = HistoryManager.format_for_prompt(recent)
 
+        state_context = ""
+        if self._game_state and game:
+            state_context = self._game_state.format_for_prompt(
+                game, compact=self._compact
+            )
+
         prompt = PromptBuilder.build(
             game=game,
             spoiler_block=spoiler_block,
@@ -168,6 +195,7 @@ class ImageProcessor:
             assistant_mode=assistant_mode,
             language=self._language,
             compact=self._compact,
+            state_context=state_context,
         )
 
         if image_bytes:

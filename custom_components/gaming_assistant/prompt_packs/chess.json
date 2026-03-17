@@ -12,5 +12,12 @@
     "lore": "high",
     "mechanics": "high"
   },
-  "additional_context": "Chess is played on an 8x8 board. When analyzing from a camera image, identify the orientation (which color is closest to camera), piece positions, and the likely phase of the game (opening, middlegame, endgame). Focus on the most critical tactical or strategic element visible."
+  "additional_context": "Chess is played on an 8x8 board. When analyzing from a camera image, identify the orientation (which color is closest to camera), piece positions, and the likely phase of the game (opening, middlegame, endgame). Focus on the most critical tactical or strategic element visible.",
+  "state_schema": {
+    "move": ["Nf3", "Bxc6", "O-O", "e4", "d5", "Qh5"],
+    "phase": ["opening", "middlegame", "endgame"],
+    "momentum": ["advantage", "disadvantage", "equal", "winning", "losing"],
+    "threat": ["check", "checkmate", "fork", "pin", "skewer", "discovered attack"],
+    "material": "piece count or material balance"
+  }
 }

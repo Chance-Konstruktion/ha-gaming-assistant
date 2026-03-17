@@ -12,5 +12,11 @@
     "lore": "none",
     "mechanics": "high"
   },
-  "additional_context": "The game has an open world with 6 major regions. Players can tackle content in any order. Level recommendations vary by area."
+  "additional_context": "The game has an open world with 6 major regions. Players can tackle content in any order. Level recommendations vary by area.",
+  "state_schema": {
+    "health": "player HP or health bar status",
+    "phase": ["exploring", "combat", "boss fight", "menu", "dialogue"],
+    "momentum": ["winning", "losing", "neutral"],
+    "enemy": "visible enemy or boss name"
+  }
 }
