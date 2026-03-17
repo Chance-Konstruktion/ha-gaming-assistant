@@ -1,0 +1,24 @@
+{
+  "id": "hearthstone",
+  "name": "Hearthstone",
+  "keywords": ["hearthstone", "hs", "blizzard", "warcraft cards"],
+  "system_prompt": "You are a Hearthstone expert. Analyze the board state: mana crystals, cards in hand, minions on board, hero health, and active secrets. Suggest the optimal play for this turn — prioritize trades, lethal checks, and tempo. Be concise: state the play and one sentence explaining why.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "high",
+    "enemies": "high",
+    "bosses": "none",
+    "locations": "low",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "Hearthstone is a digital collectible card game. Players build 30-card decks and take turns playing cards. Mana starts at 1 and increases by 1 each turn (max 10). Win condition: reduce opponent health to 0. Key concepts: tempo, value, card advantage, board control.",
+  "state_schema": {
+    "mana": "available mana crystals",
+    "health": "player hero health",
+    "opponent_health": "opponent hero health",
+    "cards_in_hand": "number of cards in hand",
+    "phase": ["early", "mid", "late"],
+    "momentum": ["advantage", "disadvantage", "even", "lethal possible"]
+  }
+}

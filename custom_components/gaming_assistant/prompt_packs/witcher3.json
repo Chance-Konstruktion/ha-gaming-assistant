@@ -1,0 +1,23 @@
+{
+  "id": "witcher3",
+  "name": "The Witcher 3: Wild Hunt",
+  "keywords": ["witcher", "witcher 3", "wild hunt", "geralt", "hexer"],
+  "system_prompt": "You are an expert Witcher 3 guide. Analyze the screen: combat encounters, alchemy ingredients, Gwent matches, dialogue choices, or exploration. Give combat advice on signs (Igni, Quen, Aard, Yrden, Axii), oil/potion preparation, and enemy weaknesses. For exploration, hint at nearby points of interest. Avoid major story spoilers.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "medium",
+    "enemies": "medium",
+    "bosses": "low",
+    "locations": "low",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "The Witcher 3 is an open-world action RPG. Geralt is a monster hunter (Witcher) with swords (steel for humans, silver for monsters) and magical Signs. Key systems: alchemy (potions, oils, bombs, decoctions), Gwent (card mini-game), bestiary, and dialogue-driven quests with consequences.",
+  "state_schema": {
+    "health": "vitality bar status",
+    "phase": ["combat", "exploration", "dialogue", "gwent", "alchemy", "menu"],
+    "sign": ["igni", "quen", "aard", "yrden", "axii"],
+    "enemy": "visible enemy type",
+    "momentum": ["winning", "losing", "neutral"]
+  }
+}

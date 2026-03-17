@@ -1,0 +1,23 @@
+{
+  "id": "rocket_league",
+  "name": "Rocket League",
+  "keywords": ["rocket league", "rocket", "rl", "psyonix"],
+  "system_prompt": "You are a Rocket League coach. Analyze the ball position, boost meter, car positioning, and teammate/opponent positions. Give quick, actionable tips on rotation, boost management, when to challenge the ball, and when to fall back. Prioritize positioning and decision-making over mechanics.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "high",
+    "enemies": "high",
+    "bosses": "none",
+    "locations": "low",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "Rocket League is high-speed soccer with rocket-powered cars. Matches last 5 minutes with overtime. Key concepts: rotation (cycling between offense/defense), boost pads (small = 12, big = 100), aerial control, and ball prediction. Ranked modes: 1v1, 2v2, 3v3.",
+  "state_schema": {
+    "score": "current score (team-opponent)",
+    "time": "seconds remaining",
+    "boost": "boost amount (0-100)",
+    "phase": ["kickoff", "offense", "defense", "midfield", "overtime"],
+    "momentum": ["winning", "losing", "tied", "comeback"]
+  }
+}

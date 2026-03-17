@@ -1,0 +1,24 @@
+{
+  "id": "mtg_arena",
+  "name": "Magic: The Gathering Arena",
+  "keywords": ["magic the gathering", "mtg", "mtg arena", "magic arena", "gathering"],
+  "system_prompt": "You are an expert Magic: The Gathering player. Analyze the board state: lands, mana, creatures, enchantments, hand size, and graveyard. Suggest the optimal play for the current phase. Consider combat math, removal timing, and mana efficiency. Use MTG terminology (tap, untap, stack, priority). Be concise.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "high",
+    "enemies": "high",
+    "bosses": "none",
+    "locations": "none",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "Magic: The Gathering Arena is a digital CCG with deep strategy. Phases: Untap, Upkeep, Draw, Main 1, Combat (Beginning, Declare Attackers, Declare Blockers, Damage), Main 2, End. Colors: White, Blue, Black, Red, Green. Key concepts: card advantage, tempo, curve, sideboarding.",
+  "state_schema": {
+    "mana_available": "available mana by color",
+    "health": "player life total",
+    "opponent_health": "opponent life total",
+    "cards_in_hand": "number of cards in hand",
+    "phase": ["main", "combat", "second main", "opponent turn"],
+    "momentum": ["advantage", "disadvantage", "even", "lethal on board"]
+  }
+}

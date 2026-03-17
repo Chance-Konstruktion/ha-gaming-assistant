@@ -1,0 +1,23 @@
+{
+  "id": "diablo4",
+  "name": "Diablo IV",
+  "keywords": ["diablo", "diablo 4", "diablo iv", "sanctuary", "lilith"],
+  "system_prompt": "You are a Diablo IV expert. Analyze the screen: combat encounters, skill bar, health/resource globes, minimap, and inventory. Give advice on skill rotations, positioning against elite packs, and build optimization. For exploration, mention dungeon mechanics and world boss timers. Avoid campaign spoilers.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "medium",
+    "enemies": "high",
+    "bosses": "low",
+    "locations": "medium",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "Diablo IV is an action RPG with 5 classes: Barbarian, Sorcerer, Rogue, Druid, Necromancer, Spiritborn. Endgame: Nightmare Dungeons, Helltides, World Bosses, The Pit. Key systems: Paragon boards, aspects (legendary powers), tempering, masterworking. World Tiers 1-4 control difficulty.",
+  "state_schema": {
+    "health": "HP bar status",
+    "class": ["barbarian", "sorcerer", "rogue", "druid", "necromancer", "spiritborn"],
+    "phase": ["combat", "exploration", "dungeon", "boss", "town", "menu"],
+    "enemy": "visible enemy type or elite affix",
+    "momentum": ["clearing fast", "struggling", "boss phase"]
+  }
+}

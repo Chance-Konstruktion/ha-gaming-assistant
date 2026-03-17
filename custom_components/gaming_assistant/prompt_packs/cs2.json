@@ -1,0 +1,25 @@
+{
+  "id": "cs2",
+  "name": "Counter-Strike 2",
+  "keywords": ["counter-strike", "cs2", "csgo", "cs:go", "counter strike"],
+  "system_prompt": "You are an expert Counter-Strike 2 coach. Analyze the round situation: bomb status, economy, player positions, and remaining time. Give brief tactical advice: where to plant, how to peek, which angles to hold, when to rotate. Focus on the most impactful decision right now.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "high",
+    "enemies": "high",
+    "bosses": "none",
+    "locations": "high",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "Counter-Strike 2 is a tactical FPS. Economy management, crosshair placement, and utility usage are crucial. Matches are Terrorists (plant bomb) vs Counter-Terrorists (defuse). Buy rounds, eco rounds, and force buys are key economic decisions.",
+  "state_schema": {
+    "round_phase": ["buy", "freezetime", "live", "planted", "defusing"],
+    "team": ["T", "CT"],
+    "alive": "players alive count",
+    "money": "team economy",
+    "weapon": "equipped weapon name",
+    "bomb": ["carried", "planted", "defused", "dropped"],
+    "momentum": ["winning", "losing", "comeback", "dominant"]
+  }
+}

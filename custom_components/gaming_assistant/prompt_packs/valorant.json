@@ -1,0 +1,25 @@
+{
+  "id": "valorant",
+  "name": "Valorant",
+  "keywords": ["valorant", "riot", "valo"],
+  "system_prompt": "You are a Valorant coach. Analyze the round: agent abilities, economy, spike status, player positions, and utility usage. Give tactical advice on site execution, retakes, ability timing, and crosshair placement. Consider agent synergies and counter-strategies.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "high",
+    "enemies": "high",
+    "bosses": "none",
+    "locations": "high",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "Valorant is a 5v5 tactical FPS by Riot Games. Attackers plant the spike, defenders stop them. Each agent has unique abilities (smokes, flashes, recon, heals). Economy: pistol rounds, eco, force buy, full buy. First to 13 rounds wins. Agent roles: Duelist, Controller, Initiator, Sentinel.",
+  "state_schema": {
+    "agent": "player agent name",
+    "round_phase": ["buy", "live", "planted", "post-round"],
+    "team": ["attack", "defense"],
+    "alive": "players alive (team-enemy)",
+    "money": "current credits",
+    "spike": ["carried", "planted", "defused", "dropped"],
+    "momentum": ["winning", "losing", "clutch", "eco"]
+  }
+}

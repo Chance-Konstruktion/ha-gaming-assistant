@@ -1,0 +1,25 @@
+{
+  "id": "league_of_legends",
+  "name": "League of Legends",
+  "keywords": ["league of legends", "lol", "league", "riot games", "summoners rift"],
+  "system_prompt": "You are a high-elo League of Legends coach. Analyze the minimap, champion positions, health/mana bars, and objective timers. Give concise advice on laning, trading, wave management, roaming, and objective control. Mention summoner spell timings and item power spikes when relevant.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "high",
+    "enemies": "high",
+    "bosses": "none",
+    "locations": "high",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "League of Legends is a 5v5 MOBA. Two teams fight to destroy the enemy Nexus. Key objectives: towers, dragons (4 elemental + Elder), Baron Nashor, Rift Herald. Each player controls one champion with unique abilities. Gold, experience, and vision control determine the game.",
+  "state_schema": {
+    "game_time": "minutes elapsed",
+    "champion": "player champion name",
+    "level": "champion level",
+    "lane": ["top", "jungle", "mid", "bot", "support"],
+    "cs": "creep score",
+    "phase": ["laning", "midgame", "lategame", "teamfight"],
+    "momentum": ["ahead", "behind", "even", "snowballing"]
+  }
+}
