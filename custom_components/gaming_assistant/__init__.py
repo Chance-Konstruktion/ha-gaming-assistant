@@ -138,6 +138,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if camera and not coord.active_camera_watchers:
                     await coord.async_watch_camera(camera)
                     _LOGGER.info("Start: camera watcher started for %s", camera)
+                await coord.async_start_assistant()
                 break
             # Also send legacy MQTT command for external workers
             await mqtt.async_publish(hass, "gaming_assistant/command", "start")
@@ -154,6 +155,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if coord.active_camera_watchers:
                     await coord.async_stop_watch_camera()
                     _LOGGER.info("Stop: all camera watchers stopped")
+                await coord.async_stop_assistant()
                 break
             # Also send legacy MQTT command for external workers
             await mqtt.async_publish(hass, "gaming_assistant/command", "stop")
@@ -281,7 +283,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
             for coord in hass.data[DOMAIN].values():
                 if isinstance(coord, GamingAssistantCoordinator):
-                    await coord.history_manager.clear(game)
+                    await coord.async_clear_history(game)
                     _LOGGER.info("History cleared: %s", game or "all games")
                     break
 
@@ -416,7 +418,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if tts_target is not None:
                     coord._tts_target = tts_target
                 if model is not None and model:
-                    coord._image_processor._model = model
+                    await coord.async_set_model(model)
                 if game_hint is not None:
                     coord.set_default_game_hint(game_hint)
 
