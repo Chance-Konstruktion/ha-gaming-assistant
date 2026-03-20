@@ -475,6 +475,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "meta": meta,
             "last_game": current.get("last_game", ""),
         }
+        # Backward compatibility: keep selected metadata mirrored at top-level.
+        client_state.update(meta)
 
         game = (meta.get("window_title") or meta.get("game") or "").strip()
         if game:
