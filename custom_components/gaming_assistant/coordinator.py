@@ -516,6 +516,52 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         _LOGGER.info("Client %s inactive – switching gaming mode off", client_id)
         self.async_set_updated_data(self._build_data())
 
+        self.async_set_updated_data(self._build_data())
+
+    def _touch_client(self, client_id: str, metadata: dict[str, Any] | None = None) -> None:
+        """Update per-client runtime state and inactivity timer."""
+        now_ts = time.time()
+        now_iso = time.strftime("%Y-%m-%dT%H:%M:%S")
+        current = self._clients.get(client_id, {})
+        merged = dict(current)
+        if metadata:
+            merged.update(metadata)
+        merged["last_seen"] = now_iso
+        merged["last_seen_ts"] = now_ts
+        merged["client_id"] = client_id
+        game = (merged.get("window_title") or merged.get("game") or "").strip()
+        if game:
+            merged["last_game"] = game
+            self._current_game = game
+        self._clients[client_id] = merged
+        self._current_client_id = client_id
+        self._active_client_id = client_id
+        self._schedule_client_inactivity(client_id)
+
+    def _schedule_client_inactivity(self, client_id: str) -> None:
+        """Reset the inactivity timer for a client."""
+        handle = self._client_inactivity_timers.pop(client_id, None)
+        if handle:
+            handle.cancel()
+        timeout = max(self._analysis_interval * 3, 30)
+        self._client_inactivity_timers[client_id] = self.hass.loop.call_later(
+            timeout,
+            lambda: self.hass.async_create_task(self._handle_client_inactive(client_id)),
+        )
+
+    async def _handle_client_inactive(self, client_id: str) -> None:
+        """Mark client as inactive when no frames arrive for a while."""
+        self._client_inactivity_timers.pop(client_id, None)
+        if self._active_client_id != client_id:
+            return
+        if self._camera_watchers:
+            return
+        self._gaming_mode = False
+        if self._status != "error":
+            self._status = "idle"
+        _LOGGER.info("Client %s inactive – switching gaming mode off", client_id)
+        self.async_set_updated_data(self._build_data())
+
     def _ensure_image_worker(self) -> None:
         """Ensure the image queue worker is running."""
         if self._image_worker_task and not self._image_worker_task.done():
@@ -990,6 +1036,27 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             self._gaming_mode = True
             self._touch_client(client_id, self._client_metadata.get(client_id, {}))
             self.async_set_updated_data(self._build_data())
+        self._processing = True
+        self._status = "analyzing"
+        self._current_client_id = client_id
+        self._active_client_id = client_id
+        self._gaming_mode = True
+        self._touch_client(client_id, self._client_metadata.get(client_id, {}))
+        self.async_set_updated_data(self._build_data())
+
+        try:
+            metadata = self._client_metadata.get(client_id, {})
+            metadata["assistant_mode"] = self._assistant_mode
+
+            game = metadata.get("window_title", "")
+            if game:
+                self._current_game = game
+
+            start = time.monotonic()
+            tip = await self.hass.async_add_executor_job(
+                self._run_image_processing, image_bytes, client_id, metadata
+            )
+            self._latency = round(time.monotonic() - start, 3)
 
             try:
                 metadata = self._client_metadata.get(client_id, {})
