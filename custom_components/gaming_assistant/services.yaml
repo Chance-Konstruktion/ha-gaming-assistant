@@ -328,3 +328,42 @@ announce:
       selector:
         entity:
           domain: media_player
+
+set_game_hint:
+  name: Set Game Hint
+  description: >
+    Set a persistent game hint that is used for all future analyses
+    until changed or cleared. Useful when the game cannot be
+    auto-detected from the window title.
+  fields:
+    game_hint:
+      name: Game Hint
+      description: Game name (leave empty to clear)
+      required: false
+      default: ""
+      selector:
+        text:
+
+set_source_type:
+  name: Set Source Type
+  description: >
+    Set the source type for camera-based game detection.
+    Controls how the image is interpreted.
+  fields:
+    source_type:
+      name: Source Type
+      description: How the camera sees the game
+      required: true
+      default: "auto"
+      selector:
+        select:
+          options:
+            - "auto"
+            - "console"
+            - "tabletop"
+
+list_game_packs:
+  name: List Game Packs
+  description: >
+    List all available prompt packs (game-specific AI configurations).
+    Results are logged at INFO level and returned as a service response.
