@@ -233,6 +233,7 @@ class TestCreateBackend(unittest.TestCase):
         self.assertEqual(backend.backend_type, "openai")
         self.assertEqual(backend.model, "gpt-4o")
         self.assertIn("openai.com", backend.host)
+        self.assertGreaterEqual(getattr(backend, "rate_limit_rpm", 0), 1)
 
     def test_provider_preset_gemini(self):
         backend = create_backend(provider="gemini", api_key="test")

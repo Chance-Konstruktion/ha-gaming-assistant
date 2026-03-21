@@ -254,6 +254,25 @@ class TestConversationFallback(unittest.TestCase):
         result = _process(entity, "")
         self.assertIn("didn't catch", result.response._speech)
 
+    def test_german_question_fallback(self):
+        entity, coord = _make_entity()
+        coord.async_ask = AsyncMock(return_value="Nutze den Schild vor dem Boss.")
+        result = _process(entity, "wie besiege ich den boss?", language="de")
+        coord.async_ask.assert_called_once()
+        self.assertIn("Schild", result.response._speech)
+
+    def test_whitespace_only_input(self):
+        entity, coord = _make_entity()
+        result = _process(entity, "   ")
+        self.assertIn("didn't catch", result.response._speech)
+
+    def test_unknown_short_command_falls_back_to_ask(self):
+        entity, coord = _make_entity()
+        coord.async_ask = AsyncMock(return_value="Try checking the map.")
+        result = _process(entity, "map?")
+        coord.async_ask.assert_called_once_with(question="map?")
+        self.assertIn("map", result.response._speech.lower())
+
 
 class TestConversationEntity(unittest.TestCase):
     """Tests for entity attributes."""

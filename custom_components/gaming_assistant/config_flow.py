@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import asyncio
 from typing import Any
 
 import voluptuous as vol
@@ -34,7 +35,7 @@ from .const import (
     DOMAIN,
     SPOILER_LEVELS,
 )
-from .llm_backend import PROVIDER_PRESETS
+from .llm_backend import PROVIDER_PRESETS, create_backend
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,6 +58,36 @@ def _fetch_ollama_models(host: str) -> list[str] | None:
     except Exception as err:
         _LOGGER.warning("Could not reach Ollama at %s: %s", host, err)
         return None
+
+
+def _validate_provider_connection(
+    provider: str,
+    host: str,
+    api_key: str,
+    model: str = "",
+) -> tuple[bool, list[str]]:
+    """Best-effort connectivity validation for all configured providers."""
+    try:
+        backend = create_backend(
+            provider=provider,
+            host=host,
+            model=model,
+            api_key=api_key,
+            allow_images=True,
+            timeout=10,
+        )
+        loop = asyncio.new_event_loop()
+        try:
+            models = loop.run_until_complete(backend.list_models())
+        finally:
+            loop.close()
+        if models:
+            return True, models
+        # Some backends may not expose model listing; connection still considered okay
+        return True, FALLBACK_MODELS
+    except Exception as err:
+        _LOGGER.warning("Provider validation failed for %s (%s): %s", provider, host, err)
+        return False, []
 
 
 def _schema_model_step(
@@ -156,8 +187,21 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     else:
                         self._models = models
                 else:
-                    # For cloud providers, we trust the preset model list
-                    self._models = [preset.get("model", "")] if preset.get("model") else FALLBACK_MODELS
+                    ok, models = await self.hass.async_add_executor_job(
+                        _validate_provider_connection,
+                        self._llm_backend,
+                        host,
+                        self._llm_api_key,
+                        preset.get("model", ""),
+                    )
+                    if not ok:
+                        errors["base"] = "cannot_connect"
+                    else:
+                        self._models = models or (
+                            [preset.get("model", "")]
+                            if preset.get("model")
+                            else FALLBACK_MODELS
+                        )
 
                 if not errors:
                     return await self.async_step_model()
