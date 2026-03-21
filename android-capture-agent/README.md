@@ -20,6 +20,16 @@ Native Android (Kotlin) capture app for Home Assistant Gaming Assistant.
 4. Optional release signing:
    - **Build → Generate Signed Bundle / APK**.
 
+### CI Build Artifact
+- GitHub Actions workflow `Android Capture Build` builds `:app:assembleDebug` for PRs that touch `android-capture-agent/**`.
+- The debug APK is uploaded as artifact `ga-android-capture-debug-apk`.
+
+### Release Signing (manual, prepared flow)
+1. Create or use an existing keystore (`.jks`).
+2. In Android Studio use **Build → Generate Signed Bundle/APK**.
+3. Select module `app`, APK, and your keystore credentials.
+4. Keep keystore secure; do not commit it to git.
+
 ## Runtime
 1. Enter broker + client settings.
 2. Tap **Start** and grant screen capture permission.

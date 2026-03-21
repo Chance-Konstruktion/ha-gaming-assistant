@@ -1041,7 +1041,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             except TimeoutError:
                 _LOGGER.warning(
                     "Image processing timed out after %ss for client %s",
-                    self._analysis_timeout + 5, client_id,
+                    self._analysis_timeout + 5, client_id
                 )
                 self._error_count += 1
                 self._status = "error"

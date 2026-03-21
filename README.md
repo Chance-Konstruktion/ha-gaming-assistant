@@ -1,8 +1,12 @@
 # Gaming Assistant for Home Assistant
 
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![GitHub Release](https://img.shields.io/github/v/release/Chance-Konstruktion/ha-gaming-assistant)](https://github.com/Chance-Konstruktion/ha-gaming-assistant/releases)
+[![Tests](https://github.com/Chance-Konstruktion/ha-gaming-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/Chance-Konstruktion/ha-gaming-assistant/actions)
+
 A HACS custom integration that brings an AI-powered gaming coach into your smart home.
-Uses a local Vision LLM (via [Ollama](https://ollama.com)) to analyze your game screen
-and push tips directly into Home Assistant -- no cloud, no subscriptions.
+Uses a local Vision LLM (via [Ollama](https://ollama.com)) or cloud AI (GPT-4o, Gemini, DeepSeek)
+to analyze your game screen and push tips directly into Home Assistant.
 
 ---
 
