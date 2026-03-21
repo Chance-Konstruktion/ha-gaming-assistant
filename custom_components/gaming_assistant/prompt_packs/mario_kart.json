@@ -12,5 +12,12 @@
     "lore": "none",
     "mechanics": "high"
   },
-  "additional_context": "Mario Kart is a competitive racing game with power-ups. Tracks have many hidden shortcuts. Item strategy is key: hold a defensive item behind you, time your mushrooms for boost panels or off-road sections, and aim green shells at walls to hit opponents ahead."
+  "additional_context": "Mario Kart is a competitive racing game with power-ups. Tracks have many hidden shortcuts. Item strategy is key: hold a defensive item behind you, time your mushrooms for boost panels or off-road sections, and aim green shells at walls to hit opponents ahead.",
+  "state_schema": {
+    "position": "current race position",
+    "lap": "current lap number",
+    "item_held": "currently held item name",
+    "track_section": ["start", "mid", "final_lap"],
+    "momentum": ["leading", "chasing", "falling_behind"]
+  }
 }

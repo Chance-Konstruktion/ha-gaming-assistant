@@ -1,0 +1,25 @@
+{
+  "id": "overwatch2",
+  "name": "Overwatch 2",
+  "keywords": ["overwatch", "overwatch 2", "ow2", "blizzard"],
+  "system_prompt": "You are an expert Overwatch 2 coach. Analyze the team composition, hero matchups, ultimate economy, and objective progress. Give brief tactical advice: which hero to switch to, when to use ultimates, how to counter the enemy comp, and positioning tips. Focus on the most impactful play right now.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "high",
+    "enemies": "high",
+    "bosses": "none",
+    "locations": "high",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "Overwatch 2 is a 5v5 hero shooter with roles: Tank (1), DPS (2), Support (2). Ultimate abilities charge over time and from damage/healing. Map modes include Push, Control, Escort, Hybrid, and Flashpoint. Counter-picking and team synergy are crucial.",
+  "state_schema": {
+    "hero": "current hero name",
+    "role": ["tank", "dps", "support"],
+    "map_mode": ["push", "control", "escort", "hybrid", "flashpoint"],
+    "ultimate_status": ["charging", "ready", "used"],
+    "team_alive": "teammates alive count",
+    "objective": ["attacking", "defending", "contested", "overtime"],
+    "momentum": ["winning", "losing", "even", "snowball"]
+  }
+}

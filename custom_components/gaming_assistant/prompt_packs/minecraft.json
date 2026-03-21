@@ -12,5 +12,13 @@
     "lore": "high",
     "mechanics": "high"
   },
-  "additional_context": "Minecraft is a sandbox game with no fixed progression. Tips should focus on efficiency, building, and survival strategies based on what is visible on screen."
+  "additional_context": "Minecraft is a sandbox game with no fixed progression. Tips should focus on efficiency, building, and survival strategies based on what is visible on screen.",
+  "state_schema": {
+    "health": "player hearts remaining",
+    "hunger": "hunger bar status",
+    "biome": "current biome name",
+    "phase": ["mining", "building", "exploring", "combat", "nether", "end"],
+    "time_of_day": "in-game time or day/night status",
+    "momentum": ["winning", "losing", "neutral"]
+  }
 }

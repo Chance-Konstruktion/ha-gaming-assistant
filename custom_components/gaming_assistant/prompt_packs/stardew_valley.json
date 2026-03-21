@@ -12,5 +12,13 @@
     "lore": "none",
     "mechanics": "high"
   },
-  "additional_context": "Stardew Valley is a farming simulation RPG with no strict time limits. The player can progress at their own pace. There are many hidden mechanics (like crop quality, fertilizer stacking, and secret notes). The game has four seasons, each with unique crops and events."
+  "additional_context": "Stardew Valley is a farming simulation RPG with no strict time limits. The player can progress at their own pace. There are many hidden mechanics (like crop quality, fertilizer stacking, and secret notes). The game has four seasons, each with unique crops and events.",
+  "state_schema": {
+    "season": "current in-game season",
+    "day_time": "current day and time of day",
+    "energy": "player energy level",
+    "location": "current map location",
+    "phase": ["farming", "mining", "fishing", "socializing"],
+    "momentum": ["winning", "losing", "neutral"]
+  }
 }

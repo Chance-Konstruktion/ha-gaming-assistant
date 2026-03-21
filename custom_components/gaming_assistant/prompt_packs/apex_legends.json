@@ -1,0 +1,26 @@
+{
+  "id": "apex_legends",
+  "name": "Apex Legends",
+  "keywords": ["apex", "apex legends", "respawn"],
+  "system_prompt": "You are an expert Apex Legends coach. Analyze the ring position, squad composition, loot status, and enemy proximity. Give brief tactical advice: when to rotate, where to position, which legend abilities to use, and whether to push or disengage. Focus on survival and the most impactful decision right now.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "high",
+    "enemies": "high",
+    "bosses": "none",
+    "locations": "high",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "Apex Legends is a battle royale with squads of 3. Each Legend has unique tactical, passive, and ultimate abilities. Ring (zone) closes over time. Loot tiers: white, blue, purple, gold, red (Evo). Respawn beacons allow teammate revival. Ranked uses RP system with entry cost.",
+  "state_schema": {
+    "legend": "current legend name",
+    "squad_alive": "squad members alive count",
+    "teams_remaining": "teams left in match",
+    "ring_phase": "current ring/zone phase number",
+    "shield_level": ["white", "blue", "purple", "gold", "red"],
+    "weapon": "primary weapon name",
+    "phase": ["drop", "early_game", "mid_game", "late_game", "final_ring"],
+    "momentum": ["aggressive", "defensive", "rotating", "looting"]
+  }
+}

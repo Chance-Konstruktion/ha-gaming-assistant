@@ -12,5 +12,12 @@
     "lore": "none",
     "mechanics": "high"
   },
-  "additional_context": "BG3 is a CRPG with turn-based combat based on D&D 5e rules. Choices matter and affect story outcomes. The game has 3 acts with branching paths."
+  "additional_context": "BG3 is a CRPG with turn-based combat based on D&D 5e rules. Choices matter and affect story outcomes. The game has 3 acts with branching paths.",
+  "state_schema": {
+    "phase": ["exploration", "combat", "dialogue", "camp"],
+    "health_status": "player HP or health description",
+    "party_size": "number of active party members",
+    "active_class": "current player class or multiclass",
+    "momentum": ["winning", "losing", "neutral"]
+  }
 }

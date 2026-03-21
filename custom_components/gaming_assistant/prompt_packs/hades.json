@@ -12,5 +12,13 @@
     "lore": "none",
     "mechanics": "high"
   },
-  "additional_context": "Hades is a fast-paced action roguelike. Each run is different. The player can unlock permanent upgrades (Mirror of Night) and weapon aspects between runs. Boss fights have distinct phases and require learning patterns. Story is revealed gradually through character interactions."
+  "additional_context": "Hades is a fast-paced action roguelike. Each run is different. The player can unlock permanent upgrades (Mirror of Night) and weapon aspects between runs. Boss fights have distinct phases and require learning patterns. Story is revealed gradually through character interactions.",
+  "state_schema": {
+    "room_type": ["combat", "shop", "boon", "boss"],
+    "health_status": "player HP or health bar status",
+    "current_weapon": "equipped weapon or aspect name",
+    "boon_count": "number of boons collected this run",
+    "biome": "current underworld region",
+    "momentum": ["winning", "losing", "neutral"]
+  }
 }
