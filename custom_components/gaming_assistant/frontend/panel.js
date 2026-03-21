@@ -78,7 +78,7 @@ const I18N = {
     watchers: "Watchers",
     errors: "Fehler",
     camera: "Kamera",
-    noCamera: "\u2014 Keine Kamera \u2014",
+    noCamera: "\u2014 Nur Capture-Clients \u2014",
     ttsEngine: "Sprachausgabe (TTS)",
     noTts: "\u2014 Keine TTS \u2014",
     speaker: "Lautsprecher",
@@ -138,7 +138,7 @@ const I18N = {
     watchers: "Watchers",
     errors: "Errors",
     camera: "Camera",
-    noCamera: "\u2014 No camera \u2014",
+    noCamera: "\u2014 Capture clients only \u2014",
     ttsEngine: "Text-to-Speech (TTS)",
     noTts: "\u2014 No TTS \u2014",
     speaker: "Speaker",
@@ -334,6 +334,8 @@ class GamingAssistantPanel extends HTMLElement {
           <span class="status-chip" id="chip-gaming"><span class="dot"></span> <span id="chip-gaming-text">${t("inactive")}</span></span>
           <span class="status-chip" id="chip-status"><span class="dot"></span> <span id="chip-status-text">--</span></span>
           <span class="status-chip" id="chip-tips">${t("tips")}: <strong id="chip-tips-count">0</strong></span>
+          <span class="status-chip" id="chip-model" title="AI Model">&#129302; <span id="chip-model-text">--</span></span>
+          <span class="status-chip" id="chip-client" title="Active Client">&#128247; <span id="chip-client-text">--</span></span>
         </div>
 
         <!-- 1. Controls (top) -->
@@ -608,6 +610,15 @@ class GamingAssistantPanel extends HTMLElement {
       const chipStatus = $("chip-status");
       chipStatus.classList.toggle("active", status.state === "analyzing");
       $("chip-status-text").textContent = status.state;
+    }
+
+    // Model + Client chips (from status sensor attributes)
+    if (status && status.attributes) {
+      const modelText = $("chip-model-text");
+      if (modelText) modelText.textContent = status.attributes.active_model || "--";
+      const clientText = $("chip-client-text");
+      const clientId = status.attributes.active_client_id || "";
+      if (clientText) clientText.textContent = clientId || "--";
     }
 
     // Tips count

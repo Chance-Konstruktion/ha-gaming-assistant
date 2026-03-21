@@ -107,6 +107,14 @@ cards:
       _No session summary yet._
       {% endif %}
 
+  # -- Last Received Frame (Debug) -------------------------------------------
+  - type: picture-entity
+    entity: image.gaming_assistant_last_frame
+    name: Last Received Frame
+    show_state: true
+    show_name: true
+    camera_view: live
+
   # -- Diagnostics -----------------------------------------------------------
   - type: horizontal-stack
     cards:

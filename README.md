@@ -493,6 +493,12 @@ Clear history via `gaming_assistant.clear_history`.
 | `sensor.gaming_assistant_session_summary` | Last session summary (attributes: game, timestamp) |
 | `binary_sensor.gaming_mode` | ON when a game is detected |
 
+### Image (Debug)
+
+| Entity | Description |
+|--------|-------------|
+| `image.gaming_assistant_last_frame` | Last received frame from any capture client (JPEG). Useful for verifying the image pipeline. Attributes: client_id, timestamp, game. |
+
 ## Services
 
 | Service | Description |
