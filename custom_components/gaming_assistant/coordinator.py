@@ -94,6 +94,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._process_lock = asyncio.Lock()
         self._image_queue: asyncio.Queue[tuple[str, bytes]] = asyncio.Queue(maxsize=2)
         self._image_worker_task: asyncio.Task | None = None
+        self._last_image_bytes: bytes | None = None
+        self._last_image_client_id: str = ""
+        self._last_image_timestamp: str = ""
         self._client_inactivity_timers: dict[str, asyncio.TimerHandle] = {}
         self._active_client_id: str = ""
         self._clients: dict[str, dict[str, Any]] = {}
@@ -766,6 +769,18 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     def last_analysis(self) -> str:
         return self._last_analysis
 
+    @property
+    def last_image_bytes(self) -> bytes | None:
+        return self._last_image_bytes
+
+    @property
+    def last_image_client_id(self) -> str:
+        return self._last_image_client_id
+
+    @property
+    def last_image_timestamp(self) -> str:
+        return self._last_image_timestamp
+
     # -- MQTT setup with retry -----------------------------------------------
 
     async def async_fetch_available_models(self) -> list[str]:
@@ -842,6 +857,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             """Handle incoming image from a capture agent."""
             client_id = msg.topic.split("/")[1]
             _LOGGER.debug("Image received from client: %s", client_id)
+            self._last_image_bytes = msg.payload
+            self._last_image_client_id = client_id
+            self._last_image_timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
             self._register_worker(client_id)
             self.hass.async_create_task(self._enqueue_image(client_id, msg.payload))
 
@@ -1180,6 +1198,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 client_id = entity_id.replace(".", "_")
                 self._client_metadata[client_id] = metadata
 
+                self._last_image_bytes = image_bytes
+                self._last_image_client_id = client_id
+                self._last_image_timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
                 await self._enqueue_image(client_id, image_bytes)
 
             except asyncio.CancelledError:

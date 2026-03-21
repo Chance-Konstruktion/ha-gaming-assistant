@@ -2,6 +2,20 @@
 
 All notable changes to the Gaming Assistant for Home Assistant.
 
+## [0.12.0] - 2026-03-21 — "Debug Image, Dashboard Fixes & Android Build"
+- **Added:** `image.gaming_assistant_last_frame` entity — shows the last
+  received frame from any capture client directly in Home Assistant
+  (useful for debugging the image pipeline).
+- **Added:** Active Model and Active Client chips in the sidebar panel status
+  bar — always visible at a glance.
+- **Fixed:** Panel camera placeholder changed from "Keine Kamera" / "No camera"
+  to "Nur Capture-Clients" / "Capture clients only" (more accurate when using
+  MQTT capture agents instead of HA camera entities).
+- **Fixed:** Lovelace dashboard now includes a picture-entity card for the
+  last received frame.
+- **Fixed:** Android Capture Agent build — downgraded AGP to 8.5.2 and pinned
+  AndroidX dependencies to compileSdk 34 compatible versions.
+
 ## [0.11.0] - 2026-03-21 — "Dashboard v2, Android CI & Test Suite"
 - **Added:** Modernized Lovelace Dashboard (v0.11) with Runtime section showing
   active model, active client, known clients list, and available models.
