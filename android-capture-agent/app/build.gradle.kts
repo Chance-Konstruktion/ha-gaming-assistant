@@ -51,5 +51,5 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
-    implementation("com.github.hannesa2:paho.mqtt.android:4.2")
+    implementation("com.github.hannesa2:paho.mqtt.android:4.2.4")
 }
