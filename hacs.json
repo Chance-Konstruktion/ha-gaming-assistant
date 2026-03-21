@@ -1,6 +1,7 @@
 {
   "name": "Gaming Assistant",
-  "domains": ["gaming_assistant"],
-  "content_in_root": false,
-  "render_readme": true
+  "hacs": "1.6.0",
+  "homeassistant": "2024.1.0",
+  "render_readme": true,
+  "zip_release": false
 }

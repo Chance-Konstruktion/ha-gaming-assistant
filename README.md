@@ -12,26 +12,33 @@ to analyze your game screen and push tips directly into Home Assistant.
 
 ## Architecture
 
-v0.8 uses a **Thin Client Architecture**: the gaming device only captures and sends
+v0.11 uses a **Thin Client Architecture**: the gaming device only captures and sends
 screenshots. All intelligence runs in Home Assistant.
 
 ```
-Gaming PC / Android / Tabletop Camera (Capture Agent)
+Gaming PC / Android / Android TV / Tabletop Camera (Capture Agent)
   └── Screenshot capture + JPEG compress + MQTT publish (binary image)
          │
     Home Assistant (the "Brain")
-      ├── MQTT Image Listener
+      ├── MQTT Image Listener (bounded queue, backpressure)
       ├── Image Deduplication (hash)
       ├── Game Detection (via client metadata)
+      ├── Game State Engine (structured state tracking across frames)
+      ├── Trend Detection (health declining, phase changes, momentum)
       ├── History Manager (per game, JSONL)
-      ├── Spoiler Level System
+      ├── Spoiler Level System (per-game profiles, 7 categories)
       ├── Assistant Modes (coach / coplay / opponent / analyst)
-      ├── Prompt Pack Loader (video games + tabletop)
-      ├── Dynamic Prompt Builder
+      ├── Prompt Pack Loader (26 games: video + tabletop + card)
+      ├── Dynamic Prompt Builder (compact mode for small models)
+      ├── LLM Backend (Ollama / GPT-4o / Gemini / DeepSeek / LM Studio / Groq)
       ├── Camera Watcher (continuous HA camera monitoring)
       ├── Conversation Agent (HA Assist voice control)
-      ├── Ollama Vision LLM Call
       └── Sensors + Entities + Services
+         │
+    Optional: YOLO Worker (external, GPU/NPU)
+      ├── Real-time object detection via MQTT
+      ├── Supports: CUDA, NCNN (RPi), Hailo-8L, TFLite
+      └── Feeds detections into Game State Engine
          │
     Automations / Voice
       ├── HA Assist ("switch mode to opponent", free-form questions)
@@ -55,10 +62,24 @@ passthrough mode.
 |-----------|---------|
 | Home Assistant | 2024.1+ with MQTT integration |
 | MQTT Broker | Mosquitto (built-in HA add-on) |
-| Gaming PC | Windows / Linux / macOS with Python 3.10+ |
-| Ollama | Running locally or on a machine reachable from HA |
+| Capture Agent | Windows / Linux / macOS / Android / Android TV |
+| AI Backend | Ollama (local) **or** cloud API (GPT-4o, Gemini, DeepSeek, Groq) |
 
-### Recommended Vision Models
+### Supported LLM Backends
+
+| Backend | Type | Vision | Notes |
+|---------|------|--------|-------|
+| **Ollama** | Local | Yes | Default, no API key needed |
+| **LM Studio** | Local | Yes | OpenAI-compatible |
+| **OpenAI GPT-4o** | Cloud | Yes | Best quality, paid |
+| **Google Gemini** | Cloud | Yes | Free tier available |
+| **DeepSeek** | Cloud | No* | Text-only, cheap |
+| **Groq** | Cloud | No* | Ultra-fast inference |
+
+> \* Text-only backends never receive images — they get game state + context
+> descriptions instead. Great for Raspberry Pi setups without GPU.
+
+### Recommended Local Vision Models (Ollama)
 
 | Model | VRAM | Notes |
 |-------|------|-------|
@@ -68,9 +89,8 @@ passthrough mode.
 | `llama3.2-vision` | ~10 GB | Excellent, needs more VRAM |
 | `ministral:3b` | ~2 GB | Lightweight, good for low-VRAM setups |
 
-> **Small models (3B):** Models like Ministral 3B work but produce shorter,
-> less detailed tips. The integration automatically keeps prompts concise.
-> Best for simple games (board games, card games) or when hardware is limited.
+> **Raspberry Pi / No GPU?** Use a cloud backend (Gemini free tier or DeepSeek)
+> — the integration runs on any hardware that can run Home Assistant.
 
 ---
 
@@ -87,15 +107,16 @@ passthrough mode.
 
 Go to **Settings -> Devices & Services -> Add Integration -> Gaming Assistant**
 
-The config flow has 5 steps:
-1. **Ollama Host** -- URL of your Ollama server
-2. **Model & Interval** -- Choose a vision model, capture interval, and timeout
-3. **Spoiler Level** -- Default spoiler level (none/low/medium/high)
-4. **Camera** -- Optionally select a HA camera to auto-watch
-5. **Voice Announcements** -- TTS engine, speaker, and auto-announce toggle
+The config flow has 6 steps:
+1. **LLM Provider** -- Choose your AI backend (Ollama, GPT-4o, Gemini, DeepSeek, etc.)
+2. **Connection** -- Host URL + API key (if needed)
+3. **Model & Interval** -- Choose a vision model, capture interval, and timeout
+4. **Spoiler Level** -- Default spoiler level (none/low/medium/high)
+5. **Camera** -- Optionally select a HA camera to auto-watch
+6. **Voice Announcements** -- TTS engine, speaker, and auto-announce toggle
 
-> **Note:** The config flow validates the Ollama connection. If the server is
-> unreachable you'll see an error and can correct the URL.
+> **Note:** The config flow validates the connection to your AI backend.
+> Cloud providers require an API key.
 
 ### Step 3 -- Capture Agent Setup
 
@@ -412,11 +433,14 @@ works naturally.
 The integration includes prompt packs for popular games that provide tailored
 coaching.
 
-**Video games:** Elden Ring, Dark Souls III, Baldur's Gate 3,
-Minecraft, Zelda: Tears of the Kingdom, Zelda: Breath of the Wild,
-Stardew Valley, Hades, Mario Kart.
+**Video games (18):** Elden Ring, Dark Souls III, Baldur's Gate 3,
+Minecraft, Zelda: TotK, Zelda: BotW, Stardew Valley, Hades, Mario Kart,
+CS2, League of Legends, Valorant, Fortnite, Rocket League, FIFA/EA FC,
+Civilization VI, Cyberpunk 2077, The Witcher 3, Diablo IV.
 
-**Tabletop games:** Chess, Poker, Settlers of Catan, UNO.
+**Card/Strategy games (4):** Hearthstone, MTG Arena, Among Us.
+
+**Tabletop games (4):** Chess, Poker, Settlers of Catan, UNO.
 
 Create custom packs by adding JSON files to
 `custom_components/gaming_assistant/prompt_packs/`. See `_template.json`
@@ -590,6 +614,23 @@ Same as Android agent, plus:
 ---
 
 ## Changelog
+
+### 0.11.0 -- "Dashboard v2, Android CI & Test Suite"
+- **Added:** Modernized Lovelace Dashboard (v0.11) with Runtime section showing
+  active model, active client, known clients list, and available models.
+- **Added:** Source Type entity in dashboard status row.
+- **Added:** Error count card in diagnostics section.
+- **Added:** GitHub Actions workflow for Android Capture Agent — auto-builds
+  debug APK on PRs touching `android-capture-agent/`.
+- **Added:** Dedicated test suites: `test_config_flow.py` (config flow helpers,
+  schema validation, Ollama model fetch, entity filtering), `test_prompt_builder.py`
+  (compact mode, source hints, language, summary), `test_spoiler.py` (profiles,
+  pack defaults, prompt block, persistence roundtrip).
+- **Added:** Android README with CI artifact flow and manual release signing docs.
+- **Fixed:** Dashboard Start/Stop buttons use `call-service` instead of
+  deprecated `perform-action`.
+- **Fixed:** Trailing comma lint in coordinator.py timeout warning.
+- **Changed:** 214 tests + 130 subtests total.
 
 ### 0.10.0 -- "State Engine & Multi-LLM"
 - **Added:** Game State Engine (`game_state.py`) -- structured per-game state
