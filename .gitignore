@@ -27,3 +27,7 @@ Thumbs.db
 .pytest_cache/
 htmlcov/
 .coverage
+
+# Binary releases (use GitHub Releases instead)
+*.apk
+*.exe
