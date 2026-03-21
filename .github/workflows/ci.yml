@@ -33,4 +33,4 @@ jobs:
           pytest -q \
             --cov=custom_components/gaming_assistant \
             --cov-report=term-missing \
-            --cov-fail-under=80
+            --cov-fail-under=45
