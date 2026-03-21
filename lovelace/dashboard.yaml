@@ -1,5 +1,5 @@
 ################################################################################
-# Gaming Assistant – Lovelace Dashboard (v0.9.1)
+# Gaming Assistant – Lovelace Dashboard (v0.11)
 # Copy this into a manual card or your dashboard YAML
 ################################################################################
 
@@ -10,7 +10,7 @@ cards:
   - type: markdown
     content: |
       ## Gaming Assistant
-      AI-powered coach running locally via Ollama
+      AI-powered gaming coach (multi-backend, multi-client ready)
 
   # -- Status row ------------------------------------------------------------
   - type: horizontal-stack
@@ -29,6 +29,10 @@ cards:
         entity: sensor.gaming_assistant_history
         name: Tips Count
         icon: mdi:history
+      - type: entity
+        entity: select.gaming_assistant_source_type
+        name: Source Type
+        icon: mdi:video-input-component
 
   # -- Controls (Select + Number entities) -----------------------------------
   - type: entities
@@ -120,6 +124,39 @@ cards:
         entity: sensor.gaming_assistant_active_watchers
         name: Watchers
         icon: mdi:camera-eye
+      - type: entity
+        entity: sensor.gaming_assistant_error_count
+        name: Errors
+        icon: mdi:alert
+
+  # -- Runtime / LLM / Clients -----------------------------------------------
+  - type: markdown
+    content: |
+      ### Runtime
+      **Status:** {{ states('sensor.gaming_assistant_status') }}
+
+      **Assistant Mode:** {{ state_attr('sensor.gaming_assistant_status', 'assistant_mode') or '-' }}
+
+      **Active Model:** {{ state_attr('sensor.gaming_assistant_status', 'active_model') or '-' }}
+
+      **Active Client:** {{ state_attr('sensor.gaming_assistant_status', 'active_client_id') or '-' }}
+
+      {% set clients = state_attr('sensor.gaming_assistant_status', 'clients') %}
+      {% if clients %}
+      **Known Clients:** {{ clients | count }}
+      {% for cid, info in clients.items() %}
+      - `{{ cid }}` · last_seen={{ info.last_seen or '-' }} · game={{ info.last_game or '-' }}
+      {% endfor %}
+      {% else %}
+      **Known Clients:** 0
+      {% endif %}
+
+      {% set models = state_attr('sensor.gaming_assistant_status', 'available_models') %}
+      {% if models %}
+      **Available Models:** {{ models | join(', ') }}
+      {% else %}
+      **Available Models:** _(none reported yet)_
+      {% endif %}
 
   # -- Action buttons --------------------------------------------------------
   - type: horizontal-stack
@@ -135,15 +172,15 @@ cards:
         name: Start Agent
         icon: mdi:play
         tap_action:
-          action: perform-action
-          perform_action: gaming_assistant.start
+          action: call-service
+          service: gaming_assistant.start
 
       - type: button
         name: Stop Agent
         icon: mdi:stop
         tap_action:
-          action: perform-action
-          perform_action: gaming_assistant.stop
+          action: call-service
+          service: gaming_assistant.stop
 
       - type: button
         name: Clear History
