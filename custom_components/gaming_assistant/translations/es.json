@@ -1,0 +1,116 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Elegir proveedor de IA",
+        "description": "Selecciona tu backend de IA. Ollama (local, gratuito) es el predeterminado. Los proveedores en la nube requieren una clave API.",
+        "data": {
+          "llm_backend": "Proveedor de IA"
+        }
+      },
+      "connection": {
+        "title": "Configuración de conexión",
+        "description": "Introduce la URL del host y la clave API (si es necesaria) para tu proveedor de IA.",
+        "data": {
+          "ollama_host": "URL del host",
+          "llm_api_key": "Clave API"
+        }
+      },
+      "model": {
+        "title": "Elegir modelo",
+        "description": "Selecciona un modelo de visión y el intervalo de análisis.",
+        "data": {
+          "model": "Modelo de visión",
+          "interval": "Intervalo (segundos)"
+        }
+      },
+      "spoiler": {
+        "title": "Configuración de spoilers",
+        "description": "Elige un nivel de spoiler predeterminado. Esto se aplica a todas las categorías. Puedes ajustar por categoría y juego a través de la entidad nivel de spoiler o el servicio set_spoiler_level.",
+        "data": {
+          "default_spoiler_level": "Nivel de spoiler predeterminado"
+        }
+      },
+      "camera": {
+        "title": "Configuración de cámara",
+        "description": "Opcional: selecciona una cámara de Home Assistant para monitorizar automáticamente las capturas de pantalla del juego. Puedes omitir esto si usas un agente externo (PC/Android). Los agentes conectados por MQTT se registrarán automáticamente.",
+        "data": {
+          "camera_entity": "Entidad de cámara"
+        }
+      },
+      "tts": {
+        "title": "Anuncios de voz",
+        "description": "Opcional: configura texto a voz para que los consejos se lean en voz alta. Selecciona un motor TTS (ej. Piper) y un altavoz (reproductor multimedia). También puedes activar el anuncio automático para cada nuevo consejo.",
+        "data": {
+          "tts_entity": "Motor TTS",
+          "tts_target": "Altavoz (reproductor multimedia)",
+          "auto_announce": "Anunciar automáticamente nuevos consejos"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "No se puede conectar al servidor de IA – por favor verifica la URL.",
+      "api_key_required": "Se requiere una clave API para este proveedor en la nube."
+    },
+    "abort": {
+      "single_instance_allowed": "Gaming Assistant ya está configurado."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ajustes",
+        "data": {
+          "model": "Modelo de visión",
+          "camera_entity": "Entidad de cámara",
+          "tts_entity": "Motor TTS",
+          "tts_target": "Altavoz (reproductor multimedia)",
+          "auto_announce": "Anunciar automáticamente nuevos consejos"
+        }
+      }
+    }
+  },
+  "entity": {
+    "conversation": {
+      "gaming_assistant": {
+        "name": "Asistente de juego"
+      }
+    },
+    "select": {
+      "assistant_mode": {
+        "name": "Modo asistente",
+        "state": {
+          "coach": "Entrenador",
+          "coplay": "Co-jugador",
+          "opponent": "Oponente",
+          "analyst": "Analista"
+        }
+      },
+      "spoiler_level": {
+        "name": "Nivel de spoiler",
+        "state": {
+          "none": "Ninguno",
+          "low": "Bajo",
+          "medium": "Medio",
+          "high": "Alto"
+        }
+      }
+    },
+    "number": {
+      "interval": {
+        "name": "Intervalo de análisis"
+      },
+      "timeout": {
+        "name": "Tiempo de espera de análisis"
+      }
+    },
+    "switch": {
+      "auto_announce": {
+        "name": "Anuncio automático"
+      },
+      "auto_summary": {
+        "name": "Resumen de sesión automático"
+      }
+    }
+  }
+}

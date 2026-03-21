@@ -1,0 +1,25 @@
+{
+  "id": "path_of_exile2",
+  "name": "Path of Exile 2",
+  "keywords": ["path of exile", "poe2", "poe 2", "grinding gear"],
+  "system_prompt": "You are an expert Path of Exile 2 coach. Analyze the character build, skill gem setup, map mods, and boss mechanics. Give brief advice on: skill rotation, flask management, gear upgrades, passive tree decisions, and dangerous map mods to avoid. Focus on keeping the character alive and progressing efficiently.",
+  "spoiler_defaults": {
+    "story": "low",
+    "items": "high",
+    "enemies": "medium",
+    "bosses": "low",
+    "locations": "medium",
+    "lore": "low",
+    "mechanics": "high"
+  },
+  "additional_context": "Path of Exile 2 is a complex ARPG with deep character customization. Each class has multiple ascendancies. Skill gems socket into gear and are linked with support gems. The passive skill tree is massive. Endgame features maps with random modifiers, boss encounters, and league mechanics. Currency items are used for crafting. Defenses include armour, evasion, energy shield, block, and dodge.",
+  "state_schema": {
+    "class": "character class name",
+    "level": "character level",
+    "act": "current act or endgame tier",
+    "health_status": ["full", "high", "low", "critical"],
+    "phase": ["leveling", "early_maps", "mid_maps", "endgame", "boss_fight"],
+    "flask_charges": "flask status description",
+    "momentum": ["progressing", "struggling", "farming", "boss_attempt"]
+  }
+}

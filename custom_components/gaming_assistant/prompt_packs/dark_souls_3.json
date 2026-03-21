@@ -12,5 +12,13 @@
     "lore": "none",
     "mechanics": "high"
   },
-  "additional_context": "Dark Souls III is a challenging action RPG with interconnected areas. Players should be mindful of their stamina, equipment load, and enemy attack patterns."
+  "additional_context": "Dark Souls III is a challenging action RPG with interconnected areas. Players should be mindful of their stamina, equipment load, and enemy attack patterns.",
+  "state_schema": {
+    "health_status": "player HP or health bar status",
+    "estus_remaining": "number of Estus Flask charges left",
+    "souls_carried": "amount of souls currently held",
+    "area": "current area or bonfire location",
+    "phase": ["exploration", "combat", "boss_fight"],
+    "momentum": ["winning", "losing", "neutral"]
+  }
 }

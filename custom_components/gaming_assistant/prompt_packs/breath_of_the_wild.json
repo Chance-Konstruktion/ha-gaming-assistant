@@ -12,5 +12,13 @@
     "lore": "none",
     "mechanics": "high"
   },
-  "additional_context": "Breath of the Wild is an open-world adventure with a huge map. The player can tackle content in any order. Many secrets are hidden in the environment. Cooking and elixirs are essential for survival. The game has 120+ shrines and 900 Korok seeds."
+  "additional_context": "Breath of the Wild is an open-world adventure with a huge map. The player can tackle content in any order. Many secrets are hidden in the environment. Cooking and elixirs are essential for survival. The game has 120+ shrines and 900 Korok seeds.",
+  "state_schema": {
+    "health": "heart containers remaining",
+    "stamina": "stamina wheel status",
+    "region": "current map region",
+    "weather": "current weather condition",
+    "phase": ["exploration", "combat", "shrine", "boss"],
+    "momentum": ["winning", "losing", "neutral"]
+  }
 }
