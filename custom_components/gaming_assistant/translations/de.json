@@ -2,10 +2,18 @@
   "config": {
     "step": {
       "user": {
-        "title": "Ollama verbinden",
-        "description": "Gib die URL deines Ollama-Servers ein. Die verfügbaren Modelle werden danach automatisch geladen.",
+        "title": "KI-Anbieter wählen",
+        "description": "Wähle dein KI-Backend. Ollama (lokal, kostenlos) ist der Standard. Cloud-Anbieter benötigen einen API-Key.",
         "data": {
-          "ollama_host": "Ollama Host"
+          "llm_backend": "KI-Anbieter"
+        }
+      },
+      "connection": {
+        "title": "Verbindungseinstellungen",
+        "description": "Gib die Host-URL und den API-Key (falls erforderlich) für deinen KI-Anbieter ein.",
+        "data": {
+          "ollama_host": "Host-URL",
+          "llm_api_key": "API-Key"
         }
       },
       "model": {
@@ -29,10 +37,20 @@
         "data": {
           "camera_entity": "Kamera-Entität"
         }
+      },
+      "tts": {
+        "title": "Sprachausgabe",
+        "description": "Optional: Konfiguriere Text-to-Speech damit Tipps vorgelesen werden. Wähle eine TTS-Engine (z.B. Piper) und einen Lautsprecher (Media Player). Du kannst auch Auto-Ansage aktivieren, um jeden neuen Tipp automatisch vorzulesen.",
+        "data": {
+          "tts_entity": "TTS-Engine",
+          "tts_target": "Lautsprecher (Media Player)",
+          "auto_announce": "Neue Tipps automatisch ansagen"
+        }
       }
     },
     "error": {
-      "cannot_connect": "Ollama nicht erreichbar – bitte URL prüfen."
+      "cannot_connect": "KI-Server nicht erreichbar – bitte URL prüfen.",
+      "api_key_required": "Für diesen Cloud-Anbieter wird ein API-Key benötigt."
     },
     "abort": {
       "single_instance_allowed": "Gaming Assistant ist bereits eingerichtet."
@@ -44,7 +62,10 @@
         "title": "Einstellungen",
         "data": {
           "model": "Vision-Modell",
-          "camera_entity": "Kamera-Entität"
+          "camera_entity": "Kamera-Entität",
+          "tts_entity": "TTS-Engine",
+          "tts_target": "Lautsprecher (Media Player)",
+          "auto_announce": "Neue Tipps automatisch ansagen"
         }
       }
     }
