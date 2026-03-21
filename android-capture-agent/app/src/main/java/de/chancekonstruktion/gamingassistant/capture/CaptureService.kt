@@ -25,11 +25,12 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import info.mqtt.android.service.MqttAndroidClient
 import org.eclipse.paho.client.mqttv3.IMqttActionListener
 import org.eclipse.paho.client.mqttv3.IMqttToken
+import org.eclipse.paho.client.mqttv3.MqttAsyncClient
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions
 import org.eclipse.paho.client.mqttv3.MqttMessage
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 
@@ -41,7 +42,7 @@ class CaptureService : Service() {
     private var imageReader: ImageReader? = null
     private var captureJob: Job? = null
 
-    private var mqttClient: MqttAndroidClient? = null
+    private var mqttClient: MqttAsyncClient? = null
     private var config: CaptureConfig = CaptureConfig()
     private var sentFrames = 0
 
@@ -125,9 +126,10 @@ class CaptureService : Service() {
 
     private fun setupMqtt() {
         val serverUri = "tcp://${config.brokerHost}:${config.brokerPort}"
+        runCatching { mqttClient?.disconnectForcibly(0, 0) }
         mqttClient?.close()
 
-        mqttClient = MqttAndroidClient(applicationContext, serverUri, config.clientId)
+        mqttClient = MqttAsyncClient(serverUri, config.clientId, MemoryPersistence())
         val options = MqttConnectOptions().apply {
             isAutomaticReconnect = true
             isCleanSession = true
@@ -244,6 +246,7 @@ class CaptureService : Service() {
         mediaProjection?.stop()
         mediaProjection = null
 
+        runCatching { mqttClient?.disconnectForcibly(0, 0) }
         mqttClient?.close()
         mqttClient = null
 
