@@ -740,10 +740,15 @@ class GamingAssistantPanel extends HTMLElement {
     const modelSelect = $("setup-model");
     const statusForModels = this._getState(ENTITIES.status);
     const serverModels = (statusForModels && statusForModels.attributes && statusForModels.attributes.available_models) || [];
+    const activeModel = (statusForModels && statusForModels.attributes && statusForModels.attributes.active_model) || "";
     const fallbackModels = ["qwen2.5vl", "llava", "llava:13b", "bakllava", "llama3.2-vision"];
     const modelList = serverModels.length > 0 ? serverModels : fallbackModels;
-    modelSelect.innerHTML = modelList
+    const orderedModels = activeModel
+      ? [activeModel, ...modelList.filter((m) => m !== activeModel)]
+      : modelList;
+    modelSelect.innerHTML = orderedModels
       .map((m) => `<option value="${m}">${m}</option>`).join("");
+    if (activeModel) modelSelect.value = activeModel;
 
     // Try to set current values from config entry
     this._loadCurrentConfig(camSelect, ttsSelect, spkSelect, modelSelect);
@@ -827,21 +832,28 @@ class GamingAssistantPanel extends HTMLElement {
     if (!selectEl) return;
     const models = attrs.available_models || [];
     if (models.length === 0) return;
-    const modelKey = models.join(",");
+    const activeModel = attrs.active_model || "";
+    const orderedModels = activeModel
+      ? [activeModel, ...models.filter((m) => m !== activeModel)]
+      : models;
+    const modelKey = orderedModels.join(",");
     if (selectEl.dataset.modelKey === modelKey) return;
     const current = selectEl.value;
-    selectEl.innerHTML = models.map((m) => `<option value="${m}">${m}</option>`).join("");
+    selectEl.innerHTML = orderedModels.map((m) => `<option value="${m}">${m}</option>`).join("");
     selectEl.dataset.modelKey = modelKey;
     // Restore previous selection or add it if not in list
-    if (current) {
-      if (models.includes(current)) {
+    const preferred = activeModel || current;
+    if (preferred) {
+      if (orderedModels.includes(preferred)) {
+        selectEl.value = preferred;
+      } else if (models.includes(current)) {
         selectEl.value = current;
       } else {
         const opt = document.createElement("option");
-        opt.value = current;
-        opt.textContent = current;
+        opt.value = preferred;
+        opt.textContent = preferred;
         selectEl.insertBefore(opt, selectEl.firstChild);
-        selectEl.value = current;
+        selectEl.value = preferred;
       }
     }
   }

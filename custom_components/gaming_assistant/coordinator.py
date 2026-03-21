@@ -91,6 +91,12 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._tip_count: int = 0
         self._client_metadata: dict[str, dict] = {}
         self._processing: bool = False
+        self._process_lock = asyncio.Lock()
+        self._image_queue: asyncio.Queue[tuple[str, bytes]] = asyncio.Queue(maxsize=2)
+        self._image_worker_task: asyncio.Task | None = None
+        self._client_inactivity_timers: dict[str, asyncio.TimerHandle] = {}
+        self._active_client_id: str = ""
+        self._clients: dict[str, dict[str, Any]] = {}
 
         # Configurable interval & timeout
         self._analysis_interval: int = config.get(CONF_INTERVAL, DEFAULT_INTERVAL)
@@ -290,6 +296,61 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         return self._llm_backend.backend_type
 
     @property
+    def active_model(self) -> str:
+        """Currently active model used for inference."""
+        return self._llm_backend.model
+
+    async def async_start_assistant(self) -> None:
+        """Mark assistant as active for UI and automations."""
+        self._gaming_mode = True
+        if self._status == "idle":
+            self._status = "ready"
+        self.async_set_updated_data(self._build_data())
+
+    async def async_stop_assistant(self) -> None:
+        """Stop runtime processing and set integration to inactive."""
+        self._gaming_mode = False
+        if self._status != "error":
+            self._status = "idle"
+        for handle in self._client_inactivity_timers.values():
+            handle.cancel()
+        self._client_inactivity_timers.clear()
+        while not self._image_queue.empty():
+            try:
+                self._image_queue.get_nowait()
+                self._image_queue.task_done()
+            except asyncio.QueueEmpty:
+                break
+        self.async_set_updated_data(self._build_data())
+
+    async def async_clear_history(self, game: str | None = None) -> None:
+        """Clear persisted history and reset dashboard runtime history."""
+        await self._history.clear(game)
+        if not game or game == self._current_game:
+            self._recent_tips = []
+            self._tip_count = 0
+            self._tip = "Waiting for tips..."
+        self.async_set_updated_data(self._build_data())
+
+    async def async_set_model(self, model: str) -> None:
+        """Switch active model for both backend and image processor."""
+        if not model:
+            return
+        backend_type = self._llm_backend.backend_type
+        self._llm_backend = create_backend(
+            provider=backend_type,
+            host=self.config.get(CONF_OLLAMA_HOST, "http://localhost:11434"),
+            model=model,
+            timeout=self._analysis_timeout,
+            api_key=self.config.get(CONF_LLM_API_KEY, ""),
+            allow_images=self.config.get(CONF_LLM_ALLOW_IMAGES, True),
+        )
+        self._image_processor.backend = self._llm_backend
+        self._image_processor._model = model
+        self.config[CONF_MODEL] = model
+        self.async_set_updated_data(self._build_data())
+
+    @property
     def analysis_interval(self) -> int:
         return self._analysis_interval
 
@@ -378,6 +439,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     def _register_worker(self, client_id: str, info: dict[str, Any] | None = None) -> None:
         """Register or update a worker. Called automatically on MQTT activity."""
         now = time.strftime("%Y-%m-%dT%H:%M:%S")
+        self._active_client_id = client_id
         if client_id in self._registered_workers:
             self._registered_workers[client_id]["last_seen"] = now
             if info:
@@ -395,7 +457,92 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 worker_info.update({k: v for k, v in info.items() if k not in worker_info})
             self._registered_workers[client_id] = worker_info
             _LOGGER.info("New worker registered: %s (%s)", client_id, worker_info.get("type"))
+        self._touch_client(client_id, info)
         self.async_set_updated_data(self._build_data())
+
+    def _touch_client(self, client_id: str, metadata: dict[str, Any] | None = None) -> None:
+        """Update per-client runtime state and inactivity timer."""
+        now_ts = time.time()
+        now_iso = time.strftime("%Y-%m-%dT%H:%M:%S")
+        current = self._clients.get(client_id, {})
+        meta = dict(current.get("meta", {}))
+        if metadata:
+            meta.update(metadata)
+        client_state: dict[str, Any] = {
+            "client_id": client_id,
+            "last_seen": now_iso,
+            "last_seen_ts": now_ts,
+            "meta": meta,
+            "last_game": current.get("last_game", ""),
+        }
+        # Backward compatibility: keep selected metadata mirrored at top-level
+        # so older dashboards/templates continue to work after merge updates.
+        client_state.update(meta)
+
+        game = (meta.get("window_title") or meta.get("game") or "").strip()
+        if game:
+            client_state["last_game"] = game
+            self._current_game = game
+        self._clients[client_id] = client_state
+        self._current_client_id = client_id
+        self._active_client_id = client_id
+        self._schedule_client_inactivity(client_id)
+
+    def _schedule_client_inactivity(self, client_id: str) -> None:
+        """Reset the inactivity timer for a client."""
+        handle = self._client_inactivity_timers.pop(client_id, None)
+        if handle:
+            handle.cancel()
+        timeout = max(self._analysis_interval * 3, 30)
+        self._client_inactivity_timers[client_id] = self.hass.loop.call_later(
+            timeout,
+            lambda: self.hass.async_create_task(self._handle_client_inactive(client_id)),
+        )
+
+    async def _handle_client_inactive(self, client_id: str) -> None:
+        """Mark client as inactive when no frames arrive for a while."""
+        self._client_inactivity_timers.pop(client_id, None)
+        client = self._clients.get(client_id)
+        if client:
+            age = time.time() - float(client.get("last_seen_ts", 0))
+            if age < 30:
+                return
+        if self._active_client_id != client_id:
+            return
+        if self._camera_watchers:
+            return
+        self._gaming_mode = False
+        if self._status != "error":
+            self._status = "idle"
+        _LOGGER.info("Client %s inactive – switching gaming mode off", client_id)
+        self.async_set_updated_data(self._build_data())
+
+    def _ensure_image_worker(self) -> None:
+        """Ensure the image queue worker is running."""
+        if self._image_worker_task and not self._image_worker_task.done():
+            return
+        self._image_worker_task = self.hass.async_create_task(self._image_worker_loop())
+
+    async def _enqueue_image(self, client_id: str, image_bytes: bytes) -> None:
+        """Enqueue image with bounded backpressure (drop oldest when full)."""
+        self._ensure_image_worker()
+        if self._image_queue.full():
+            try:
+                dropped_client, _ = self._image_queue.get_nowait()
+                self._image_queue.task_done()
+                _LOGGER.debug("Image queue full. Dropped oldest frame from %s", dropped_client)
+            except asyncio.QueueEmpty:
+                pass
+        await self._image_queue.put((client_id, image_bytes))
+
+    async def _image_worker_loop(self) -> None:
+        """Sequentially process images from queue."""
+        while True:
+            client_id, image_bytes = await self._image_queue.get()
+            try:
+                await self._process_image(client_id, image_bytes)
+            finally:
+                self._image_queue.task_done()
 
     # -- TTS / Announce properties ---------------------------------------------
 
@@ -696,9 +843,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             client_id = msg.topic.split("/")[1]
             _LOGGER.debug("Image received from client: %s", client_id)
             self._register_worker(client_id)
-            self.hass.async_create_task(
-                self._process_image(client_id, msg.payload)
-            )
+            self.hass.async_create_task(self._enqueue_image(client_id, msg.payload))
 
         @callback
         def meta_received(msg) -> None:
@@ -710,6 +855,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                     payload = payload.decode("utf-8")
                 metadata = json.loads(payload)
                 self._client_metadata[client_id] = metadata
+                self._touch_client(client_id, metadata)
                 self._register_worker(client_id, metadata)
                 _LOGGER.debug("Metadata from %s: %s", client_id, metadata)
             except (json.JSONDecodeError, UnicodeDecodeError) as err:
@@ -837,67 +983,76 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
     async def _process_image(self, client_id: str, image_bytes: bytes) -> None:
         """Run the image processing pipeline for a received image."""
-        if self._processing:
-            _LOGGER.debug("Already processing an image, skipping")
-            return
-
-        self._processing = True
-        self._status = "analyzing"
-        self._current_client_id = client_id
-        self._gaming_mode = True
-        self.async_set_updated_data(self._build_data())
-
-        try:
-            metadata = self._client_metadata.get(client_id, {})
-            metadata["assistant_mode"] = self._assistant_mode
-
-            game = metadata.get("window_title", "")
-            if game:
-                self._current_game = game
-
-            start = time.monotonic()
-            tip = await self.hass.async_add_executor_job(
-                self._run_image_processing, image_bytes, client_id, metadata
-            )
-            self._latency = round(time.monotonic() - start, 3)
-
-            if tip:
-                self._tip = tip
-                self._tip_count += 1
-                self._frames_processed += 1
-                self._last_analysis = (
-                    time.strftime("%Y-%m-%dT%H:%M:%S")
-                )
-                self._recent_tips.append({
-                    "tip": tip,
-                    "game": self._current_game,
-                    "client_id": client_id,
-                })
-                if len(self._recent_tips) > 5:
-                    self._recent_tips = self._recent_tips[-5:]
-                self._status = "idle"
-                _LOGGER.info("New tip generated: %s", tip[:80])
-
-                # Track tip for session summary
-                self._session_track_tip(tip, self._current_game)
-
-                # Fire event for automations
-                self._fire_new_tip_event(tip, self._current_game, client_id)
-
-                # Auto-announce via TTS if enabled
-                if self._auto_announce and self._tts_entity:
-                    self.hass.async_create_task(self.async_announce(tip))
-            else:
-                self._frames_processed += 1
-                self._status = "idle"
-
-        except Exception as err:
-            _LOGGER.exception("Image processing failed: %s", err)
-            self._error_count += 1
-            self._status = "error"
-        finally:
-            self._processing = False
+        async with self._process_lock:
+            self._processing = True
+            self._status = "analyzing"
+            self._current_client_id = client_id
+            self._active_client_id = client_id
+            self._gaming_mode = True
+            self._touch_client(client_id, self._client_metadata.get(client_id, {}))
             self.async_set_updated_data(self._build_data())
+
+            try:
+                metadata = self._client_metadata.get(client_id, {})
+                metadata["assistant_mode"] = self._assistant_mode
+
+                game = metadata.get("window_title", "")
+                if game:
+                    self._current_game = game
+
+                start = time.monotonic()
+                tip = await asyncio.wait_for(
+                    self.hass.async_add_executor_job(
+                        self._run_image_processing, image_bytes, client_id, metadata
+                    ),
+                    timeout=self._analysis_timeout + 5,
+                )
+                self._latency = round(time.monotonic() - start, 3)
+
+                if tip:
+                    self._tip = tip
+                    self._tip_count += 1
+                    self._frames_processed += 1
+                    self._last_analysis = (
+                        time.strftime("%Y-%m-%dT%H:%M:%S")
+                    )
+                    self._recent_tips.append({
+                        "tip": tip,
+                        "game": self._current_game,
+                        "client_id": client_id,
+                    })
+                    if len(self._recent_tips) > 5:
+                        self._recent_tips = self._recent_tips[-5:]
+                    self._status = "idle"
+                    _LOGGER.info("New tip generated: %s", tip[:80])
+
+                    # Track tip for session summary
+                    self._session_track_tip(tip, self._current_game)
+
+                    # Fire event for automations
+                    self._fire_new_tip_event(tip, self._current_game, client_id)
+
+                    # Auto-announce via TTS if enabled
+                    if self._auto_announce and self._tts_entity:
+                        self.hass.async_create_task(self.async_announce(tip))
+                else:
+                    self._frames_processed += 1
+                    self._status = "idle"
+
+            except TimeoutError:
+                _LOGGER.warning(
+                    "Image processing timed out after %ss for client %s",
+                    self._analysis_timeout + 5, client_id
+                )
+                self._error_count += 1
+                self._status = "error"
+            except Exception as err:
+                _LOGGER.exception("Image processing failed: %s", err)
+                self._error_count += 1
+                self._status = "error"
+            finally:
+                self._processing = False
+                self.async_set_updated_data(self._build_data())
 
     def _run_image_processing(
         self, image_bytes: bytes, client_id: str, metadata: dict
@@ -1025,7 +1180,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 client_id = entity_id.replace(".", "_")
                 self._client_metadata[client_id] = metadata
 
-                await self._process_image(client_id, image_bytes)
+                await self._enqueue_image(client_id, image_bytes)
 
             except asyncio.CancelledError:
                 return
@@ -1132,6 +1287,16 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         if self._session_end_timer is not None:
             self._session_end_timer.cancel()
             self._session_end_timer = None
+        for handle in self._client_inactivity_timers.values():
+            handle.cancel()
+        self._client_inactivity_timers.clear()
+        if self._image_worker_task and not self._image_worker_task.done():
+            self._image_worker_task.cancel()
+            try:
+                await self._image_worker_task
+            except asyncio.CancelledError:
+                pass
+            self._image_worker_task = None
         await self.async_stop_watch_camera()  # stops all
         self.async_unsubscribe()
 
@@ -1159,9 +1324,12 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "analysis_timeout": self._analysis_timeout,
             "spoiler_level": self._spoiler.default_level,
             "registered_workers": self._registered_workers,
+            "clients": self._clients,
+            "active_client_id": self._active_client_id,
             "default_game_hint": self._default_game_hint,
             "source_type": self._source_type,
             "available_models": self._available_models,
+            "active_model": self.active_model,
         }
 
     async def _async_update_data(self) -> dict:

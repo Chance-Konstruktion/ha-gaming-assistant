@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import logging
+import time
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -27,6 +28,7 @@ DEFAULT_TEMPERATURE = 0.4
 DEFAULT_NUM_PREDICT = 200
 DEFAULT_TIMEOUT = 60
 DEFAULT_RETRY_DELAY = 5
+DEFAULT_RATE_LIMIT_RPM = 30
 
 
 class LLMResponse:
@@ -57,12 +59,35 @@ class LLMBackend(ABC):
         timeout: int = DEFAULT_TIMEOUT,
         api_key: str = "",
         allow_images: bool = True,
+        rate_limit_rpm: int = 0,
     ) -> None:
         self.host = host.rstrip("/")
         self.model = model
         self.timeout = timeout
         self.api_key = api_key
         self.allow_images = allow_images
+        self.rate_limit_rpm = max(0, rate_limit_rpm)
+        self._request_timestamps: list[float] = []
+
+    async def _apply_rate_limit(self) -> None:
+        """Throttle request rate for cloud APIs (best effort)."""
+        if self.rate_limit_rpm <= 0:
+            return
+        now = time.monotonic()
+        window_start = now - 60.0
+        self._request_timestamps = [
+            ts for ts in self._request_timestamps
+            if ts >= window_start
+        ]
+        if len(self._request_timestamps) >= self.rate_limit_rpm:
+            wait_s = max(0.0, 60.0 - (now - self._request_timestamps[0]))
+            if wait_s > 0:
+                _LOGGER.info(
+                    "Rate limit reached (%d rpm), waiting %.1fs",
+                    self.rate_limit_rpm, wait_s,
+                )
+                await asyncio.sleep(wait_s)
+        self._request_timestamps.append(time.monotonic())
 
     @property
     @abstractmethod
@@ -180,10 +205,10 @@ class OllamaBackend(LLMBackend):
                 _LOGGER.warning(
                     "Ollama timeout (attempt %d/2), retrying in %ds",
                     attempt + 1,
-                    DEFAULT_RETRY_DELAY,
+                    DEFAULT_RETRY_DELAY * (2 ** attempt),
                 )
                 if attempt == 0:
-                    await asyncio.sleep(DEFAULT_RETRY_DELAY)
+                    await asyncio.sleep(DEFAULT_RETRY_DELAY * (2 ** attempt))
             except requests.exceptions.ConnectionError:
                 _LOGGER.error("Cannot reach Ollama at %s", self.host)
                 return LLMResponse(text="")
@@ -282,6 +307,7 @@ class OpenAICompatibleBackend(LLMBackend):
         }
 
         loop = asyncio.get_event_loop()
+        await self._apply_rate_limit()
 
         for attempt in range(2):
             try:
@@ -323,11 +349,12 @@ class OpenAICompatibleBackend(LLMBackend):
                 )
             except requests.exceptions.Timeout:
                 _LOGGER.warning(
-                    "OpenAI-compatible API timeout (attempt %d/2), retrying",
+                    "OpenAI-compatible API timeout (attempt %d/2), retrying in %ds",
                     attempt + 1,
+                    DEFAULT_RETRY_DELAY * (2 ** attempt),
                 )
                 if attempt == 0:
-                    await asyncio.sleep(DEFAULT_RETRY_DELAY)
+                    await asyncio.sleep(DEFAULT_RETRY_DELAY * (2 ** attempt))
             except requests.exceptions.ConnectionError:
                 _LOGGER.error(
                     "Cannot reach API at %s", self.host
@@ -373,6 +400,7 @@ PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
         "api_key_required": True,
         "backend": "openai",
         "allow_images": True,
+        "rate_limit_rpm": DEFAULT_RATE_LIMIT_RPM,
         "description": "OpenAI GPT-4o (cloud, paid)",
     },
     "gemini": {
@@ -381,6 +409,7 @@ PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
         "api_key_required": True,
         "backend": "openai",
         "allow_images": True,
+        "rate_limit_rpm": DEFAULT_RATE_LIMIT_RPM,
         "description": "Google Gemini (cloud, free tier available)",
     },
     "deepseek": {
@@ -389,6 +418,7 @@ PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
         "api_key_required": True,
         "backend": "openai",
         "allow_images": False,
+        "rate_limit_rpm": DEFAULT_RATE_LIMIT_RPM,
         "description": "DeepSeek (cloud, text-only strategy)",
     },
     "groq": {
@@ -397,6 +427,7 @@ PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
         "api_key_required": True,
         "backend": "openai",
         "allow_images": False,
+        "rate_limit_rpm": DEFAULT_RATE_LIMIT_RPM,
         "description": "Groq (cloud, fast inference)",
     },
 }
@@ -410,6 +441,7 @@ def create_backend(
     api_key: str = "",
     allow_images: bool = True,
     provider: str = "",
+    rate_limit_rpm: int = 0,
 ) -> LLMBackend:
     """Create an LLM backend instance.
 
@@ -423,6 +455,8 @@ def create_backend(
         host = host or preset["host"]
         model = model or preset["model"]
         allow_images = preset.get("allow_images", True)
+        if not rate_limit_rpm and preset.get("rate_limit_rpm"):
+            rate_limit_rpm = int(preset["rate_limit_rpm"])
 
     cls = BACKEND_TYPES.get(backend_type, OllamaBackend)
     return cls(
@@ -431,4 +465,5 @@ def create_backend(
         timeout=timeout,
         api_key=api_key,
         allow_images=allow_images,
+        rate_limit_rpm=rate_limit_rpm,
     )
