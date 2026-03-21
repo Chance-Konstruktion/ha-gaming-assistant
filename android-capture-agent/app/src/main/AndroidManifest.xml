@@ -17,7 +17,7 @@
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
 
-        <service android:name="org.eclipse.paho.android.service.MqttService" />
+        <service android:name="info.mqtt.android.service.MqttService" />
 
         <activity
             android:name=".MainActivity"

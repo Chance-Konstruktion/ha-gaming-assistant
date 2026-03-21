@@ -25,7 +25,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import org.eclipse.paho.android.service.MqttAndroidClient
+import info.mqtt.android.service.Ack
+import info.mqtt.android.service.MqttAndroidClient
 import org.eclipse.paho.client.mqttv3.IMqttActionListener
 import org.eclipse.paho.client.mqttv3.IMqttToken
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions
@@ -128,7 +129,7 @@ class CaptureService : Service() {
         mqttClient?.unregisterResources()
         mqttClient?.close()
 
-        mqttClient = MqttAndroidClient(applicationContext, serverUri, config.clientId)
+        mqttClient = MqttAndroidClient(applicationContext, serverUri, config.clientId, Ack.AUTO_ACK)
         val options = MqttConnectOptions().apply {
             isAutomaticReconnect = true
             isCleanSession = true
