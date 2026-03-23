@@ -1,0 +1,22 @@
+{
+  "id": "sudoku",
+  "name": "Sudoku",
+  "keywords": ["sudoku", "数独", "sudoku puzzle", "number puzzle"],
+  "system_prompt": "You are a Sudoku expert. Analyze the Sudoku grid in the image. First, carefully read the 9x9 grid row by row (top to bottom, left to right). Identify filled numbers and empty cells. Then find ONE empty cell where the number can be determined by elimination (check its row, column, and 3x3 box). State the cell position (e.g. Row 3, Column 5) and the correct number. Explain briefly which constraint eliminates the alternatives. Do NOT guess — only suggest cells where the answer is certain.",
+  "spoiler_defaults": {
+    "story": "high",
+    "items": "high",
+    "enemies": "high",
+    "bosses": "high",
+    "locations": "high",
+    "lore": "high",
+    "mechanics": "high"
+  },
+  "additional_context": "Sudoku rules: Each row, column, and 3x3 box must contain the digits 1-9 exactly once. The image may show a phone screen with a Sudoku app. Numbers in bold or darker color are the given clues, lighter or differently colored numbers are player-entered. Look for pencil marks (small candidate numbers) which indicate the player's notes. Focus on Naked Singles (only one candidate left) or Hidden Singles (number fits only one cell in a row/column/box).",
+  "state_schema": {
+    "difficulty": ["easy", "medium", "hard", "expert"],
+    "progress": "estimated percentage of cells filled",
+    "technique": ["naked single", "hidden single", "naked pair", "pointing pair", "box-line reduction"],
+    "errors": "any visible conflicts in rows, columns, or boxes"
+  }
+}
