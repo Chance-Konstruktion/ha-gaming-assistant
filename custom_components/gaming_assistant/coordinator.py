@@ -153,6 +153,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._last_summary_game: str = ""
         self._last_summary_timestamp: str = ""
 
+        # Daily history cleanup task
+        self._cleanup_task: asyncio.Task | None = None
+
         # Available Ollama models (fetched on startup, refreshable)
         self._available_models: list[str] = []
 
@@ -217,7 +220,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             name="Gaming Assistant",
             manufacturer="Chance-Konstruktion",
             model=self.config.get(CONF_MODEL, "qwen2.5vl"),
-            sw_version="0.10.0",
+            sw_version="0.12.0",
             configuration_url=self.config.get(CONF_OLLAMA_HOST, ""),
         )
 
@@ -1301,10 +1304,42 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             self.async_set_updated_data(self._build_data())
             return ""
 
+    # -- daily history cleanup -----------------------------------------------
+
+    _CLEANUP_INTERVAL = 86400  # 24 hours in seconds
+
+    def start_cleanup_task(self) -> None:
+        """Start the daily history cleanup background task."""
+        if self._cleanup_task and not self._cleanup_task.done():
+            return
+        self._cleanup_task = self.hass.async_create_task(self._cleanup_loop())
+
+    async def _cleanup_loop(self) -> None:
+        """Periodically remove old history entries (runs every 24h)."""
+        # Wait a bit after startup to avoid blocking init
+        await asyncio.sleep(60)
+        while True:
+            try:
+                removed = await self._history.cleanup()
+                if removed:
+                    _LOGGER.info(
+                        "Daily history cleanup: removed %d old entries", removed
+                    )
+            except Exception as err:  # pylint: disable=broad-except
+                _LOGGER.warning("History cleanup failed: %s", err)
+            await asyncio.sleep(self._CLEANUP_INTERVAL)
+
     # -- cleanup -------------------------------------------------------------
 
     async def async_shutdown(self) -> None:
         """Stop all camera watchers, cancel timers, and unsubscribe MQTT."""
+        if self._cleanup_task and not self._cleanup_task.done():
+            self._cleanup_task.cancel()
+            try:
+                await self._cleanup_task
+            except asyncio.CancelledError:
+                pass
+            self._cleanup_task = None
         if self._session_end_timer is not None:
             self._session_end_timer.cancel()
             self._session_end_timer = None

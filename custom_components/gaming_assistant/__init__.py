@@ -98,6 +98,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Failed to set up MQTT subscriptions")
 
+        # Start daily history cleanup
+        coordinator.start_cleanup_task()
+
         # Auto-start camera watcher if configured
         camera_entity = entry.data.get(CONF_CAMERA_ENTITY, "") or entry.options.get(
             CONF_CAMERA_ENTITY, ""

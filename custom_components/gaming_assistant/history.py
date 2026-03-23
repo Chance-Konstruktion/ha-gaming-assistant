@@ -79,18 +79,25 @@ class HistoryManager:
 
         entries.append(entry)
 
-        # Trim to max entries in memory
-        if len(entries) > self._max_entries:
-            entries[:] = entries[-self._max_entries:]
-
-        # Append to file
         self._ensure_dir()
         path = self._file_path(key)
-        try:
-            with open(path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-        except OSError as err:
-            _LOGGER.error("Failed to append history %s: %s", path, err)
+
+        # Compact file when in-memory list exceeds max entries
+        if len(entries) > self._max_entries:
+            entries[:] = entries[-self._max_entries:]
+            try:
+                with open(path, "w", encoding="utf-8") as f:
+                    for e in entries:
+                        f.write(json.dumps(e, ensure_ascii=False) + "\n")
+            except OSError as err:
+                _LOGGER.error("Failed to compact history %s: %s", path, err)
+        else:
+            # Normal append
+            try:
+                with open(path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            except OSError as err:
+                _LOGGER.error("Failed to append history %s: %s", path, err)
 
     async def get_recent(self, key: str, count: int = 5) -> list[dict]:
         entries = self._load(key)
