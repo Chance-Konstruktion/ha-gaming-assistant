@@ -4,10 +4,13 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+import io
 import logging
 
 from .const import (
     HISTORY_CONTEXT_SIZE,
+    IMAGE_DOWNSCALE_QUALITY,
+    IMAGE_MAX_DIMENSION,
     OLLAMA_NUM_PREDICT,
     OLLAMA_TIMEOUT,
 )
@@ -31,10 +34,10 @@ class ImageProcessor:
     5. Load spoiler settings
     6. Load history
     7. Build prompt (with state context)
-    8. LLM call (image + prompt) via pluggable backend
-    9. Parse response
-    10. Extract game state observations
-    11. Store in history
+    8. Downscale image if needed
+    9. LLM call (image + prompt) via pluggable backend
+    10. Store in history
+    11. Extract game state observations
     12. Return tip
     """
 
@@ -74,6 +77,41 @@ class ImageProcessor:
             _LOGGER.info(
                 "Small model detected (%s) — using compact prompts", model
             )
+
+    @staticmethod
+    def _downscale_image(image_bytes: bytes) -> bytes:
+        """Downscale image if it exceeds IMAGE_MAX_DIMENSION on any side.
+
+        Returns the original bytes if already within limits or if
+        Pillow is unavailable (should not happen inside HA).
+        """
+        try:
+            from PIL import Image
+        except ImportError:
+            return image_bytes
+
+        try:
+            img = Image.open(io.BytesIO(image_bytes))
+        except Exception:
+            return image_bytes  # Not a valid image — let LLM deal with it
+
+        w, h = img.size
+        if w <= IMAGE_MAX_DIMENSION and h <= IMAGE_MAX_DIMENSION:
+            return image_bytes
+
+        # Calculate new size preserving aspect ratio
+        scale = IMAGE_MAX_DIMENSION / max(w, h)
+        new_w, new_h = int(w * scale), int(h * scale)
+
+        img = img.resize((new_w, new_h), Image.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=IMAGE_DOWNSCALE_QUALITY)
+        result = buf.getvalue()
+        _LOGGER.debug(
+            "Image downscaled: %dx%d → %dx%d (%d → %d bytes)",
+            w, h, new_w, new_h, len(image_bytes), len(result),
+        )
+        return result
 
     @property
     def timeout(self) -> int:
@@ -155,8 +193,11 @@ class ImageProcessor:
             state_context=state_context,
         )
 
-        # 8. Call LLM backend
-        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+        # 8. Downscale image if needed (saves LLM tokens + speeds up inference)
+        llm_image = self._downscale_image(image_bytes)
+
+        # 9. Call LLM backend
+        image_b64 = base64.b64encode(llm_image).decode("utf-8")
         response = await self._backend.generate(
             prompt, image_b64, max_tokens=OLLAMA_NUM_PREDICT
         )
@@ -165,10 +206,10 @@ class ImageProcessor:
         if not tip:
             return ""
 
-        # 9. Store in history
+        # 10. Store in history
         await self._history.add_entry(game, client_id, image_hash, tip)
 
-        # 10. Extract and store game state observations
+        # 11. Extract and store game state observations
         if self._game_state and game:
             observations = extract_observations_from_tip(
                 tip, game, prompt_pack
@@ -225,7 +266,8 @@ class ImageProcessor:
         )
 
         if image_bytes:
-            image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+            llm_image = self._downscale_image(image_bytes)
+            image_b64 = base64.b64encode(llm_image).decode("utf-8")
             response = await self._backend.generate(
                 prompt, image_b64, max_tokens=OLLAMA_NUM_PREDICT
             )

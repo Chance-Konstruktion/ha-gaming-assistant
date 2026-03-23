@@ -77,6 +77,8 @@ SESSION_END_DELAY = 300  # 5 minutes of inactivity before session ends
 # Image Processing
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB hard limit for base64-decoded images
 IMAGE_DEDUP_WINDOW_SECONDS = 60
+IMAGE_MAX_DIMENSION = 1280  # Max width/height before sending to LLM
+IMAGE_DOWNSCALE_QUALITY = 85  # JPEG quality for downscaled images
 OLLAMA_TIMEOUT = 60
 OLLAMA_RETRY_DELAY = 5
 OLLAMA_NUM_PREDICT = 200
