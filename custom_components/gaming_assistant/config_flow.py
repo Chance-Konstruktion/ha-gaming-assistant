@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import logging
-import asyncio
 from typing import Any
 
+import aiohttp
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -42,52 +42,66 @@ _LOGGER = logging.getLogger(__name__)
 FALLBACK_MODELS = ["qwen2.5vl", "llava", "llava:13b", "bakllava", "llama3.2-vision"]
 
 
-def _fetch_ollama_models(host: str) -> list[str] | None:
-    """Fetch available models from Ollama (blocking – run in executor)."""
+async def _fetch_ollama_models_async(host: str) -> list[str] | None:
+    """Fetch available models from Ollama (native async)."""
+    url = f"{host.rstrip('/')}/api/tags"
     try:
-        import requests
-
-        resp = requests.get(f"{host.rstrip('/')}/api/tags", timeout=5)
-        resp.raise_for_status()
-        data = resp.json()
-        models = [m["name"] for m in data.get("models", [])]
-        if models:
-            return sorted(models)
-        _LOGGER.warning("Ollama reachable but no models found – using fallback list")
-        return FALLBACK_MODELS
-    except Exception as err:
-        _LOGGER.warning("Could not reach Ollama at %s: %s", host, err)
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=5)
+        ) as session:
+            async with session.get(url) as resp:
+                resp.raise_for_status()
+                data = await resp.json()
+                models = [m["name"] for m in data.get("models", [])]
+                if models:
+                    return sorted(models)
+                _LOGGER.warning("Ollama reachable but no models found – using fallback list")
+                return FALLBACK_MODELS
+    except aiohttp.ClientConnectionError:
+        _LOGGER.warning("Could not connect to Ollama at %s", host)
+        return None
+    except aiohttp.ClientResponseError as err:
+        _LOGGER.warning("Ollama returned HTTP %d: %s", err.status, err.message)
+        return None
+    except TimeoutError:
+        _LOGGER.warning("Timeout connecting to Ollama at %s", host)
         return None
 
 
-def _validate_provider_connection(
+async def _validate_provider_connection_async(
     provider: str,
     host: str,
     api_key: str,
     model: str = "",
-) -> tuple[bool, list[str]]:
-    """Best-effort connectivity validation for all configured providers."""
+) -> tuple[bool, list[str], str]:
+    """Async connectivity validation for all configured providers.
+
+    Returns (ok, models, error_reason).
+    """
+    backend = create_backend(
+        provider=provider,
+        host=host,
+        model=model,
+        api_key=api_key,
+        allow_images=True,
+        timeout=10,
+    )
     try:
-        backend = create_backend(
-            provider=provider,
-            host=host,
-            model=model,
-            api_key=api_key,
-            allow_images=True,
-            timeout=10,
-        )
-        loop = asyncio.new_event_loop()
-        try:
-            models = loop.run_until_complete(backend.list_models())
-        finally:
-            loop.close()
+        models = await backend.list_models()
         if models:
-            return True, models
+            return True, models, ""
         # Some backends may not expose model listing; connection still considered okay
-        return True, FALLBACK_MODELS
-    except Exception as err:
-        _LOGGER.warning("Provider validation failed for %s (%s): %s", provider, host, err)
-        return False, []
+        return True, FALLBACK_MODELS, ""
+    except aiohttp.ClientConnectionError:
+        return False, [], "cannot_connect"
+    except TimeoutError:
+        return False, [], "timeout"
+    except aiohttp.ClientResponseError as err:
+        if err.status == 401:
+            return False, [], "invalid_auth"
+        return False, [], "cannot_connect"
+    finally:
+        await backend.close()
 
 
 def _schema_model_step(
@@ -177,25 +191,22 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if needs_key and not self._llm_api_key:
                 errors["base"] = "api_key_required"
             else:
-                # Try to connect and fetch models
+                # Try to connect and fetch models (fully async)
                 if self._llm_backend == "ollama":
-                    models = await self.hass.async_add_executor_job(
-                        _fetch_ollama_models, host
-                    )
+                    models = await _fetch_ollama_models_async(host)
                     if models is None:
                         errors["base"] = "cannot_connect"
                     else:
                         self._models = models
                 else:
-                    ok, models = await self.hass.async_add_executor_job(
-                        _validate_provider_connection,
+                    ok, models, reason = await _validate_provider_connection_async(
                         self._llm_backend,
                         host,
                         self._llm_api_key,
                         preset.get("model", ""),
                     )
                     if not ok:
-                        errors["base"] = "cannot_connect"
+                        errors["base"] = reason or "cannot_connect"
                     else:
                         self._models = models or (
                             [preset.get("model", "")]
@@ -375,7 +386,7 @@ class GamingAssistantOptionsFlow(config_entries.OptionsFlow):
         }
         host = current.get(CONF_OLLAMA_HOST, DEFAULT_OLLAMA_HOST)
 
-        models = await self.hass.async_add_executor_job(_fetch_ollama_models, host)
+        models = await _fetch_ollama_models_async(host)
         if models is None:
             models = FALLBACK_MODELS
 

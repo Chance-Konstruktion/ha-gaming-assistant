@@ -7,10 +7,13 @@ import logging
 import time
 from typing import Any
 
+from datetime import timedelta
+
 from homeassistant.components import mqtt
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
@@ -92,7 +95,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._client_metadata: dict[str, dict] = {}
         self._processing: bool = False
         self._process_lock = asyncio.Lock()
-        self._image_queue: asyncio.Queue[tuple[str, bytes]] = asyncio.Queue(maxsize=2)
+        self._image_queue: asyncio.Queue[tuple[str, bytes]] = asyncio.Queue(maxsize=3)
         self._image_worker_task: asyncio.Task | None = None
         self._last_image_bytes: bytes | None = None
         self._last_image_client_id: str = ""
@@ -153,8 +156,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._last_summary_game: str = ""
         self._last_summary_timestamp: str = ""
 
-        # Daily history cleanup task
-        self._cleanup_task: asyncio.Task | None = None
+        # Daily history cleanup (managed via async_track_time_interval)
+        self._cleanup_unsub: callback | None = None
 
         # Available Ollama models (fetched on startup, refreshable)
         self._available_models: list[str] = []
@@ -290,7 +293,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 json.dumps(payload), qos=1,
             )
             _LOGGER.info("Sent YOLO command: %s", command)
-        except Exception as err:
+        except HomeAssistantError as err:
             _LOGGER.warning("Failed to send YOLO command: %s", err)
 
     @property
@@ -545,8 +548,16 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         """Sequentially process images from queue."""
         while True:
             client_id, image_bytes = await self._image_queue.get()
+            _LOGGER.debug(
+                "Image worker: processing %s (queue=%d/%d)",
+                client_id, self._image_queue.qsize(), self._image_queue.maxsize,
+            )
             try:
                 await self._process_image(client_id, image_bytes)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                _LOGGER.debug("Image worker: item failed, continuing", exc_info=True)
             finally:
                 self._image_queue.task_done()
 
@@ -613,7 +624,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         try:
             await self.hass.services.async_call("tts", "speak", service_data)
             _LOGGER.info("Announced tip via %s → %s", tts_eid, target)
-        except Exception as err:
+        except HomeAssistantError as err:
             _LOGGER.error("TTS announce failed: %s", err)
 
     # -- Session tracking / summary ------------------------------------------
@@ -1023,9 +1034,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
                 start = time.monotonic()
                 tip = await asyncio.wait_for(
-                    self.hass.async_add_executor_job(
-                        self._run_image_processing, image_bytes, client_id, metadata
-                    ),
+                    self._image_processor.process(image_bytes, client_id, metadata),
                     timeout=self._analysis_timeout + 5,
                 )
                 self._latency = round(time.monotonic() - start, 3)
@@ -1060,32 +1069,20 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                     self._frames_processed += 1
                     self._status = "idle"
 
-            except TimeoutError:
+            except (TimeoutError, asyncio.TimeoutError):
                 _LOGGER.warning(
-                    "Image processing timed out after %ss for client %s",
+                    "Image processing timed out after %ds for client %s",
                     self._analysis_timeout + 5, client_id
                 )
                 self._error_count += 1
                 self._status = "error"
-            except Exception as err:
-                _LOGGER.exception("Image processing failed: %s", err)
+            except (OSError, json.JSONDecodeError, ValueError) as err:
+                _LOGGER.error("Image processing failed: %s", err)
                 self._error_count += 1
                 self._status = "error"
             finally:
                 self._processing = False
                 self.async_set_updated_data(self._build_data())
-
-    def _run_image_processing(
-        self, image_bytes: bytes, client_id: str, metadata: dict
-    ) -> str:
-        """Synchronous wrapper to call async image processor from executor."""
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(
-                self._image_processor.process(image_bytes, client_id, metadata)
-            )
-        finally:
-            loop.close()
 
     # -- Camera watcher ------------------------------------------------------
 
@@ -1243,12 +1240,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         client_type: str = "pc",
     ) -> str:
         """Process an image manually (from service call)."""
-        metadata = {"client_type": client_type}
+        metadata: dict[str, str] = {"client_type": client_type}
         if game_hint:
             metadata["window_title"] = game_hint
-        return await self.hass.async_add_executor_job(
-            self._run_image_processing, image_bytes, "manual", metadata
-        )
+        return await self._image_processor.process(image_bytes, "manual", metadata)
 
     async def async_ask(
         self,
@@ -1298,48 +1293,45 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             self._status = "idle"
             self.async_set_updated_data(self._build_data())
             return answer
-        except Exception as err:
-            _LOGGER.exception("Ask-mode processing failed: %s", err)
+        except (asyncio.TimeoutError, TimeoutError) as err:
+            _LOGGER.warning("Ask-mode timed out: %s", err)
+            self._status = "error"
+            self.async_set_updated_data(self._build_data())
+            return ""
+        except (OSError, json.JSONDecodeError, ValueError) as err:
+            _LOGGER.error("Ask-mode processing failed: %s", err)
             self._status = "error"
             self.async_set_updated_data(self._build_data())
             return ""
 
     # -- daily history cleanup -----------------------------------------------
 
-    _CLEANUP_INTERVAL = 86400  # 24 hours in seconds
-
     def start_cleanup_task(self) -> None:
-        """Start the daily history cleanup background task."""
-        if self._cleanup_task and not self._cleanup_task.done():
+        """Register the daily history cleanup via async_track_time_interval."""
+        if self._cleanup_unsub is not None:
             return
-        self._cleanup_task = self.hass.async_create_task(self._cleanup_loop())
 
-    async def _cleanup_loop(self) -> None:
-        """Periodically remove old history entries (runs every 24h)."""
-        # Wait a bit after startup to avoid blocking init
-        await asyncio.sleep(60)
-        while True:
+        async def _run_cleanup(_now: Any = None) -> None:
             try:
                 removed = await self._history.cleanup()
                 if removed:
                     _LOGGER.info(
                         "Daily history cleanup: removed %d old entries", removed
                     )
-            except Exception as err:  # pylint: disable=broad-except
-                _LOGGER.warning("History cleanup failed: %s", err)
-            await asyncio.sleep(self._CLEANUP_INTERVAL)
+            except OSError as err:
+                _LOGGER.warning("History cleanup failed (I/O): %s", err)
+
+        self._cleanup_unsub = async_track_time_interval(
+            self.hass, _run_cleanup, timedelta(hours=24)
+        )
 
     # -- cleanup -------------------------------------------------------------
 
     async def async_shutdown(self) -> None:
         """Stop all camera watchers, cancel timers, and unsubscribe MQTT."""
-        if self._cleanup_task and not self._cleanup_task.done():
-            self._cleanup_task.cancel()
-            try:
-                await self._cleanup_task
-            except asyncio.CancelledError:
-                pass
-            self._cleanup_task = None
+        if self._cleanup_unsub is not None:
+            self._cleanup_unsub()
+            self._cleanup_unsub = None
         if self._session_end_timer is not None:
             self._session_end_timer.cancel()
             self._session_end_timer = None
@@ -1355,6 +1347,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             self._image_worker_task = None
         await self.async_stop_watch_camera()  # stops all
         self.async_unsubscribe()
+        # Close LLM backend HTTP session
+        await self._llm_backend.close()
 
     def async_unsubscribe(self) -> None:
         """Unsubscribe from all MQTT topics."""

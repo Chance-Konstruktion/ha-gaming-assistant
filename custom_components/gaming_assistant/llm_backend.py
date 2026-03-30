@@ -5,7 +5,7 @@ Gaming Assistant can work with local Ollama, OpenAI-compatible APIs
 (GPT-4o, Gemini, DeepSeek, LM Studio, etc.), or any future backend.
 
 Design goals:
-- HACS-friendly: no heavy dependencies (requests only)
+- HACS-friendly: minimal dependencies (aiohttp for native async HTTP)
 - Drop-in replacement for direct Ollama calls in ImageProcessor
 - Privacy-first: Cloud backends receive only text by default;
   image sending is opt-in per backend config
@@ -13,13 +13,12 @@ Design goals:
 from __future__ import annotations
 
 import asyncio
-import base64
 import logging
 import time
 from abc import ABC, abstractmethod
 from typing import Any
 
-import requests
+import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,7 +27,23 @@ DEFAULT_TEMPERATURE = 0.4
 DEFAULT_NUM_PREDICT = 200
 DEFAULT_TIMEOUT = 60
 DEFAULT_RETRY_DELAY = 5
+DEFAULT_RETRY_ATTEMPTS = 2
 DEFAULT_RATE_LIMIT_RPM = 30
+
+# Redacted placeholder for log messages
+_REDACTED = "**REDACTED**"
+
+
+def _safe_host(host: str) -> str:
+    """Return host string safe for logging (no embedded credentials)."""
+    if "@" in host:
+        # Strip user:pass from URLs like http://user:pass@host
+        from urllib.parse import urlparse, urlunparse
+
+        parsed = urlparse(host)
+        safe = parsed._replace(netloc=parsed.hostname or host)
+        return urlunparse(safe)
+    return host
 
 
 class LLMResponse:
@@ -68,6 +83,20 @@ class LLMBackend(ABC):
         self.allow_images = allow_images
         self.rate_limit_rpm = max(0, rate_limit_rpm)
         self._request_timestamps: list[float] = []
+        self._session: aiohttp.ClientSession | None = None
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        """Return a shared aiohttp session, creating one if needed."""
+        if self._session is None or self._session.closed:
+            timeout = aiohttp.ClientTimeout(total=self.timeout)
+            self._session = aiohttp.ClientSession(timeout=timeout)
+        return self._session
+
+    async def close(self) -> None:
+        """Close the underlying HTTP session."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+            self._session = None
 
     async def _apply_rate_limit(self) -> None:
         """Throttle request rate for cloud APIs (best effort)."""
@@ -167,56 +196,60 @@ class OllamaBackend(LLMBackend):
         return await self.generate(prompt, "", temperature, max_tokens)
 
     async def list_models(self) -> list[str]:
-        loop = asyncio.get_event_loop()
+        session = await self._get_session()
         try:
-            resp = await loop.run_in_executor(
-                None,
-                lambda: requests.get(
-                    f"{self.host}/api/tags", timeout=5
-                ),
+            async with session.get(
+                f"{self.host}/api/tags",
+                timeout=aiohttp.ClientTimeout(total=5),
+            ) as resp:
+                resp.raise_for_status()
+                data = await resp.json()
+                return sorted(m["name"] for m in data.get("models", []))
+        except aiohttp.ClientConnectionError:
+            _LOGGER.warning(
+                "Could not connect to Ollama at %s", _safe_host(self.host)
             )
-            resp.raise_for_status()
-            return sorted(m["name"] for m in resp.json().get("models", []))
-        except Exception as err:
-            _LOGGER.warning("Could not fetch Ollama models: %s", err)
+            return []
+        except asyncio.TimeoutError:
+            _LOGGER.warning("Timeout fetching Ollama models from %s", _safe_host(self.host))
+            return []
+        except aiohttp.ClientResponseError as err:
+            _LOGGER.warning("Ollama model list failed (HTTP %d): %s", err.status, err.message)
             return []
 
     async def _call(self, payload: dict) -> LLMResponse:
         url = f"{self.host}/api/generate"
-        loop = asyncio.get_event_loop()
+        session = await self._get_session()
 
-        for attempt in range(2):
+        for attempt in range(DEFAULT_RETRY_ATTEMPTS):
             try:
-                response = await loop.run_in_executor(
-                    None,
-                    lambda: requests.post(
-                        url, json=payload, timeout=self.timeout
-                    ),
-                )
-                response.raise_for_status()
-                data = response.json()
-                text = self.clean_response(data.get("response", "").strip())
-                return LLMResponse(
-                    text=text,
-                    model=self.model,
-                    raw=data,
-                )
-            except requests.exceptions.Timeout:
+                async with session.post(url, json=payload) as resp:
+                    resp.raise_for_status()
+                    data = await resp.json()
+                    text = self.clean_response(data.get("response", "").strip())
+                    return LLMResponse(
+                        text=text,
+                        model=self.model,
+                        raw=data,
+                    )
+            except asyncio.TimeoutError:
+                delay = DEFAULT_RETRY_DELAY * (2 ** attempt)
                 _LOGGER.warning(
-                    "Ollama timeout (attempt %d/2), retrying in %ds",
+                    "Ollama timeout (attempt %d/%d), retrying in %ds",
                     attempt + 1,
-                    DEFAULT_RETRY_DELAY * (2 ** attempt),
+                    DEFAULT_RETRY_ATTEMPTS,
+                    delay,
                 )
-                if attempt == 0:
-                    await asyncio.sleep(DEFAULT_RETRY_DELAY * (2 ** attempt))
-            except requests.exceptions.ConnectionError:
-                _LOGGER.error("Cannot reach Ollama at %s", self.host)
+                if attempt < DEFAULT_RETRY_ATTEMPTS - 1:
+                    await asyncio.sleep(delay)
+            except aiohttp.ClientConnectionError:
+                _LOGGER.error("Cannot reach Ollama at %s", _safe_host(self.host))
                 return LLMResponse(text="")
-            except Exception as err:
-                _LOGGER.exception("Ollama call failed: %s", err)
+            except aiohttp.ClientResponseError as err:
+                _LOGGER.error("Ollama HTTP error %d: %s", err.status, err.message)
                 return LLMResponse(text="")
 
-        _LOGGER.error("Ollama request failed after retries")
+        _LOGGER.error("Ollama request failed after %d retries", DEFAULT_RETRY_ATTEMPTS)
         return LLMResponse(text="")
 
 
@@ -250,22 +283,27 @@ class OpenAICompatibleBackend(LLMBackend):
         return await self.generate(prompt, "", temperature, max_tokens)
 
     async def list_models(self) -> list[str]:
-        loop = asyncio.get_event_loop()
+        session = await self._get_session()
         headers = self._headers()
         try:
-            resp = await loop.run_in_executor(
-                None,
-                lambda: requests.get(
-                    f"{self.host}/v1/models",
-                    headers=headers,
-                    timeout=5,
-                ),
+            async with session.get(
+                f"{self.host}/v1/models",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=5),
+            ) as resp:
+                resp.raise_for_status()
+                data = await resp.json()
+                return sorted(m["id"] for m in data.get("data", []))
+        except aiohttp.ClientConnectionError:
+            _LOGGER.warning(
+                "Could not connect to API at %s", _safe_host(self.host)
             )
-            resp.raise_for_status()
-            data = resp.json()
-            return sorted(m["id"] for m in data.get("data", []))
-        except Exception as err:
-            _LOGGER.warning("Could not fetch models from %s: %s", self.host, err)
+            return []
+        except asyncio.TimeoutError:
+            _LOGGER.warning("Timeout fetching models from %s", _safe_host(self.host))
+            return []
+        except aiohttp.ClientResponseError as err:
+            _LOGGER.warning("Model list failed (HTTP %d): %s", err.status, err.message)
             return []
 
     def _headers(self) -> dict[str, str]:
@@ -306,65 +344,61 @@ class OpenAICompatibleBackend(LLMBackend):
             "max_tokens": max_tokens,
         }
 
-        loop = asyncio.get_event_loop()
+        session = await self._get_session()
         await self._apply_rate_limit()
 
-        for attempt in range(2):
+        for attempt in range(DEFAULT_RETRY_ATTEMPTS):
             try:
-                response = await loop.run_in_executor(
-                    None,
-                    lambda: requests.post(
-                        url,
-                        json=payload,
-                        headers=headers,
-                        timeout=self.timeout,
-                    ),
-                )
-                response.raise_for_status()
-                data = response.json()
+                async with session.post(
+                    url, json=payload, headers=headers,
+                ) as resp:
+                    resp.raise_for_status()
+                    data = await resp.json()
 
-                text = ""
-                choices = data.get("choices", [])
-                if choices:
-                    text = (
-                        choices[0]
-                        .get("message", {})
-                        .get("content", "")
-                        .strip()
+                    text = ""
+                    choices = data.get("choices", [])
+                    if choices:
+                        text = (
+                            choices[0]
+                            .get("message", {})
+                            .get("content", "")
+                            .strip()
+                        )
+
+                    usage = data.get("usage", {})
+
+                    return LLMResponse(
+                        text=self.clean_response(text),
+                        model=data.get("model", self.model),
+                        usage={
+                            "prompt_tokens": usage.get("prompt_tokens", 0),
+                            "completion_tokens": usage.get(
+                                "completion_tokens", 0
+                            ),
+                            "total_tokens": usage.get("total_tokens", 0),
+                        },
+                        raw=data,
                     )
-
-                usage = data.get("usage", {})
-
-                return LLMResponse(
-                    text=self.clean_response(text),
-                    model=data.get("model", self.model),
-                    usage={
-                        "prompt_tokens": usage.get("prompt_tokens", 0),
-                        "completion_tokens": usage.get(
-                            "completion_tokens", 0
-                        ),
-                        "total_tokens": usage.get("total_tokens", 0),
-                    },
-                    raw=data,
-                )
-            except requests.exceptions.Timeout:
+            except asyncio.TimeoutError:
+                delay = DEFAULT_RETRY_DELAY * (2 ** attempt)
                 _LOGGER.warning(
-                    "OpenAI-compatible API timeout (attempt %d/2), retrying in %ds",
+                    "OpenAI-compatible API timeout (attempt %d/%d), retrying in %ds",
                     attempt + 1,
-                    DEFAULT_RETRY_DELAY * (2 ** attempt),
+                    DEFAULT_RETRY_ATTEMPTS,
+                    delay,
                 )
-                if attempt == 0:
-                    await asyncio.sleep(DEFAULT_RETRY_DELAY * (2 ** attempt))
-            except requests.exceptions.ConnectionError:
+                if attempt < DEFAULT_RETRY_ATTEMPTS - 1:
+                    await asyncio.sleep(delay)
+            except aiohttp.ClientConnectionError:
                 _LOGGER.error(
-                    "Cannot reach API at %s", self.host
+                    "Cannot reach API at %s", _safe_host(self.host)
                 )
                 return LLMResponse(text="")
-            except Exception as err:
-                _LOGGER.exception("API call failed: %s", err)
+            except aiohttp.ClientResponseError as err:
+                _LOGGER.error("API HTTP error %d: %s", err.status, err.message)
                 return LLMResponse(text="")
 
-        _LOGGER.error("API request failed after retries")
+        _LOGGER.error("API request failed after %d retries", DEFAULT_RETRY_ATTEMPTS)
         return LLMResponse(text="")
 
 

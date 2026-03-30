@@ -10,7 +10,7 @@ class TestCoordinatorContracts(unittest.TestCase):
         cls.src = Path("custom_components/gaming_assistant/coordinator.py").read_text(encoding="utf-8")
 
     def test_has_bounded_image_queue(self):
-        self.assertIn("asyncio.Queue(maxsize=2)", self.src)
+        self.assertIn("asyncio.Queue(maxsize=3)", self.src)
 
     def test_has_drop_oldest_strategy(self):
         self.assertIn("if self._image_queue.full()", self.src)

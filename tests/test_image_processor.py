@@ -5,6 +5,8 @@ import sys
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiohttp
+
 # Stub homeassistant before importing our modules
 _HA_MODULES = [
     "homeassistant",
@@ -17,6 +19,7 @@ _HA_MODULES = [
     "homeassistant.helpers",
     "homeassistant.helpers.device_registry",
     "homeassistant.helpers.update_coordinator",
+    "homeassistant.helpers.event",
 ]
 for mod in _HA_MODULES:
     sys.modules.setdefault(mod, MagicMock())
@@ -29,7 +32,24 @@ from custom_components.gaming_assistant.const import OLLAMA_TIMEOUT
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
+def _mock_aiohttp_response(json_data, status=200):
+    """Create a mock aiohttp response context manager."""
+    mock_resp = AsyncMock()
+    mock_resp.status = status
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.json = AsyncMock(return_value=json_data)
+
+    mock_ctx = AsyncMock()
+    mock_ctx.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_ctx.__aexit__ = AsyncMock(return_value=False)
+    return mock_ctx
 
 
 class TestImageProcessorTimeout(unittest.TestCase):
@@ -61,33 +81,16 @@ class TestImageProcessorTimeout(unittest.TestCase):
         proc = self._make_processor(timeout=120)
         self.assertEqual(proc._timeout, 120)
 
-    def test_timeout_used_in_call(self):
-        """Verify the configured timeout is passed to the backend."""
+    def test_timeout_propagates_to_backend(self):
+        """Verify the configured timeout is propagated to the backend."""
         proc = self._make_processor(timeout=180)
+        self.assertEqual(proc.backend.timeout, 180)
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"response": "Test tip"}
-
-        with patch("custom_components.gaming_assistant.llm_backend.requests.post", return_value=mock_response) as mock_post:
-            result = _run(proc._call_ollama("test prompt", "base64data"))
-            self.assertEqual(result, "Test tip")
-            _, kwargs = mock_post.call_args
-            self.assertEqual(kwargs["timeout"], 180)
-
-    def test_timeout_default_used_in_call(self):
-        """Default timeout should be OLLAMA_TIMEOUT."""
+    def test_timeout_setter(self):
         proc = self._make_processor()
-
-        mock_response = MagicMock()
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"response": "Tip"}
-
-        with patch("custom_components.gaming_assistant.llm_backend.requests.post", return_value=mock_response) as mock_post:
-            _run(proc._call_ollama_text("prompt"))
-            _, kwargs = mock_post.call_args
-            self.assertEqual(kwargs["timeout"], OLLAMA_TIMEOUT)
+        proc.timeout = 200
+        self.assertEqual(proc._timeout, 200)
+        self.assertEqual(proc.backend.timeout, 200)
 
     def test_min_timeout_boundary(self):
         proc = self._make_processor(timeout=10)
@@ -114,24 +117,40 @@ class TestImageProcessorErrorHandling(unittest.TestCase):
         )
 
     def test_connection_error_returns_empty(self):
-        import requests
         proc = self._make_processor()
-        with patch(
-            "custom_components.gaming_assistant.llm_backend.requests.post",
-            side_effect=requests.exceptions.ConnectionError("refused"),
-        ):
-            result = _run(proc._call_ollama("prompt", "img"))
-            self.assertEqual(result, "")
+
+        mock_session = AsyncMock(spec=aiohttp.ClientSession)
+        mock_session.closed = False
+
+        async def _raise_conn(*a, **kw):
+            raise aiohttp.ClientConnectionError("refused")
+
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__ = _raise_conn
+        mock_ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_session.post = MagicMock(return_value=mock_ctx)
+        proc.backend._session = mock_session
+
+        result = _run(proc._call_ollama("prompt", "img"))
+        self.assertEqual(result, "")
 
     def test_timeout_retries_then_fails(self):
-        import requests
         proc = self._make_processor()
-        with patch(
-            "custom_components.gaming_assistant.llm_backend.requests.post",
-            side_effect=requests.exceptions.Timeout("timed out"),
-        ):
-            result = _run(proc._call_ollama("prompt", "img"))
-            self.assertEqual(result, "")
+
+        mock_session = AsyncMock(spec=aiohttp.ClientSession)
+        mock_session.closed = False
+
+        async def _raise_timeout(*a, **kw):
+            raise asyncio.TimeoutError()
+
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__ = _raise_timeout
+        mock_ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_session.post = MagicMock(return_value=mock_ctx)
+        proc.backend._session = mock_session
+
+        result = _run(proc._call_ollama("prompt", "img"))
+        self.assertEqual(result, "")
 
 
 class TestImageProcessorBackendSwap(unittest.TestCase):
@@ -165,6 +184,26 @@ class TestImageProcessorBackendSwap(unittest.TestCase):
         proc.backend = new_backend
         self.assertEqual(proc.backend.backend_type, "openai")
         self.assertEqual(proc.backend.model, "gpt-4o")
+
+
+class TestPerceptualHash(unittest.TestCase):
+    """Tests for perceptual hash and caching."""
+
+    def test_phash_returns_int(self):
+        # Test with a minimal valid image (1x1 JPEG)
+        phash = ImageProcessor._compute_phash(b"\xff\xd8\xff\xe0invalid")
+        self.assertIsInstance(phash, int)
+
+    def test_phash_deterministic(self):
+        data = b"test image data"
+        h1 = ImageProcessor._compute_phash(data)
+        h2 = ImageProcessor._compute_phash(data)
+        self.assertEqual(h1, h2)
+
+    def test_hamming_distance(self):
+        self.assertEqual(ImageProcessor._hamming_distance(0b1010, 0b1010), 0)
+        self.assertEqual(ImageProcessor._hamming_distance(0b1010, 0b0101), 4)
+        self.assertEqual(ImageProcessor._hamming_distance(0b1111, 0b1110), 1)
 
 
 if __name__ == "__main__":

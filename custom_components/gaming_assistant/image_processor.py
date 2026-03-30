@@ -6,6 +6,7 @@ import base64
 import hashlib
 import io
 import logging
+import time
 
 from .const import (
     HISTORY_CONTEXT_SIZE,
@@ -22,23 +23,44 @@ from .spoiler import SpoilerManager
 
 _LOGGER = logging.getLogger(__name__)
 
+# LLM response cache: reuse tip when game state changed < 5%
+_CACHE_SIMILARITY_THRESHOLD = 0.05  # 5% change threshold
+_CACHE_MAX_AGE = 120  # seconds
+
+
+class _CachedResponse:
+    """Cached LLM response with metadata for similarity-based reuse."""
+
+    __slots__ = ("tip", "image_phash", "state_keys", "timestamp")
+
+    def __init__(self, tip: str, image_phash: int, state_keys: frozenset[tuple[str, str]]) -> None:
+        self.tip = tip
+        self.image_phash = image_phash
+        self.state_keys = state_keys
+        self.timestamp = time.monotonic()
+
+    @property
+    def age(self) -> float:
+        return time.monotonic() - self.timestamp
+
 
 class ImageProcessor:
     """Central image processing pipeline.
 
     Pipeline:
     1. Receive image (JPEG bytes)
-    2. Compute hash
+    2. Compute perceptual hash (pHash) + content hash
     3. Check deduplication (via HistoryManager)
     4. Game detection (via metadata)
-    5. Load spoiler settings
-    6. Load history
-    7. Build prompt (with state context)
-    8. Downscale image if needed
-    9. LLM call (image + prompt) via pluggable backend
-    10. Store in history
-    11. Extract game state observations
-    12. Return tip
+    5. Check LLM cache (state similarity)
+    6. Load spoiler settings
+    7. Load history
+    8. Build prompt (with state context)
+    9. Downscale + compress image (WebP when supported)
+    10. LLM call (image + prompt) via pluggable backend
+    11. Store in history + cache
+    12. Extract game state observations
+    13. Return tip
     """
 
     def __init__(
@@ -73,17 +95,49 @@ class ImageProcessor:
                 timeout=self._timeout,
             )
 
+        # Per-game LLM response cache
+        self._cache: dict[str, _CachedResponse] = {}
+
         if self._compact:
             _LOGGER.info(
                 "Small model detected (%s) — using compact prompts", model
             )
 
     @staticmethod
-    def _downscale_image(image_bytes: bytes) -> bytes:
-        """Downscale image if it exceeds IMAGE_MAX_DIMENSION on any side.
+    def _compute_phash(image_bytes: bytes) -> int:
+        """Compute a perceptual hash (pHash) of the image.
 
-        Returns the original bytes if already within limits or if
-        Pillow is unavailable (should not happen inside HA).
+        Uses average hash as a fast approximation of pHash.
+        Falls back to MD5-based int if Pillow is unavailable.
+        """
+        try:
+            from PIL import Image
+        except ImportError:
+            return int(hashlib.md5(image_bytes).hexdigest()[:16], 16)
+
+        try:
+            img = Image.open(io.BytesIO(image_bytes)).convert("L")
+            img = img.resize((8, 8), Image.LANCZOS)
+            pixels = list(img.getdata())
+            avg = sum(pixels) / len(pixels)
+            bits = 0
+            for px in pixels:
+                bits = (bits << 1) | (1 if px >= avg else 0)
+            return bits
+        except Exception:
+            return int(hashlib.md5(image_bytes).hexdigest()[:16], 16)
+
+    @staticmethod
+    def _hamming_distance(h1: int, h2: int) -> int:
+        """Count differing bits between two hashes."""
+        return bin(h1 ^ h2).count("1")
+
+    @staticmethod
+    def _downscale_image(image_bytes: bytes) -> bytes:
+        """Downscale and compress image for LLM.
+
+        Uses WebP format when Pillow supports it (smaller than JPEG at same quality),
+        falling back to JPEG otherwise.
         """
         try:
             from PIL import Image
@@ -96,22 +150,78 @@ class ImageProcessor:
             return image_bytes  # Not a valid image — let LLM deal with it
 
         w, h = img.size
-        if w <= IMAGE_MAX_DIMENSION and h <= IMAGE_MAX_DIMENSION:
+        needs_resize = w > IMAGE_MAX_DIMENSION or h > IMAGE_MAX_DIMENSION
+
+        if not needs_resize and len(image_bytes) < 500_000:
             return image_bytes
 
-        # Calculate new size preserving aspect ratio
-        scale = IMAGE_MAX_DIMENSION / max(w, h)
-        new_w, new_h = int(w * scale), int(h * scale)
+        if needs_resize:
+            scale = IMAGE_MAX_DIMENSION / max(w, h)
+            new_w, new_h = int(w * scale), int(h * scale)
+            img = img.resize((new_w, new_h), Image.LANCZOS)
+        else:
+            new_w, new_h = w, h
 
-        img = img.resize((new_w, new_h), Image.LANCZOS)
+        # Try WebP first (better compression), fall back to JPEG
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=IMAGE_DOWNSCALE_QUALITY)
+        try:
+            img.save(buf, format="WEBP", quality=IMAGE_DOWNSCALE_QUALITY)
+            fmt = "WebP"
+        except Exception:
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=IMAGE_DOWNSCALE_QUALITY)
+            fmt = "JPEG"
+
         result = buf.getvalue()
         _LOGGER.debug(
-            "Image downscaled: %dx%d → %dx%d (%d → %d bytes)",
-            w, h, new_w, new_h, len(image_bytes), len(result),
+            "Image optimized (%s): %dx%d → %dx%d (%d → %d bytes)",
+            fmt, w, h, new_w, new_h, len(image_bytes), len(result),
         )
         return result
+
+    def _check_cache(self, game: str, phash: int) -> str | None:
+        """Check if a cached response is still valid for this game state.
+
+        Returns the cached tip if the game state changed less than the
+        similarity threshold, or None if a fresh LLM call is needed.
+        """
+        cached = self._cache.get(game)
+        if cached is None:
+            return None
+
+        # Expire old cache entries
+        if cached.age > _CACHE_MAX_AGE:
+            del self._cache[game]
+            return None
+
+        # Check perceptual image similarity (hamming distance < 5 = very similar)
+        if self._hamming_distance(cached.image_phash, phash) > 5:
+            return None
+
+        # Check game state similarity
+        if self._game_state and game:
+            current = self._game_state.get_current(game) or {}
+            current_keys = frozenset(
+                (str(k), str(v)) for k, v in current.items()
+            )
+            if cached.state_keys:
+                total = max(len(current_keys | cached.state_keys), 1)
+                changed = len(current_keys ^ cached.state_keys)
+                if changed / total > _CACHE_SIMILARITY_THRESHOLD:
+                    return None
+
+        _LOGGER.debug("LLM cache hit for %s (age=%.0fs)", game, cached.age)
+        return cached.tip
+
+    def _update_cache(self, game: str, tip: str, phash: int) -> None:
+        """Store a response in the cache."""
+        state_keys: frozenset[tuple[str, str]] = frozenset()
+        if self._game_state and game:
+            current = self._game_state.get_current(game) or {}
+            state_keys = frozenset(
+                (str(k), str(v)) for k, v in current.items()
+            )
+        self._cache[game] = _CachedResponse(tip, phash, state_keys)
 
     @property
     def timeout(self) -> int:
@@ -131,6 +241,7 @@ class ImageProcessor:
     def backend(self, value: LLMBackend) -> None:
         """Swap the LLM backend at runtime."""
         self._backend = value
+        self._cache.clear()  # Invalidate cache when backend changes
         _LOGGER.info("LLM backend changed to: %s (%s)", value.backend_type, value.model)
 
     async def process(
@@ -142,8 +253,9 @@ class ImageProcessor:
         """Run the full image processing pipeline. Returns the tip string."""
         metadata = metadata or {}
 
-        # 1. Compute hash
+        # 1. Compute hashes
         image_hash = hashlib.md5(image_bytes).hexdigest()
+        image_phash = self._compute_phash(image_bytes)
 
         # 2. Extract game info from metadata
         game = metadata.get("window_title", "") or metadata.get("game", "")
@@ -165,22 +277,27 @@ class ImageProcessor:
                 if prompt_pack.get("spoiler_defaults"):
                     self._spoiler.apply_pack_defaults(game, prompt_pack["spoiler_defaults"])
 
-        # 5. Load spoiler settings
+        # 5. Check LLM cache (game state similarity)
+        cached_tip = self._check_cache(game, image_phash)
+        if cached_tip:
+            return cached_tip
+
+        # 6. Load spoiler settings
         spoiler_settings = self._spoiler.get_settings(game or None)
         spoiler_block = SpoilerManager.generate_prompt_block(spoiler_settings)
 
-        # 6. Load history
+        # 7. Load history
         recent = await self._history.get_recent(key, HISTORY_CONTEXT_SIZE)
         history_context = HistoryManager.format_for_prompt(recent)
 
-        # 6b. Game state context
+        # 7b. Game state context
         state_context = ""
         if self._game_state and game:
             state_context = self._game_state.format_for_prompt(
                 game, compact=self._compact
             )
 
-        # 7. Build prompt
+        # 8. Build prompt
         prompt = PromptBuilder.build(
             game=game,
             spoiler_block=spoiler_block,
@@ -193,10 +310,10 @@ class ImageProcessor:
             state_context=state_context,
         )
 
-        # 8. Downscale image if needed (saves LLM tokens + speeds up inference)
+        # 9. Downscale + compress image
         llm_image = self._downscale_image(image_bytes)
 
-        # 9. Call LLM backend
+        # 10. Call LLM backend
         image_b64 = base64.b64encode(llm_image).decode("utf-8")
         response = await self._backend.generate(
             prompt, image_b64, max_tokens=OLLAMA_NUM_PREDICT
@@ -206,10 +323,11 @@ class ImageProcessor:
         if not tip:
             return ""
 
-        # 10. Store in history
+        # 11. Store in history + cache
         await self._history.add_entry(game, client_id, image_hash, tip)
+        self._update_cache(game, tip, image_phash)
 
-        # 11. Extract and store game state observations
+        # 12. Extract and store game state observations
         if self._game_state and game:
             observations = extract_observations_from_tip(
                 tip, game, prompt_pack

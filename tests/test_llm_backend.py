@@ -3,7 +3,9 @@
 import asyncio
 import sys
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import aiohttp
 
 # Stub homeassistant before importing our modules
 _HA_MODULES = [
@@ -17,6 +19,7 @@ _HA_MODULES = [
     "homeassistant.helpers",
     "homeassistant.helpers.device_registry",
     "homeassistant.helpers.update_coordinator",
+    "homeassistant.helpers.event",
 ]
 for mod in _HA_MODULES:
     sys.modules.setdefault(mod, MagicMock())
@@ -31,7 +34,24 @@ from custom_components.gaming_assistant.llm_backend import (
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
+def _mock_aiohttp_response(json_data, status=200):
+    """Create a mock aiohttp response context manager."""
+    mock_resp = AsyncMock()
+    mock_resp.status = status
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.json = AsyncMock(return_value=json_data)
+
+    mock_ctx = AsyncMock()
+    mock_ctx.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_ctx.__aexit__ = AsyncMock(return_value=False)
+    return mock_ctx
 
 
 class TestLLMResponse(unittest.TestCase):
@@ -61,69 +81,62 @@ class TestOllamaBackend(unittest.TestCase):
     def test_generate_success(self):
         backend = OllamaBackend(host="http://localhost:11434", model="llava")
 
-        mock_response = MagicMock()
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"response": "A chess tip."}
+        mock_session = AsyncMock(spec=aiohttp.ClientSession)
+        mock_session.closed = False
+        mock_session.post = MagicMock(
+            return_value=_mock_aiohttp_response({"response": "A chess tip."})
+        )
+        backend._session = mock_session
 
-        with patch(
-            "custom_components.gaming_assistant.llm_backend.requests.post",
-            return_value=mock_response,
-        ):
-            result = _run(backend.generate("test prompt", "base64img"))
-            self.assertEqual(result.text, "A chess tip.")
+        result = _run(backend.generate("test prompt", "base64img"))
+        self.assertEqual(result.text, "A chess tip.")
 
     def test_generate_text_only(self):
         backend = OllamaBackend(host="http://localhost:11434", model="llava")
 
-        mock_response = MagicMock()
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"response": "Strategy tip."}
+        mock_session = AsyncMock(spec=aiohttp.ClientSession)
+        mock_session.closed = False
+        mock_session.post = MagicMock(
+            return_value=_mock_aiohttp_response({"response": "Strategy tip."})
+        )
+        backend._session = mock_session
 
-        with patch(
-            "custom_components.gaming_assistant.llm_backend.requests.post",
-            return_value=mock_response,
-        ):
-            result = _run(backend.generate_text("test prompt"))
-            self.assertEqual(result.text, "Strategy tip.")
+        result = _run(backend.generate_text("test prompt"))
+        self.assertEqual(result.text, "Strategy tip.")
 
     def test_connection_error(self):
-        import requests
         backend = OllamaBackend(host="http://localhost:11434", model="llava")
 
-        with patch(
-            "custom_components.gaming_assistant.llm_backend.requests.post",
-            side_effect=requests.exceptions.ConnectionError("refused"),
-        ):
-            result = _run(backend.generate("prompt", "img"))
-            self.assertEqual(result.text, "")
+        mock_session = AsyncMock(spec=aiohttp.ClientSession)
+        mock_session.closed = False
 
-    def test_timeout_retries(self):
-        import requests
-        backend = OllamaBackend(host="http://localhost:11434", model="llava")
+        async def _raise_conn(*a, **kw):
+            raise aiohttp.ClientConnectionError("refused")
 
-        with patch(
-            "custom_components.gaming_assistant.llm_backend.requests.post",
-            side_effect=requests.exceptions.Timeout("timed out"),
-        ):
-            result = _run(backend.generate("prompt", "img"))
-            self.assertEqual(result.text, "")
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__ = _raise_conn
+        mock_ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_session.post = MagicMock(return_value=mock_ctx)
+        backend._session = mock_session
+
+        result = _run(backend.generate("prompt", "img"))
+        self.assertEqual(result.text, "")
 
     def test_list_models(self):
         backend = OllamaBackend(host="http://localhost:11434", model="llava")
 
-        mock_response = MagicMock()
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {
-            "models": [{"name": "llava"}, {"name": "qwen2.5vl"}]
-        }
+        mock_session = AsyncMock(spec=aiohttp.ClientSession)
+        mock_session.closed = False
+        mock_session.get = MagicMock(
+            return_value=_mock_aiohttp_response({
+                "models": [{"name": "llava"}, {"name": "qwen2.5vl"}]
+            })
+        )
+        backend._session = mock_session
 
-        with patch(
-            "custom_components.gaming_assistant.llm_backend.requests.get",
-            return_value=mock_response,
-        ):
-            models = _run(backend.list_models())
-            self.assertIn("llava", models)
-            self.assertIn("qwen2.5vl", models)
+        models = _run(backend.list_models())
+        self.assertIn("llava", models)
+        self.assertIn("qwen2.5vl", models)
 
 
 class TestOpenAIBackend(unittest.TestCase):
@@ -140,25 +153,24 @@ class TestOpenAIBackend(unittest.TestCase):
             host="https://api.openai.com", model="gpt-4o", api_key="test"
         )
 
-        mock_response = MagicMock()
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": "Move knight to f3."}}],
-            "model": "gpt-4o",
-            "usage": {
-                "prompt_tokens": 50,
-                "completion_tokens": 10,
-                "total_tokens": 60,
-            },
-        }
+        mock_session = AsyncMock(spec=aiohttp.ClientSession)
+        mock_session.closed = False
+        mock_session.post = MagicMock(
+            return_value=_mock_aiohttp_response({
+                "choices": [{"message": {"content": "Move knight to f3."}}],
+                "model": "gpt-4o",
+                "usage": {
+                    "prompt_tokens": 50,
+                    "completion_tokens": 10,
+                    "total_tokens": 60,
+                },
+            })
+        )
+        backend._session = mock_session
 
-        with patch(
-            "custom_components.gaming_assistant.llm_backend.requests.post",
-            return_value=mock_response,
-        ):
-            result = _run(backend.generate("test prompt"))
-            self.assertEqual(result.text, "Move knight to f3.")
-            self.assertEqual(result.usage["total_tokens"], 60)
+        result = _run(backend.generate("test prompt"))
+        self.assertEqual(result.text, "Move knight to f3.")
+        self.assertEqual(result.usage["total_tokens"], 60)
 
     def test_image_not_sent_when_disabled(self):
         backend = OpenAICompatibleBackend(
@@ -167,24 +179,10 @@ class TestOpenAIBackend(unittest.TestCase):
             api_key="test",
             allow_images=False,
         )
-
-        mock_response = MagicMock()
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": "Tip"}}],
-            "usage": {},
-        }
-
-        with patch(
-            "custom_components.gaming_assistant.llm_backend.requests.post",
-            return_value=mock_response,
-        ) as mock_post:
-            _run(backend.generate("prompt", "fake_base64_image"))
-            call_payload = mock_post.call_args[1]["json"]
-            # Messages should have only text content, no image
-            content = call_payload["messages"][0]["content"]
-            self.assertEqual(len(content), 1)
-            self.assertEqual(content[0]["type"], "text")
+        messages = backend._build_messages("prompt", "fake_base64_image")
+        content = messages[0]["content"]
+        self.assertEqual(len(content), 1)
+        self.assertEqual(content[0]["type"], "text")
 
     def test_headers_with_api_key(self):
         backend = OpenAICompatibleBackend(
