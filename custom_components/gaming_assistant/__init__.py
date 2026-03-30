@@ -9,6 +9,7 @@ from homeassistant.components import mqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
     CONF_CAMERA_ENTITY,
@@ -90,12 +91,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Fetch available Ollama models for the panel dropdown
         try:
             await coordinator.async_fetch_available_models()
-        except Exception:  # pylint: disable=broad-except
+        except (OSError, TimeoutError):
             _LOGGER.debug("Could not fetch Ollama models on startup")
 
         try:
             await coordinator.async_setup_mqtt()
-        except Exception:  # pylint: disable=broad-except
+        except HomeAssistantError:
             _LOGGER.exception("Failed to set up MQTT subscriptions")
 
         # Start daily history cleanup
@@ -109,7 +110,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             try:
                 await coordinator.async_watch_camera(camera_entity)
                 _LOGGER.info("Auto-started camera watcher for %s", camera_entity)
-            except Exception:  # pylint: disable=broad-except
+            except HomeAssistantError:
                 _LOGGER.exception(
                     "Failed to auto-start camera watcher for %s", camera_entity
                 )
@@ -183,7 +184,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             elif image_base64:
                 try:
                     image_bytes = base64.b64decode(image_base64)
-                except Exception as err:
+                except (ValueError, base64.binascii.Error) as err:
                     _LOGGER.error("Invalid base64 image data: %s", err)
                     return
             else:
@@ -226,7 +227,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             elif image_base64:
                 try:
                     image_bytes = base64.b64decode(image_base64)
-                except Exception as err:
+                except (ValueError, base64.binascii.Error) as err:
                     _LOGGER.error("Invalid base64 image data: %s", err)
                     return
 
@@ -311,7 +312,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
                 image = await async_get_image(hass, entity_id)
                 image_bytes = image.content
-            except Exception as err:
+            except HomeAssistantError as err:
                 _LOGGER.error(
                     "Failed to capture image from %s: %s", entity_id, err
                 )

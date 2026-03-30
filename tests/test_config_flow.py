@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import sys
 import types
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 # -- minimal voluptuous stub --------------------------------------------------
 vol = types.ModuleType("voluptuous")
@@ -40,6 +41,7 @@ helpers_mod = types.ModuleType("homeassistant.helpers")
 er_mod = types.ModuleType("homeassistant.helpers.entity_registry")
 device_registry_mod = types.ModuleType("homeassistant.helpers.device_registry")
 update_coordinator_mod = types.ModuleType("homeassistant.helpers.update_coordinator")
+event_mod = types.ModuleType("homeassistant.helpers.event")
 exceptions_mod = types.ModuleType("homeassistant.exceptions")
 
 
@@ -67,6 +69,7 @@ core_mod.callback = lambda fn: fn
 helpers_mod.entity_registry = er_mod
 device_registry_mod.DeviceInfo = object
 update_coordinator_mod.DataUpdateCoordinator = object
+event_mod.async_track_time_interval = MagicMock()
 exceptions_mod.HomeAssistantError = Exception
 ha_mod.config_entries = config_entries_mod
 ha_mod.core = core_mod
@@ -86,13 +89,22 @@ sys.modules["homeassistant.helpers"] = helpers_mod
 sys.modules["homeassistant.helpers.entity_registry"] = er_mod
 sys.modules["homeassistant.helpers.device_registry"] = device_registry_mod
 sys.modules["homeassistant.helpers.update_coordinator"] = update_coordinator_mod
+sys.modules["homeassistant.helpers.event"] = event_mod
 
 from custom_components.gaming_assistant.config_flow import (
     FALLBACK_MODELS,
     GamingAssistantConfigFlow,
-    _fetch_ollama_models,
+    _fetch_ollama_models_async,
     _schema_model_step,
 )
+
+
+def _run(coro):
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 
 class TestConfigFlowHelpers(unittest.TestCase):
@@ -102,25 +114,54 @@ class TestConfigFlowHelpers(unittest.TestCase):
         model_validator = schema.schema[model_key]
         self.assertIn("qwen2.5vl", model_validator.container)
 
-    @patch("requests.get")
-    def test_fetch_ollama_models_success(self, mock_get):
-        resp = MagicMock()
-        resp.json.return_value = {"models": [{"name": "llava"}, {"name": "qwen2.5vl"}]}
-        mock_get.return_value = resp
-        models = _fetch_ollama_models("http://localhost:11434")
-        self.assertEqual(models, ["llava", "qwen2.5vl"])
+    def test_fetch_ollama_models_success(self):
+        mock_resp = AsyncMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json = AsyncMock(return_value={
+            "models": [{"name": "llava"}, {"name": "qwen2.5vl"}]
+        })
 
-    @patch("requests.get")
-    def test_fetch_ollama_models_empty_fallback(self, mock_get):
-        resp = MagicMock()
-        resp.json.return_value = {"models": []}
-        mock_get.return_value = resp
-        models = _fetch_ollama_models("http://localhost:11434")
-        self.assertEqual(models, FALLBACK_MODELS)
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__ = AsyncMock(return_value=mock_resp)
+        mock_ctx.__aexit__ = AsyncMock(return_value=False)
 
-    @patch("requests.get", side_effect=Exception("nope"))
-    def test_fetch_ollama_models_failure_none(self, _mock_get):
-        self.assertIsNone(_fetch_ollama_models("http://localhost:11434"))
+        mock_session = AsyncMock()
+        mock_session.get = MagicMock(return_value=mock_ctx)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("aiohttp.ClientSession", return_value=mock_session):
+            models = _run(_fetch_ollama_models_async("http://localhost:11434"))
+            self.assertEqual(models, ["llava", "qwen2.5vl"])
+
+    def test_fetch_ollama_models_empty_fallback(self):
+        mock_resp = AsyncMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json = AsyncMock(return_value={"models": []})
+
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__ = AsyncMock(return_value=mock_resp)
+        mock_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        mock_session = AsyncMock()
+        mock_session.get = MagicMock(return_value=mock_ctx)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("aiohttp.ClientSession", return_value=mock_session):
+            models = _run(_fetch_ollama_models_async("http://localhost:11434"))
+            self.assertEqual(models, FALLBACK_MODELS)
+
+    def test_fetch_ollama_models_connection_error_none(self):
+        import aiohttp as _aiohttp
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(side_effect=_aiohttp.ClientConnectionError("nope"))
+        mock_session.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("aiohttp.ClientSession", return_value=mock_session):
+            result = _run(_fetch_ollama_models_async("http://localhost:11434"))
+            self.assertIsNone(result)
 
     def test_get_entities_by_domain_filters_disabled(self):
         flow = GamingAssistantConfigFlow()

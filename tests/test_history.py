@@ -22,6 +22,7 @@ _HA_MODULES = [
     "homeassistant.helpers",
     "homeassistant.helpers.device_registry",
     "homeassistant.helpers.update_coordinator",
+    "homeassistant.helpers.event",
 ]
 for mod in _HA_MODULES:
     sys.modules.setdefault(mod, MagicMock())
