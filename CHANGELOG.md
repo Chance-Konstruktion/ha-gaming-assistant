@@ -2,6 +2,13 @@
 
 All notable changes to the Gaming Assistant for Home Assistant.
 
+## [0.12.1] - 2026-04-05 — "CLI & CI Fixes"
+- **Fixed:** `detect_foreground_app()` in legacy Android worker — shell pipe `|`
+  was passed as a literal subprocess argument instead of being interpreted by a
+  shell, causing foreground app detection to silently fail.
+- **Fixed:** CI workflow now installs `aiohttp` so the test suite can import
+  `llm_backend` (previously all 9 test files failed during collection).
+
 ## [0.12.0] - 2026-03-21 — "Debug Image, Dashboard Fixes & Android Build"
 - **Added:** `image.gaming_assistant_last_frame` entity — shows the last
   received frame from any capture client directly in Home Assistant
