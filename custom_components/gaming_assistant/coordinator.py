@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import time
+from pathlib import Path
 from typing import Any
 
 from datetime import timedelta
@@ -59,7 +60,7 @@ from .history import HistoryManager
 from .image_processor import ImageProcessor
 from .llm_backend import LLMBackend, create_backend, PROVIDER_PRESETS
 from .prompt_builder import PromptBuilder
-from .prompt_packs import PromptPackLoader
+from .prompt_packs import PromptPackLoader, download_prompt_packs
 from .spoiler import SpoilerManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -138,7 +139,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         default_spoiler = config.get(CONF_DEFAULT_SPOILER, DEFAULT_SPOILER_LEVEL)
         self._spoiler.initialize(default_spoiler)
         self._spoiler.load()
-        self._pack_loader = PromptPackLoader()
+        self._packs_cache_dir = Path(
+            hass.config.config_dir
+        ) / "gaming_assistant" / "prompt_packs"
+        self._pack_loader = PromptPackLoader(cache_dir=self._packs_cache_dir)
         self._pack_loader.load_all()
         self._game_state = GameStateManager(hass.config.config_dir)
         # TTS / Announce
