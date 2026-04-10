@@ -29,11 +29,11 @@ class PromptPackLoader:
         self._cache_dir = cache_dir
 
     def _load_from_dir(self, directory: Path) -> int:
-        """Load all JSON packs from a directory. Returns count loaded."""
+        """Load all JSON packs from a directory (recursive). Returns count loaded."""
         count = 0
         if not directory.is_dir():
             return count
-        for path in directory.glob("*.json"):
+        for path in directory.rglob("*.json"):
             if path.name.startswith("_"):
                 continue
             try:
@@ -61,7 +61,7 @@ class PromptPackLoader:
 
         # 2. Fill in from bundled packs (fallback)
         bundled_count = 0
-        for path in _BUNDLED_DIR.glob("*.json"):
+        for path in _BUNDLED_DIR.rglob("*.json"):
             if path.name.startswith("_"):
                 continue
             try:
@@ -125,24 +125,29 @@ async def download_prompt_packs(cache_dir: Path) -> bool:
                     return False
                 data = await resp.read()
 
-        # Extract JSON files from the packs/ directory in the zip
+        # Extract JSON files from the packs/ directory in the zip,
+        # preserving subdirectory structure (base/, cheats/, secrets/, completion/)
         zip_buf = io.BytesIO(data)
         count = 0
         with zipfile.ZipFile(zip_buf) as zf:
             for info in zf.infolist():
-                # Files are in: ha-gaming-assistant-prompts-main/packs/*.json
+                if info.is_dir() or not info.filename.endswith(".json"):
+                    continue
+                # Files are in: ha-gaming-assistant-prompts-main/packs/...
                 parts = info.filename.split("/")
-                if (
-                    len(parts) >= 3
-                    and parts[1] == "packs"
-                    and parts[-1].endswith(".json")
-                    and not info.is_dir()
-                ):
-                    filename = parts[-1]
-                    content = zf.read(info.filename)
-                    target = cache_dir / filename
-                    target.write_bytes(content)
-                    count += 1
+                try:
+                    packs_idx = parts.index("packs")
+                except ValueError:
+                    continue
+                # Relative path after packs/, e.g. "base/elden_ring.json"
+                rel_parts = parts[packs_idx + 1:]
+                if not rel_parts or rel_parts[-1].startswith("_"):
+                    continue
+                rel_path = Path(*rel_parts)
+                target = cache_dir / rel_path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(zf.read(info.filename))
+                count += 1
 
         _LOGGER.info("Downloaded %d prompt packs to %s", count, cache_dir)
         return count > 0
