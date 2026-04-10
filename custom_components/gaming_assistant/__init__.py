@@ -20,6 +20,7 @@ from .const import (
     MAX_IMAGE_BYTES,
 )
 from .coordinator import GamingAssistantCoordinator
+from .prompt_packs import download_prompt_packs
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -88,6 +89,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def _setup_mqtt(_event=None) -> None:
         """Set up MQTT subscriptions once MQTT is ready."""
+        # Download latest prompt packs in the background
+        packs_cache = (
+            Path(hass.config.config_dir) / "gaming_assistant" / "prompt_packs"
+        )
+        try:
+            if await download_prompt_packs(packs_cache):
+                coordinator.pack_loader.reload()
+                _LOGGER.info("Prompt packs updated from GitHub")
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug("Could not update prompt packs, using cached/bundled")
+
         # Fetch available Ollama models for the panel dropdown
         try:
             await coordinator.async_fetch_available_models()
