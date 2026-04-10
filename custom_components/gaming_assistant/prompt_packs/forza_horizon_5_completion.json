@@ -1,0 +1,75 @@
+{
+  "id": "forza_horizon_5_completion",
+  "name": "Forza Horizon 5 - 100% Completion Guide",
+  "type": "completion",
+  "keywords": ["100%", "completion", "Barn Finds", "Accolades", "achievements", "collectibles"],
+  "system_prompt": "DU BIST DER FORZA HORIZON 5 100% COMPLETION COACH. Der Spieler zeigt einen Screenshot — analysiere SOFORT: Accolades-Fortschritt, Car Collection, Festival Playlist Status, Barn Finds Counter, Player House Locations, Story Mission Checkmarks, Online-Rang. Priorisiere: Zeitlich begrenzte Events (Weekly/Daily) > Missable Accolades > Barn Finds (benötigen Billboard-Unlocks) > Photo Challenges > Story-Completion. Wenn Screenshot 'Seasonal Events' zeigt: Sofort auf dessen Ablauf hinweisen. Wenn 'Car Collection' unter 500: Auction House Tipps nennen. Sei brutal effizient — nenne exakte Anforderungen für 100% im Stats-Menü.",
+  "platforms": ["PC", "Xbox Series X/S", "Xbox One", "Xbox Cloud Gaming", "PlayStation 5 (ab Frühling 2025)"],
+  "completion_checklist": {
+    "total_accolades": 2523,
+    "total_achievements": 53,
+    "total_barn_finds": 14,
+    "total_player_houses": 7,
+    "total_fast_travel_boards": 50,
+    "total_experience_boards": 25
+  },
+  "barn_finds": {
+    "description": "14 versteckte Scheunen mit legendären Klassikern. Jede Scheune muss erst durch Radio-Signal oder Accolade-Fortschritt 'aktiviert' werden.",
+    "unlock_prerequisites": [
+      "Jungle Expedition abschließen für Barn Find System",
+      "Optional Accolade 'Lost Barn Find Notes' für spätere Finds"
+    ],
+    "locations": [
+      {"number": 1, "car": "1968 Ford Mustang GT 2+2 Fastback", "area": "Gran Pantano", "landmark": "Südlich des Aerodromo", "hint": "Sumpfgebiet, östlich der Hauptstraße"},
+      {"number": 2, "car": "1991 Jaguar Sport XJR-15", "area": "Tulum", "landmark": "Nordwestlich der Maya-Ruinen", "hint": "Am Strandabschnitt, weiße Lehmwand"},
+      {"number": 3, "car": "1970 Chevrolet Corvette ZR-1", "area": "Cascadas", "landmark": "Wasserfall-Nähe", "hint": "Oben am Hügel hinterm Wasserfall"},
+      {"number": 4, "car": "1969 Chevrolet Camaro Super Sport", "area": "Teotihuacan", "landmark": "Nördlich der Pyramiden", "hint": "Offenes Feld, braune Holzscheune"},
+      {"number": 5, "car": "1962 Ferrari 250 GTO", "area": "Cuatro Colinas", "landmark": "Westlich von Buena Esperanza", "hint": "Bergseite, weiße verlassene Hütte"},
+      {"number": 6, "car": "1986 Ford Escort RS Turbo", "area": "Dunes", "landmark": "Südwestlich Speed Trap", "hint": "Zwischen Sanddünen, Metallhütte"},
+      {"number": 7, "car": "1993 Toyota Supra RZ", "area": "Südwest-Küste", "landmark": "Nähe Playa Azul", "hint": "Küstenstraße, verfallene weiße Scheune"},
+      {"number": 8, "car": "1953 Chevrolet Corvette", "area": "Cordillera", "landmark": "Südlich der Catedral", "hint": "Bergregion, graue Steinhütte"},
+      {"number": 9, "car": "1967 Ford Racing Escort", "area": "Mulegé", "landmark": "Östlich der Stadt", "hint": "Roter Backstein in der Nähe"},
+      {"number": 10, "car": "1968 Dodge Dart Hemi", "area": "Granjas", "landmark": "Nördlich der Farm", "hint": "Rote Scheune zwischen Maisfeldern"},
+      {"number": 11, "car": "1973 Pontiac Firebird Trans Am", "area": "Ek' Balam", "landmark": "Waldgebiet westlich", "hint": "Überwachsen, braune Holzscheune"},
+      {"number": 12, "car": "1989 Ferrari F40 Competizione", "area": "Punta Allen", "landmark": "Südspitze der Halbinsel", "hint": "Strandnähe, weiße Metallscheune"},
+      {"number": 13, "car": "1957 Chevrolet Bel Air", "area": "Tulum Vorort", "landmark": "Westlich von Tulum", "hint": "Sichtbar von der Straße, blaue Scheune"},
+      {"number": 14, "car": "1995 Porsche 911 Carrera 2", "area": "Aerodromo", "landmark": "Flugplatz-Ruinen", "hint": "Nahe kaputter Flugzeughallen"}
+    ],
+    "restoration_time": "Jedes Auto benötigt ~1 Stunde Echtzeit oder 40 Créditos zum Sofort-Ausbau"
+  },
+  "player_houses": [
+    {"name": "Casa Bella", "location": "Mulegé", "price": "Kostenlos", "reward": "Garage-Erweiterung"},
+    {"name": "La Casa Solariega", "location": "Atlantes", "price": "1.5 Mio CR", "reward": "Forzathon Shop"},
+    {"name": "Buena Esperanza", "location": "Cuatro Colinas", "price": "700.000 CR", "reward": "+10% Skill Punkte"},
+    {"name": "Cascadas", "location": "Cascadas", "price": "1.2 Mio CR", "reward": "+2 Garage"},
+    {"name": "Lugar Tranquilo", "location": "Playa Azul", "price": "2.1 Mio CR", "reward": "+3 Garage"},
+    {"name": "Hotel Mirador", "location": "Guanajuato", "price": "2 Mio CR", "reward": "+5 Garage"},
+    {"name": "Lucky 7's Haus", "location": "Ek' Balam", "price": "Secret", "reward": "Legendäres Wheelspin"}
+  ],
+  "expeditions": [
+    {"name": "Tulum Expedition", "unlock": "Story-Start"},
+    {"name": "Baja Expedition", "unlock": "Kapitel 3", "special": "Barn Find System"},
+    {"name": "Guanajuato Expedition", "unlock": "Kapitel 6"},
+    {"name": "Volcán Expedition", "unlock": "Kapitel 9"},
+    {"name": "Canyon Expedition", "unlock": "Kapitel 12"},
+    {"name": "Jungle Expedition", "unlock": "Kapitel 15", "special": "Barn Find Notizen"},
+    {"name": "Finale Expedition", "unlock": "Alle vorherigen", "special": "Hall of Fame"}
+  ],
+  "pr_stunts": {
+    "speed_traps": 35,
+    "danger_signs": 24,
+    "speed_zones": 26,
+    "trailblazers": 17,
+    "drift_zones": 20
+  },
+  "collectibles": {
+    "fast_travel_boards": {"total": 50, "reward": "Fast Travel gratis"},
+    "experience_boards": {"total": 25, "reward": "250.000 XP total"}
+  },
+  "hall_of_fame": {
+    "requirement": "2.000.000 Accolade-Punkte",
+    "rewards": ["Goldtraum-Outfit", "Legendärer Status", "Finale Achievement"]
+  },
+  "weekly_priority": "Seasonal Events sind ZEITLIMITIERT — jede Woche neue. Priorität höchst!",
+  "version": "2026-04-05"
+}

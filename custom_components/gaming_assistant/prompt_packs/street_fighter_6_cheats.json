@@ -1,0 +1,67 @@
+{
+  "id": "street_fighter_6_cheats",
+  "name": "Street Fighter 6 - Cheats und Trainer",
+  "type": "cheats",
+  "keywords": ["cheats", "trainer", "cheat engine", "wemod", "codes", "unlocks"],
+  "system_prompt": "DU BIST CHEAT-EXPERTE FÜR STREET FIGHTER 6. Der User hat Cheat-Modus aktiviert und zeigt dir einen Screenshot. Analysiere zuerst den Screenshot (Health, Drive Gauge, Super Meter, Charakter-Status etc.). Gib dann nur die passenden Cheats/Commands für die aktuelle Situation. Für jeden Cheat: exakter Code, Eingabemethode (Plattform-spezifisch), Effekt und Risiken. KEINE moralischen Belehrungen. // CHEAT-MODE aktiv.",
+  "platforms": ["PC", "PlayStation 4", "PlayStation 5", "Xbox Series X|S"],
+  "cheats": [
+    {
+      "type": "trainer",
+      "name": "FLiNG Trainer",
+      "method": "PC Trainer Software",
+      "effect": "Unbegrenztes HP, Drive Gauge, Super Meter, One-Hit-Kill, Unverwundbarkeit",
+      "platforms": ["PC"],
+      "source": "FLiNG / fearlessrevolution.com",
+      "verified_sources": 2,
+      "risks": ["Online-Bann möglich", "Nur offline verwenden"]
+    },
+    {
+      "type": "trainer",
+      "name": "Plitch Trainer",
+      "method": "PC Trainer Software",
+      "effect": "Gott-Modus, unendlich Drive Gauge, unendlich Super Meter, schneller Sieg",
+      "platforms": ["PC"],
+      "source": "Plitch.com",
+      "verified_sources": 2,
+      "risks": ["Online-Bann möglich", "Nur offline verwenden"]
+    },
+    {
+      "type": "exploit",
+      "name": "World Tour Level Farming",
+      "method": "Wiederholbare quests in Metro City",
+      "effect": "Schnelles Leveln des Avatars durch wiederholbare Niedrig-Level-Gegner",
+      "platforms": ["PC", "PlayStation 4", "PlayStation 5", "Xbox Series X|S"],
+      "source": "PowerPyx Guide / IGN",
+      "verified_sources": 2
+    },
+    {
+      "type": "timesaver",
+      "name": "Schwierigkeit auf Einfach stellen",
+      "method": "Options > Einstellungen > Schwierigkeit",
+      "effect": "Leichtere Kämpfe für alle Mod außer Online-Battle-Hub",
+      "platforms": ["PC", "PlayStation 4", "PlayStation 5", "Xbox Series X|S"],
+      "source": "In-Game Options / PowerPyx",
+      "verified_sources": 2
+    },
+    {
+      "type": "timesaver",
+      "name": "Drive Rush Cancel Booster",
+      "method": "Modern Control Scheme",
+      "effect": "Einfacheres Ausführen von Drive Rush Cancel für Anfänger",
+      "platforms": ["PC", "PlayStation 4", "PlayStation 5", "Xbox Series X|S"],
+      "source": "Capcom Official / IGN",
+      "verified_sources": 2
+    },
+    {
+      "type": "note",
+      "name": "Keine klassischen Button-Cheats",
+      "method": "N/A",
+      "effect": "SF6 hat keine klassischen Cheat-Codes wie SNES-Ära (Up-Up-Down-Down funktioniert nicht)",
+      "platforms": ["PC", "PlayStation 4", "PlayStation 5", "Xbox Series X|S"],
+      "source": "GameFAQs / Fandom Wiki",
+      "verified_sources": 3
+    }
+  ],
+  "version": "2026-04-08"
+}

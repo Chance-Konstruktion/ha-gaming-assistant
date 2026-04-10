@@ -1,0 +1,43 @@
+{
+  "rank": 2,
+  "title": "Super Mario World",
+  "platform": ["SNES"],
+  "year": 1990,
+  "sections": {
+    "cheats": [
+      "Level select: At title screen, hold A + B + X + Y + Left + Right simultaneously.",
+      "Unlock Star Road: Complete level 1-4 without exiting.",
+      "Pause glitch: Press Start + Select to pause mid-jump."
+    ],
+    "builds/guides": [
+      "Yoshi's Island: Get Yoshi first for easier navigation.",
+      "Found路径: Collect all 96 exits for true ending.",
+      "Special Zone: Available after defeating Bowser.",
+      "Power-ups: Cape Feather is most versatile power-up."
+    ],
+    "bosses": [
+      "Bowser (Castle 8) - Hit back his fireballs with cape.",
+      "Iggy Koopa (Castle 1) - Jump on or cape spin.",
+      "Roy Koopa (Castle 2) - Wait for piranha to retract.",
+      "Wendy Koopa (Castle 3) - Jump over ring and attack.",
+      "Larry Koopa (Castle 4) - Use power-ups effectively.",
+      "Morton Koopa (Castle 5) - Ground pound the bridge.",
+      "Lemmy Koopa (Castle 6) - Hit all balls simultaneously.",
+      "Ludwig von Koopa (Castle 7) - Use cape to deflect fire."
+    ],
+    "secrets": [
+      "Star Road: 5 hidden levels with special exits.",
+      "Special Zone: 4 difficult bonus levels.",
+      "Hidden 1-Up blocks: Yellow ! blocks above certain coins.",
+      "Flame ghost ride: Stand on platform edge for speed.",
+      "Moon (Secret) - Ride Yoshi into clouds in certain levels."
+    ],
+    "tips": [
+      "Cape Feather makes most levels trivial.",
+      "Use P-switches for hidden areas and 1-Ups.",
+      "Chain chomps: Wait for chain to retract before passing.",
+      "Ghost house exits: Study patterns for faster times.",
+      "Yellow Koopas: Feed to Yoshi for colored eggs."
+    ]
+  }
+}

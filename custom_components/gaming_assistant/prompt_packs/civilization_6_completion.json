@@ -1,0 +1,84 @@
+{
+  "id": "civilization_6_completion",
+  "name": "Sid Meier's Civilization VI - 100% Completion Guide",
+  "type": "completion",
+  "keywords": ["civ 6", "civilization 6", "100%", "completion", "achievements", "victory", "steam", "platinum", "trophy"],
+  "system_prompt": "DU BIST CIVILIZATION 6 COMPLETION-COACH. Der Spieler zeigt dir einen Screenshot – analysiere was noch fehlt für 100% Completion. Civilization VI hat 320 Steam-Achievements (Base: 129, DLC: 103, Rise & Fall: 38, Gathering Storm: 50). Priorisiere TRUE MISSABLES (Multiplayer, Scenarios, Event-based) und Schwierigkeits-Achievements (Deity). Bei Victory-Progress: Prüfe welcher Victory (Science/Culture/Domination/Religious/Diplomatic/Score) am schnellsten mit aktuellem Civ geht. Für fast-complete Screens: Benutze \"1-Turn-Win\" Quick-Save-Strategie (Information Era Start, eigene Regeln). Bei Deity-Runs: Empfiehl \"Local Network Multiplayer\" Trick.",
+  "platforms": ["PC", "PS4", "PS5", "Xbox One", "Xbox Series X|S", "Nintendo Switch"],
+  "completion_guide": {
+    "total_achievements": 320,
+    "breakdown": {
+      "base_game": 129,
+      "dlc_packs": 103,
+      "rise_and_fall": 38,
+      "gathering_storm": 50
+    },
+    "victory_types": [
+      {
+        "name": "Science Victory",
+        "requirements": [
+          "Build Spaceport district",
+          "Launch Earth Satellite project",
+          "Research Satellites → Launch Moon Landing",
+          "Research Nuclear Fusion → Launch Mars Reactor",
+          "Research Robotics → Launch Mars Habitation", 
+          "Research Nanotechnology → Launch Mars Hydroponics",
+          "Gathering Storm: Launch Exoplanet Expedition (50 turns)"
+        ],
+        "best_leaders": ["John Curtin (Australia)", "Saladin (Arabia)", "Seondeok (Korea)"],
+        "achievements": ["Mission to Mars"],
+        "difficulty": "Medium"
+      },
+      {
+        "name": "Culture Victory",
+        "requirements": [
+          "Generate more Foreign Tourists than all opponents' Domestic Tourists",
+          "Build Theatre Squares, Museums, Great Works",
+          "Build Seaside Resorts and National Parks",
+          "Use Rock Bands (late game) for tourism boost"
+        ],
+        "best_leaders": ["Peter (Russia)", "Teddy Roosevelt (America)", "Kupe (Māori)"],
+        "achievements": ["Buying Your Blue Jeans and Listening to Your Pop Music", "Selfie"],
+        "difficulty": "Hard"
+      },
+      {
+        "name": "Domination Victory",
+        "requirements": [
+          "Capture the original Capital of EVERY civilization",
+          "Focus on military tech (Iron Working, Combustion)",
+          "Early aggression pays off"
+        ],
+        "best_leaders": ["Shaka (Zulu)", "Simon Bolivar (Gran Colombia)", "Suleiman (Ottoman)"],
+        "achievements": ["Veni, vidi, vici", "Island Hoping"],
+        "difficulty": "Medium"
+      },
+      {
+        "name": "Religious Victory",
+        "requirements": [
+          "Found a Religion (get Great Prophet via Faith)",
+          "Make your religion predominant in 50%+ of other players' cities",
+          "Use Missionaries (cheap) and Apostles (strong combat)"
+        ],
+        "best_leaders": ["Saladin (Arabia)", "Gandhi (India)", "Dyah Gitarja (Indonesia)"],
+        "achievements": ["Nirvana", "We Are The Champions", "Nobody Expects the Spanish Inquisition"],
+        "difficulty": "Easy-Medium"
+      },
+      {
+        "name": "Diplomatic Victory",
+        "dlc_required": "Gathering Storm",
+        "requirements": [
+          "Accumulate 20 Diplomatic Victory Points",
+          "Sources: World Congress, Aid requests, Diplomatic Favor Wonders (Potala Palace, Statue of Liberty)",
+          "Research Seasteds/Global Warming Mitigation"
+        ],
+        "best_leaders": ["Teddy Roosevelt (America)", "Matthias Corvinus (Hungary)", "Kristina (Sweden)"],
+        "achievements": [],
+        "difficulty": "Medium"
+      },
+      {
+        "name": "Score Victory",
+        "requirements": [
+          "Have highest score when turn limit is reached",
+          "Score factors: Civics, Technologies, Wonders, Population, Religion spread"
+        ],
+        "best

@@ -1,0 +1,121 @@
+{
+  "id": "minecraft_completion",
+  "name": "Minecraft - 100% Completion Guide",
+  "type": "completion",
+  "keywords": ["minecraft", "mc", "100%", "completion", "advancements", "achievements", "biomes", "recipes", "trophy"],
+  "system_prompt": "DU BIST MINECRAFT COMPLETION-COACH. Der Spieler zeigt einen Screenshot – analysiere was noch fehlt für 100% Completion. Minecraft hat 107 Advancements (Java) / 125 Achievements (Bedrock). Prüfe auf: Biome-Erkundung (66+ Biome), Recipe-Book (vollständig), Mob-Kollektion (alle getroffen), Statistiken. Bei naher Completion: Empfiehl fehlende Advancements basierend auf Inventory/Sichtbarem. Für 100% braucht man: Alle Biome, alle Recipes, alle Advancements, alle Pets gezähmt, alle Banner-Muster, vollständige Rüstung-Sets (Diamond + Netherite).",
+  "platforms": ["Java", "Bedrock", "Xbox", "PlayStation", "Nintendo Switch", "Mobile"],
+  "completion_guide": {
+    "advancements": {
+      "java": 107,
+      "bedrock": 125,
+      "categories": ["Mining", "Nether", "The End", "Husbandry", "Adventure", "Redstone"]
+    },
+    "biomes": {
+      "total": 66,
+      "overworld": 60,
+      "nether": 5,
+      "the_end": 1,
+      "key_biomes": [
+        "Mushroom Fields",
+        "Bamboo Jungle",
+        "Ice Spikes",
+        "Badlands/Mesa",
+        "Deep Dark"
+      ]
+    },
+    "recipes": {
+      "total": "500+",
+      "types": ["Crafting", "Smelting", "Brewing", "Smithing", "Stonecutting"]
+    },
+    "major_milestones": [
+      {
+        "name": "Getting an Upgrade",
+        "advancement": "Make stone pickaxe",
+        "difficulty": "Easy",
+        "category": "Mining"
+      },
+      {
+        "name": "Acquire Hardware",
+        "advancement": "Get iron ingot",
+        "difficulty": "Easy",
+        "category": "Mining"
+      },
+      {
+        "name": "Diamonds!",
+        "advancement": "First diamond",
+        "difficulty": "Medium",
+        "category": "Mining"
+      },
+      {
+        "name": "We Need to Go Deeper",
+        "advancement": "Enter Nether portal",
+        "difficulty": "Medium",
+        "category": "Nether"
+      },
+      {
+        "name": "Return to Sender",
+        "advancement": "Kill Ghast with reflected fireball",
+        "difficulty": "Hard",
+        "category": "Nether"
+      },
+      {
+        "name": "Free the End",
+        "advancement": "Kill Ender Dragon",
+        "difficulty": "Hard",
+        "category": "The End"
+      },
+      {
+        "name": "The End... Again...",
+        "advancement": "Respawn Ender Dragon",
+        "difficulty": "Hard",
+        "category": "The End"
+      },
+      {
+        "name": "Cover Me in Debris",
+        "advancement": "Full netherite armor",
+        "difficulty": "Very Hard",
+        "category": "Nether"
+      },
+      {
+        "name": "Adventuring Time",
+        "advancement": "Discover all biomes",
+        "difficulty": "Very Hard",
+        "category": "Adventure"
+      },
+      {
+        "name": "A Balanced Diet",
+        "advancement": "Eat all food types",
+        "difficulty": "Medium",
+        "category": "Husbandry"
+      },
+      {
+        "name": "Two by Two",
+        "advancement": "Breed all animals",
+        "difficulty": "Medium",
+        "category": "Husbandry"
+      },
+      {
+        "name": "How Did We Get Here?",
+        "advancement": "Have all status effects simultaneously",
+        "difficulty": "Very Hard",
+        "category": "Adventure"
+      }
+    ],
+    "difficult_achievements": [
+      "Adventuring Time - Requires exploring rare biomes",
+      "Cover Me in Debris - Ancient Debris is extremely rare",
+      "How Did We Get Here? - Complex potion setup required",
+      "A Complete Catalogue - All 13 music discs (Creeper kill by skeleton)"
+    ],
+    "completion_time": {
+      "casual": "50-100 hours",
+      "dedicated": "200+ hours"
+    }
+  },
+  "version": "2026-04-09",
+  "sources": [
+    "minecraft.fandom.com",
+    "minecraft.wiki"
+  ]
+}

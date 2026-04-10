@@ -1,0 +1,77 @@
+{
+  "id": "baldurs_gate_3_completion",
+  "name": "Baldur's Gate 3 - 100% Completion Guide",
+  "type": "completion",
+  "keywords": ["100%", "completion", "guide", "collectibles", "achievements", "trophies", "origin", "companions"],
+  "system_prompt": "Du bist 100% Completion Coach für Baldur's Gate 3. Zeige exakt was für Platin/alle Achievements fehlt - Companion-Quests, Origin-Charaktere, versteckte Dialoge, missable Content.",
+  "platforms": ["PC", "PS5", "Xbox Series X/S"],
+  "total_achievements": 54,
+  "acts": ["Act 1: Wilderness/Ravaged Beach to Moonrise Towers", "Act 2: Shadow-Cursed Lands/Moonrise to Baldur's Gate", "Act 3: Baldur's Gate City/Downtown to Finale"],
+  "origin_characters": [
+    {"name": "The Dark Urge", "class": "Sorcerer", "special": "Unique Origin-Story, Custom Character"},
+    {"name": "Astarion", "race": "High Elf (Vampire)", "class": "Rogue", "act_1_location": "Ravaged Beach"},
+    {"name": "Gale", "race": "Human", "class": "Wizard", "act_1_location": "Ravaged Beach"},
+    {"name": "Karlach", "race": "Zariel Tiefling", "class": "Barbarian", "act_1_location": "Risen Road"},
+    {"name": "Lae'zel", "race": "Githyanki", "class": "Fighter", "act_1_location": "Tutorial (Prologue)"},
+    {"name": "Shadowheart", "race": "High Half-Elf", "class": "Cleric (Trickery)", "act_1_location": "Tutorial (Prologue)"},
+    {"name": "Wyll", "race": "Human", "class": "Warlock", "act_1_location": "Druids Grove"}
+  ],
+  "optional_companions": [
+    {"name": "Halsin", "race": "Wood Elf", "class": "Druid", "unlock": "Save him in Goblin Camp"},
+    {"name": "Jaheira", "race": "High Half-Elf", "class": "Druid/Fighter", "unlock": "Recruit in Last Light Inn (Act 2)"},
+    {"name": "Minsc", "race": "Human", "class": "Ranger", "unlock": "Rescue in Act 3, requires Jaheira"},
+    {"name": "Minthara", "race": "Drow", "class": "Paladin", "unlock": "Side with Goblins (evil route), missable"}
+  ],
+  "companion_romances": ["Astarion", "Gale", "Karlach", "Lae'zel", "Shadowheart", "Wyll", "Halsin", "Minthara"],
+  "main_quest_chapters": {
+    "act_1": ["Escape the Nautiloid", "Find a Cure", "Save the Tieflings/Goblins", "Reach Moonrise Towers"],
+    "act_2": ["Lift the Shadow Curse", "Infiltrate Moonrise", "Defeat Ketheric Thorm", "Reach Baldur's Gate"],
+    "act_3": ["Navigate the Lower City", "Uncover the Cult", "Defeat the Elder Brain", "Final Choice"]
+  },
+  "origin_achievements": [
+    {"name": "Unlockable Origin", "description": "Complete the game as any Origin character"},
+    {"name": "Forged in Blood and Fire", "description": "Complete as Karlach"},
+    {"name": "The Devil You Know", "description": "Complete as Wyll"},
+    {"name": "She Cannot Be Caged", "description": "Complete as Lae'zel"},
+    {"name": "Heart of Darkness", "description": "Complete as Dark Urge"}
+  ],
+  "key_choices": [
+    {"act": 1, "choice": "Save Tieflings vs Side with Goblins", "impact": "Different companions, story branches"},
+    {"act": 1, "choice": "Halsin alive or dead", "impact": "Companion availability"},
+    {"act": 2, "choice": "Lift curse vs embrace darkness", "impact": "Multiple endings"},
+    {"act": 3, "choice": "Control Elder Brain vs Destroy it", "impact": "Final ending variant"}
+  ],
+  "collectibles": {
+    "camp_supplies": {"total": "Infinite", "use": "Long Rest ohne zu campen"},
+    "gold": {"early": "Pickpocket merchants for thousands"},
+    "legendary_items": [
+      "Blood of Lathander (Secret-Quest Rosymorn Monastery)",
+      "Sword of Justice (Kill Anders or complete quest)",
+      "Gontr Mael (Kill boss in Act 3)",
+      "Markoheshkir (Wizard Tower quest)"
+    ],
+    "hidden_vaults": [
+      "Zhentarim Basement",
+      "Underdark locations",
+      "Grymforge treasure",
+      "Counting House vaults"
+    ]
+  },
+  "missable_content": [
+    "Minthara romance (only if siding with Goblins)",
+    "Jaheira questline (don't kill her)",
+    "Shadowheart companion quest (requires trust)",
+    "Astarion's secret (spare Cazador for full story)",
+    "Gale's condition (feed artifacts or special ending)"
+  ],
+  "tips": [
+    "Save OFTEN - choices lock out content",
+    "Talk to everyone 3+ times - hidden quests",
+    "Steal from merchants via trade interface (bait/swap)",
+    "Carry weight matters - send loot to camp",
+    "Long Rest triggers companion dialogues",
+    "Explore vertically - lots of hidden areas"
+  ],
+  "completion_time": "80-150 hours for 100%",
+  "version": "2026-04-04"
+}

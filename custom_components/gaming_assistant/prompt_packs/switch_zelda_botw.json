@@ -1,0 +1,41 @@
+{
+  "rank": 1,
+  "title": "The Legend of Zelda: Breath of the Wild",
+  "platform": ["Switch"],
+  "year": 2017,
+  "sections": {
+    "cheats": [
+      "No official cheats - game designed for exploration.",
+      "Infinite Items glitch: Duplicate valuable items using save transfers.",
+      "Moon Jump: Place a torch on frozen enemy and jump onto it."
+    ],
+    "builds/guides": [
+      "Early game: Gather materials, complete Great Plateau shrines.",
+      "Armor upgrade priority: Upgrade one set fully before mixing.",
+      "Best weapons: Savage Lynel weapons (30-60 damage) from defeating Lynels.",
+      "Endgame build: Barbarian armor + attack up + fierce deity armor."
+    ],
+    "bosses": [
+      "Vah Ruta (Water Elephant) - Use Cryonis to freeze blue barriers.",
+      "Vah Rudiana (Fire Camel) - Ground-mounted cannon shots.",
+      "Vah Medoh (Flying Bird) - Use updrafts from broken pillars.",
+      "Vah Naboris (Camel) - Ground pound to protect from lightning.",
+      "Calamity Ganon - Four Divine Beasts must be completed first.",
+      "Dark Beast Ganon - Shoot eyes, use Urbosa's Fury at range."
+    ],
+    "secrets": [
+      "Hidden shrine: Qua Raym (Bottom of lake near Great Plateau).",
+      "Mysterious stamp: Stand on shrine symbol at start for secret.",
+      "Korok seeds: 900 total, hidden under leaves, rocks, and patterns.",
+      "Hestu's Gift: Exceed 600 seeds for exclusive Korok mask.",
+      "Amiibo exclusives: Wolf Link, 8-bit Link, Archer Link gear."
+    ],
+    "tips": [
+      "Cook 5 herbs or carrots for full hearts instantly.",
+      "Stasis+ freezes objects in time - great for combat puzzles.",
+      "Weapon durability: Use element weapons for bonus damage.",
+      "Lynel drops highest damage weapons - bring fireproof gear.",
+      "Climb anywhere: stamina management is key early game."
+    ]
+  }
+}

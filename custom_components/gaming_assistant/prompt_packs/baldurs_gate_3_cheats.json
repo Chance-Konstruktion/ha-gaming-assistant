@@ -1,0 +1,215 @@
+{
+  "id": "baldurs_gate_3_cheats",
+  "name": "Baldur's Gate 3 - Cheats & Console Commands",
+  "type": "cheats",
+  "keywords": ["cheats", "console", "commands", "trainer", "mods", "godmode", "infinite"],
+  "system_prompt": "Du bist Cheat-Experte für Baldur's Gate 3. Der User will Cheats, Mods oder Console Commands. Zeige exakte Befehle für Honorable Mode (singleplayer). Warnung: Multiplayer-Cheats können Bans auslösen!",
+  "platforms": ["PC", "PS5", "Xbox Series X/S"],
+  "console_activation": {
+    "method": "ReShade + Script Extender",
+    "steps": [
+      "Download BG3 Script Extender von GitHub",
+      "Entpacke in Bin-Ordner (C:\\Program Files (x86)\\Steam\\steamapps\\common\\Baldurs Gate 3\\bin)",
+      "Starte Spiel via BG3SE_Launcher.exe",
+      "Drücke ` (Backtick) für Console"
+    ],
+    "backup_warning": "IMMER Save-Backup vor Mods/Cheats!"
+  },
+  "console_commands": [
+    {
+      "command": "god",
+      "effect": "God Mode - Unverwundbarkeit",
+      "params": "keine",
+      "toggle": "erneut eingeben zum Aus"
+    },
+    {
+      "command": "infiniteammo",
+      "effect": "Unendlich Pfeile/Wurfwaffen",
+      "params": "keine",
+      "note": "Nur für ranged weapons"
+    },
+    {
+      "command": "exploremap",
+      "effect": "Ganze Karte aufdecken",
+      "params": "keine",
+      "use": "Fog of War entfernen"
+    },
+    {
+      "command": "givegold [amount]",
+      "effect": "Gold hinzufügen",
+      "example": "givegold 10000",
+      "max": "Keine Begrenzung"
+    },
+    {
+      "command": "givexp [character] [amount]",
+      "effect": "XP vergeben",
+      "example": "givexp Player 50000",
+      "note": "Character Name muss exakt sein"
+    },
+    {
+      "command": "teleport [x] [y] [z]",
+      "effect": "Zu Koordinaten teleportieren",
+      "example": "teleport 100 200 50",
+      "warning": "Kann in Wände teleportieren!"
+    },
+    {
+      "command": "additem [item] [amount]",
+      "effect": "Item zum Inventar hinzufügen",
+      "example": "additem POTION_HEALING_GREATER 99",
+      "item_id_source": "data/Localization/English/Items.lsx"
+    },
+    {
+      "command": "setlevel [level]",
+      "effect": "Level direkt setzen",
+      "example": "setlevel 20",
+      "max": "12 (vanilla), 20+ (mods)"
+    },
+    {
+      "command": "heal",
+      "effect": "Vollständige Heilung",
+      "params": "keine",
+      "scope": "Ausgewählter Charakter oder Gruppe"
+    },
+    {
+      "command": "resurrect",
+      "effect": "Toten Charakter wiederbeleben",
+      "params": "keine",
+      "note": "Klick auf Leiche, dann Befehl"
+    },
+    {
+      "command": "kill",
+      "effect": "Ausgewählte Ziele töten",
+      "params": "keine",
+      "warning": "Quest-NPCs können brechen!"
+    },
+    {
+      "command": "setability [stat] [value]",
+      "effect": "Ability Score setzen",
+      "example": "setability Strength 30",
+      "range": "1-30 (max 30)"
+    },
+    {
+      "command": "setskill [skill] [value]",
+      "effect": "Skill Proficiency setzen",
+      "example": "setskill Persuasion 20",
+      "skills": ["Persuasion", "Deception", "Stealth", "Perception", etc.]
+    },
+    {
+      "command": "unlockall",
+      "effect": "Alle Spells freischalten",
+      "params": "keine",
+      "class_any": true
+    },
+    {
+      "command": "rest",
+      "effect": "Sofortiger Long Rest",
+      "params": "keine",
+      "bypass": "Ignoriert Camp Supplies"
+    }
+  ],
+  "item_spawning": {
+    "method": "additem [UUID] [count]",
+    "how_to_find_ids": [
+      "Gib item in Console ein und Tab drücken für Autocomplete",
+      "Oder: Stichwort eingeben, z.B. 'additem sword' + Tab",
+      "Oder: Mod 'ImprovedUI' installieren für ID-Browser"
+    ],
+    "legendary_items": [
+      {"name": "Githyanki Silver Sword", "id": "GTS_Githyanki_Silver_Sword"},
+      {"name": "Sword of Justice", "id": "MAG_Paladin_SwordOfJustice"},
+      {"name": "Mourning Frost", "id": "MAG_Ice_MourningFrost"},
+      {"name": "Gontr Mael", "id": "MAG_Radiant_GontrMael"},
+      {"name": "Blood of Lathandar", "id": "MAG_Radiant_BloodOfLathander"}
+    ]
+  },
+  "mods": [
+    {
+      "name": "BG3 Mod Manager",
+      "function": "Mod-Verwaltung und Load Order",
+      "nexus_id": 1407,
+      "essential": true
+    },
+    {
+      "name": "Script Extender",
+      "function": "Ermöglicht Console Commands",
+      "source": "GitHub - Norbyte",
+      "required": true
+    },
+    {
+      "name": "Toggle Combat",
+      "function": "Kampf jederzeit auslösen/beenden",
+      "nexus_id": 5844
+    },
+    {
+      "name": "Party Limit Begone",
+      "function": "Max 16 statt 4 Begleiter",
+      "nexus_id": 2628
+    },
+    {
+      "name": "Carry Weight Multiplier",
+      "function": "Tragfähigkeit erhöhen",
+      "nexus_id": 389,
+      "configurable": "x2 bis x999"
+    },
+    {
+      "name": "Fast XP",
+      "function": "XP-Multiplikator",
+      "nexus_id": 2127,
+      "options": ["x2", "x5", "x10", "x100"]
+    },
+    {
+      "name": "Respec Anytime",
+      "function": "Respec ohne Withers",
+      "nexus_id": 383,
+      "advantage": "Anywhere, unlimited"
+    },
+    {
+      "name": "Appearance Edit Anytime",
+      "function": "Mirror frei benutzen",
+      "nexus_id": 1308
+    },
+    {
+      "name": "Instant Loot",
+      "function": "Keine Animation beim Looten",
+      "nexus_id": 1922
+    },
+    {
+      "name": "Free Camera",
+      "function": "Kamera komplett frei bewegen",
+      "nexus_id": 347,
+      "use": "Screenshots, Exploration"
+    }
+  ],
+  "save_editing": {
+    "tool": "BG3 Save Editor (lslib)",
+    "location": "%LOCALAPPDATA%\\Larian Studios\\Baldur's Gate 3\\PlayerProfiles\\[Profil]\\Savegames\\Story\\",
+    "features": [
+      "Gold editieren",
+      "Stats ändern",
+      "Items hinzufügen/entfernen",
+      "Quest-Flags setzen",
+      "Companions Position ändern"
+    ],
+    "risk": "Hoch - Kann Save corrupten"
+  },
+  "ultimate_speedrun_strats": [
+    {
+      "name": "Phaere Skip",
+      "method": "Dialog-Stacking um Act 2 Boss zu skippen",
+      "status": "Unpatched (Stand 2026)"
+    },
+    {
+      "name": "Astarion Fly Glitch",
+      "method": "Misty Step + Terrain exploits",
+      "use": "Out of Bounds travel"
+    },
+    {
+      "name": "Endgame Early",
+      "method": "Spezifische Dialog-Sequenz überspringt Kapitel",
+      "note": "Nur für Speedruns"
+    }
+  ],
+  "online_warning": "Cheats in Multiplayer sind VAC-safe? NEIN — andere reporten dich manuell. Cheats NUR im Singleplayer verwenden!",
+  "backup_reminder": "VOR allem: Save-Backup! Larian Patches können Mod-Saves unbrauchbar machen. Du wurdest gewarnt.",
+  "version": "2026-04-04"
+}

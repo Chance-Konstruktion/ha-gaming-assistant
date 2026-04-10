@@ -1,0 +1,53 @@
+{
+  "id": "red_dead_redemption_2_cheats",
+  "name": "Red Dead Redemption 2 - Cheats",
+  "type": "cheats",
+  "keywords": ["cheats", "codes", "exploits", "glitches", "money", "gold", "infinite"],
+  "system_prompt": "DU BIST RED DEAD REDEMPTION 2 EXPERTE. Der Spieler hat Cheat-Modus aktiviert. Analysiere zuerst den aktuellen Screenshot: Wie viel Geld hat Arthur/John ($ oben rechts)? Welche Waffen sind im Wheel? Was ist das Honor-Level? Welches Kapitel läuft gerade (story mission name)? Sei brutale ehrlich: Es gibt KEINE offiziellen Cheat-Codes wie in GTA. Stattdessen zeige ich dir VERIFIZIERTE Exploits und Glitches, mit PATCH-STATUS und WARNUNGEN. Nenne exakt welche Methods für DEINE Plattform/Version funktionieren. ACHTUNG: Cheats/Glitches deaktivieren Achievements/Trophäen. // CHEAT-MODE aktiviert - aber Rockstar hat hier den Safe zugeschweißt.",
+  "platforms": ["PS4", "PS5", "Xbox One", "Xbox Series X/S", "PC", "Stadia"],
+  "cheats": [
+    {
+      "name": "OFFIZIELLE CHEATS",
+      "note": "EXISTIEREN NICHT in Red Dead Redemption 2",
+      "explanation": "Rockstar hat bewusst keine Cheat-Codes implementiert. Keine Telefonnummern, keine Console Commands, keine Button-Kombinationen.",
+      "alternatives": ["Nur Exploits/Glitches", "PC: Trainer (offline only)", "Save-Game-Editoren"]
+    },
+    {
+      "name": "Gold Bar Duplication (PATCHED v1.2+)",
+      "effect": "Unendliche Goldbarren für $500 pro Stück",
+      "locations": ["Limpany Sheriff Office", "Braithwaite Manor"],
+      "method": "Goldbarren aufheben → SPEICHERN → Spiel neustarten → Wiederholen",
+      "patch_status": "PATCHED - Funktioniert nur in ungepatchten Versionen (Disc ohne Updates)",
+      "input_method": "Manueller Speicher-Exploit",
+      "platforms": ["PS4", "Xbox One"],
+      "warning": "Aktualisierte Versionen haben Fix. PC: Save-Editoren als Alternative."
+    },
+    {
+      "name": "Treasure Maps (Legitim)",
+      "effect": "Goldbarren und Geld durch Schatzsuche",
+      "locations": ["Jack Hall Gang", "High Stakes", "Landmark of Riches", "Poisonous Trail"],
+      "method": "Karte finden → Hinweise folgen → Schatz graben",
+      "payout": "1-6 Goldbarren pro Map",
+      "note": "Kein Glitch - normales Gameplay",
+      "platforms": ["PS4", "PS5", "Xbox One", "Xbox Series X/S", "PC", "Stadia"]
+    },
+    {
+      "name": "Legendary Animal Farm",
+      "effect": "Schnelles Geld durch Pelze",
+      "method": "Legendary Animal jagen → Zum Trapper bringen",
+      "payout": "$40-60 pro Legendary Pelt",
+      "respawn": "Speichern & Neuladen aktiviert Respawn",
+      "platforms": ["Alle"]
+    },
+    {
+      "name": "PC Trainer (Offline Only)",
+      "effect": "Unendlich Geld, Munition, God Mode",
+      "tools": ["FLiNG Trainer", "Cheat Engine Tables", "MrAntiFun"],
+      "warning": "NUR OFFLINE. Online führt zu sofortigem Ban durch Rockstar.",
+      "input_method": "PC: F1-F12 Hotkeys im Trainer",
+      "platforms": ["PC"]
+    }
+  ],
+  "patch_note": "Rockstar patcht aktiv bekannte Glitches. Die Goldbarren-Duplikation war der bekannteste und ist seit Patch 1.2 behoben.",
+  "version": "2026-04-05"
+}

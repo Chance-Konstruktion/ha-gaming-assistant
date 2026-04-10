@@ -1,0 +1,77 @@
+{
+  "id": "red_dead_redemption_2_completion",
+  "name": "Red Dead Redemption 2 - 100% Completion Guide",
+  "type": "completion",
+  "keywords": ["100%", "completion", "challenges", "collectibles", "legendary", "stranger missions"],
+  "system_prompt": "DU BIST RDR2 100% COMPLETION EXPERTE. Analysiere Screenshot: Mission Log, Challenge Fortschritt, Collectible-Status, Trapper-Bestand. Zeige EXAKT was fehlt für 100%: ~60-70% Story, ~30% Collectibles/Side Content. Prioritäten: Story Complete → Challenges → Collectibles → Trapper.",
+  "platforms": ["PS4", "PS5", "Xbox One", "Xbox Series X/S", "PC", "Stadia"],
+  "completion_breakdown": {
+    "total_completion": "100%",
+    "categories": [
+      {"name": "Story Missions", "percentage": "~25%", "count": "107 Hauptmissionen"},
+      {"name": "Stranger Missions", "percentage": "~15%", "count": "68+ Nebenmissionen"},
+      {"name": "Challenges", "percentage": "~20%", "count": "90 Challenges (9×10)"},
+      {"name": "Collectibles", "percentage": "~25%", "count": "300+ Items"},
+      {"name": "Miscellaneous", "percentage": "~15%", "includes": ["Gang Hideouts", "Points of Interest", "Unique Items"]}
+    ]
+  },
+  "challenges_90": {
+    "categories": [
+      {"name": "Explorer Challenges", "tasks": 10, "focus": "Treasure Maps & Schätze"},
+      {"name": "Gambler Challenges", "tasks": 10, "focus": "Poker, Blackjack, Dominoes"},
+      {"name": "Herbalist Challenges", "tasks": 10, "focus": "Pflanzen sammeln & Crafting"},
+      {"name": "Horseman Challenges", "tasks": 10, "focus": "Pferde-Tricks & -Fähigkeiten"},
+      {"name": "Master Hunter Challenges", "tasks": 10, "focus": "Jagd & Pelze"},
+      {"name": "Sharpshooter Challenges", "tasks": 10, "focus": "Schuss-Präzision"},
+      {"name": "Survivalist Challenges", "tasks": 10, "focus": "Wildnis-Überleben"},
+      {"name": "Weapons Expert Challenges", "tasks": 10, "focus": "Alle Waffentypen meistern"},
+      {"name": "Bandit Challenges", "tasks": 10, "focus": "Raub & Verbrechen (nur Arthur)"}
+    ],
+    "reward": "Legend of the East Outfit (Arthur) / Legend of the West (John)"
+  },
+  "collectibles": [
+    {"name": "Dinosaur Bones", "count": 30, "reward": "Deutsches Schäferhund", "deborah": "Palmer"},
+    {"name": "Rock Carvings", "count": 10, "reward": "Francis Sinclair Anzug", "collector": "Francis Sinclair"},
+    {"name": "Dreamcatchers", "count": 20, "reward": "Ancient Arrows", "location": "Baum-Kreise"},
+    {"name": "Cigarette Cards", "count": 144, "sets": "12 Sets × 12 Karten", "reward": "100% Completion required"},
+    {"name": "Exotics (Algernon Wasp)", "phases": 5, "items": "Seltene Pflanzen & Federn"},
+    {"name": "Legendary Fish", "count": 14, "requires": "Spezialköder"},
+    {"name": "Legendary Animals", "count": 16, "use": "Trapper Garments"}
+  ],
+  "trapper_outfits": {
+    "sets": 16,
+    "materials": "Legendary + normale Pelze",
+    "best": ["Legend of the East", "Death Roll", "Marino"]
+  },
+  "stranger_missions": {
+    "total": "68+",
+    "notable": ["Los Lobos", "Noblest of Men", "Duchesses", "The American Inferno", "Kieran Duffy", "Charles Châtenay"],
+    "missable": "Einige nur als Arthur oder John verfügbar"
+  },
+  "gang_hideouts": {
+    "count": 6,
+    "locations": ["Thieves Landing", "Fort Mercer (RDR1 throwback)", "Clemens Point", "Shady Belle", "Beaver Hollow", "Mount Hagen"]
+  },
+  "points_of_interest": {
+    "count": 50,
+    "types": ["Städte", "Siedlungen", "Geisterstädte", "Landmarks"]
+  },
+  "shops": {
+    "trappers": "Verschiedene Standorte (kaufen Beläge für Garments)",
+    "general_stores": "Waffen, Vorräte, Kleidung",
+    "gunsmiths": "Waffen-Upgrades, Customization",
+    "barbers": "Haare & Bart (Arthur only)"
+  },
+  "missable_content": [
+    "Arthur's Ending für besten Honor",
+    "Side missions nur als Arthur",
+    "Gang camp interactions (Chapter-specific)",
+    "Unique dialogue pro Chapter"
+  ],
+  "time_estimate": {
+    "story_only": "50-60 Stunden",
+    "100_percent": "150-200 Stunden",
+    "rushed": "100+ Stunden"
+  },
+  "version": "2026-04-05"
+}

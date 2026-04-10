@@ -1,0 +1,103 @@
+{
+  "id": "doom_eternal_completion",
+  "name": "DOOM Eternal - 100% Completion Guide",
+  "type": "completion",
+  "keywords": ["100%", "completion", "collectibles", " praetor suit", "codex", "challenges", "mastery"],
+  "system_prompt": "DU BIST COMPLETION-EXPERTE FÜR DOOM ETERNAL. Analysiere den Screenshot und zeige ALLE fehlenden Collectibles für 100%. Priorität: 1) Praetor Suit Tokens (Upgrades), 2) Codex Entries, 3) Album Covers, 4) Toys, 5) Cheat Codes, 6) Extra Lives. Nenne exakte Fundorte pro Mission. HINWEIS: Einige Collectibles erst nach Rückkehr mit späteren Fähigkeiten (Dash, Double Jump, Super Shotgun-Haken) erreichbar. Markiere diese mit [BACKTRACK NEEDED]. // TRACKING: Gesammelt/Ungeammelt pro Mission.",
+  "platforms": ["PC", "PS4", "PS5", "Xbox One", "Xbox Series X/S", "Nintendo Switch"],
+  "completion_categories": [
+    {
+      "category": "Praetor Suit Points",
+      "total": "16 Tokens / 28 Upgrades",
+      "description": "Praetor Suit Tokens ermöglichen permanente Upgrades (Geldbörse, Erkundung, Umwelt, Meta)",
+      "locations_summary": {
+        "Hell_on_Earth": "4 Tokens",
+        "Exultia": "3 Tokens",
+        "Cultist_Base": "2 Tokens",
+        "Doom_Hunter_Base": "2 Tokens",
+        "Super_Gore_Nest": "1 Token",
+        "ARC_Complex": "2 Tokens",
+        "Mars_Core": "2 Tokens",
+        "Sentinel_Prime": "1 Token",
+        "Taras_Nabad": "2 Tokens",
+        "Nekravol": "2 Tokens",
+        "Urdak": "2 Tokens",
+        "Final_Sin": "1 Token"
+      }
+    },
+    {
+      "category": "Codex Entries",
+      "total": "71 Entries",
+      "description": "Lore-Entries die Story und Welt erklären. Automatisch bei Fortschritt + versteckt in Levels.",
+      "sections": [
+        "Doom Slayer (7)", "Maykr (7)", "Demons (25+)", "Sentinel (8)", "Weapons (8)", "Locations (9)", "Earth (7)"
+      ]
+    },
+    {
+      "category": "Weapon Mastery",
+      "total": "8 Weapons × 2 Mastery-Upgrades",
+      "description": "Jede Waffe hat 2 Mastery-Challenges. MÜSSEN in Kombat geübt werden, nicht automatisch.",
+      "weapons": [
+        {"name": "Combat Shotgun", "challenges": ["50 Staggered Shots", "35 Whiplash eliminations"]},
+        {"name": "Heavy Cannon", "challenges": ["50 AR Scope eliminations", "3 headshots in 5s ×2"]},
+        {"name": "Plasma Rifle", "challenges": ["25 Heat Blast eliminations", "25 Heat Blast supercharged"]},
+        {"name": "Rocket Launcher", "challenges": ["25 Lock-On Burst eliminations", "20 Flak eliminations"]},
+        {"name": "Super Shotgun", "challenges": ["25 Ballista eliminations", "25 Meathook eliminations"]},
+        {"name": "Ballista", "challenges": ["25 Arbalest eliminations", "25 Destroyer Blade eliminations",  "chaingun": {"name": "Chaingun", "challenges": ["25 Energy Shield eliminations", "25 Mobile Turret eliminations"]},
+        {"name": "Chaingun", "challenges": ["25 Energy Shield eliminations", "25 Mobile Turret eliminations"]},
+        {"name": "BFG-9000", "challenges": ["Keine Mastery - seltene Munition"]},
+        {"name": "Unmaykr", "challenges": ["Keine Mastery - Secret Weapon"]}
+      ]
+    },
+    {
+      "category": "Mission Challenges",
+      "total": "13 Missions × 3 Challenges",
+      "description": "Pro Mission 3 optionale Herausforderungen für Extra LP.",
+      "examples": {
+        "Hell_on_Earth": ["Eliminate 5 trembling enemies", "Find Codex: Slayer Undergarb", "Find 1 Secret"],
+        "Cultist_Base": ["Equip Chainsaw", "Kill 5 Cacodemons while they charge", "Find Secret Room"]
+      }
+    },
+    {
+      "category": "Albums (OST)",
+      "total": "9 Hidden Albums",
+      "description": "Classic DOOM Musik-Collector-Items. Spielen retro Soundtracks im Menü.",
+      "locations": ["Heaven's Peak", "Gate Compound", "Utility Room", "Stasis Chamber", "Processing", "Yellow Access", "Taras Nabad", "Nekravol", "Urdak"]
+    },
+    {
+      "category": "Toy Figures",
+      "total": "18 Doom Demon Toys",
+      "description": "Sammelbare Figuren für das Zimmer im Fortress of Doom.",
+      "unlock_shelf": "Complete Fortress of Doom room unlocks"
+    },
+    {
+      "category": "Cheat Codes",
+      "total": "14 Cheat Disks",
+      "description": "Bereits dokumentiert in cheats-JSON. Gehören zu 100%.",
+      "reference": "Siehe doom_eternal_cheats.json"
+    }
+  ],
+  "missables": [
+    "Sentinel Batteries (zurücksetzbar bis Final Sin)",
+    "Runes (alle nach Taras Nabad verfügbar)",
+    "Secret Encounters (einige zeitlich begrenzt in Missionen)"
+  ],
+  "backtrack_requirements": [
+    "Dash Ability (nach Exultia)",
+    "Double Jump (nach Cultist Base)",
+    "Super Shotgun Meathook (nach Doom Hunter Base)",
+    "Ice Bomb / Flame Belch (nach Kreuzfunden)"
+  ],
+  "100_checklist": [
+    "Alle Hauptmissionen auf beliebiger Difficulty",
+    "Alle Praetor Suit Upgrades",
+    "Alle Codex Entries",
+    "Alle Secret Encounters",
+    "Alle Slayer Gates (optional aber empfohlen)",
+    "Alle Mission Challenges",
+    "Alle Cheat Codes",
+    "Alle Albums",
+    "Alle Toys"
+  ],
+  "version": "2026-04-05"
+}

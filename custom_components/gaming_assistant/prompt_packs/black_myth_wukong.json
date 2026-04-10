@@ -1,0 +1,185 @@
+{
+  "rank": 1,
+  "title": "Black Myth: Wukong",
+  "platforms": ["PC", "PS5", "Xbox Series X/S"],
+  "metacritic_score": 81,
+  "last_updated": "2026-03-31",
+  "sections": {
+    "cheats": {
+      "description": "Trainer und Cheats für PC",
+      "items": [
+        {
+          "name": "FLiNG Trainer",
+          "features": [
+            "God Mode / Ignore Hits",
+            "Infinite Health",
+            "Infinite Mana",
+            "Infinite Stamina",
+            "Max Focus",
+            "Infinite Qi",
+            "Max Attack/Defense/Crit Rate",
+            "One Hit Kill",
+            "Super Speed",
+            "Slow Motion"
+          ],
+          "source": "https://flingtrainer.com"
+        },
+        {
+          "name": "TrainersBase",
+          "features": [
+            "35+ Cheat Optionen",
+            "Unendlich Geist (Will)",
+            "Super Angriffsgeschwindigkeit",
+            "Unendlich Gourd (Heiltrank)"
+          ],
+          "source": "https://trainersbase.com"
+        },
+        {
+          "note": "Für PS5 gibt es KEINE nativen Cheats - nur PC-Trainer verfügbar"
+        }
+      ]
+    },
+    "builds": {
+      "description": "Beste Builds und Ausrüstungen",
+      "early_game": [
+        {
+          "name": "Crushing Gale Staff Build",
+          "armor": "Gale Guardian Set (Kapitel 1)",
+          "weapon": "Crushing Gale Staff",
+          "focus": "Hoher Spirit-Skill-Damage",
+          "tips": "Sammle alle Materialien in der Schwarzer Wind Region"
+        }
+      ],
+      "mid_game": [
+        {
+          "name": "Dasheng Set + Golden Loong Staff",
+          "armor": "Gold Exoskeleton Set",
+          "weapon": "Golden Loong Staff",
+          "curios": "Fatal Destruction, Tiger Talisman",
+          "focus": "Balanciertes Spiel mit gutem Crit-Damage"
+        }
+      ],
+      "late_game": [
+        {
+          "name": "Supreme Monkey King Build",
+          "armor": "Gold Suozi Set (Post-Game optional)",
+          "weapon": "Ruyi Jingu Bang Staff (Endboss-Potenzial)",
+          "curios": "Beste Kombination aus Crit-Chance, Will-Regen",
+          "wards": "Willbender Set zur Will-Rückgewinnung"
+        }
+      ],
+      "best_spirits": [
+        "Gold Armored Rhino - Best Defensiv Spirit",
+        "Red Tides - Hoher Serien-Damage",
+        "Azure Dust - AOE Freeze",
+        "Wandering Wight - Starker Smasher"
+      ]
+    },
+    "bosses": {
+      "secret_bosses": [
+        {
+          "name": "Elder Jinchi",
+          "chapter": 1,
+          "location": "Nebenquest - alter Tempel",
+          "reward": "Goldenes Harz, Will-Boost",
+          "hint": "Sprich mit allen NPCs in Kapitel 1"
+        },
+        {
+          "name": "Mad Tiger",
+          "chapter": 2,
+          "location": "Sandgate Village - versteckte Kammer",
+          "reward": "Klaue des Beißers (Upgrade-Material)",
+          "hint": "Erfordert Qi-Transformation um Zugang zu bekommen"
+        },
+        {
+          "name": "Yellow Loong (HP Mechanik Boss)",
+          "chapter": 4,
+          "location": "Das Net aus Seiden",
+          "reward": "Loong Scale für Golden Loong Staff",
+          "hint": "Sehr schwer, empfohlen ab Level 60"
+        },
+        {
+          "name": "Arete of the Holy Mountain",
+          "chapter": 5,
+          "location": "Mount Huaguo Secret",
+          "reward": "Einzigartiges Curio",
+          "hint": "Erfordert New Game+ oder bestimmte Quest-Completion"
+        }
+      ],
+      "hardest_bosses_ranked": [
+        "Bull King (Final) - Hohe HP, zweite Phase brutal",
+        "Tiger Vanguard - Schnell und aggressiv",
+        "Yellow Wind Sage - Special Mechaniken",
+        "Immortal Guardians - Zwei Boss-Kämpfe gleichzeitig"
+      ]
+    },
+    "secrets": {
+      "description": "Versteckte Inhalte und Mechaniken",
+      "items": [
+        {
+          "name": "Vier verzauberte Höfe",
+          "details": "Finde alle 4 versteckten Portale für exklusive Rüstungssets",
+          "chapter": "Kapitel 2-4 verteilt"
+        },
+        {
+          "name": "Schmiede-System",
+          "details": "Nicht alle NPCs schmieden - manche brauchen besondere Materialien die überall versteckt sind",
+          "tips": "Nutze Immobilize Spell auf NPCs um Town zu sichern"
+        },
+        {
+          "name": "Shrine Fast Travel",
+          "details": "Buddha-Statuen als Checkpoints - aber nicht alle sind im Story-Pfad!",
+          "exploration": "Immer in Seitengänge schauen"
+        },
+        {
+          "name": "NPC Quest Chains",
+          "details": "Zhu Bajie, der Schweine-Dämon hat eigene Questline mit Belohnungen",
+          "reward": "Exklusive Transformation"
+        },
+        {
+          "name": "Heiligtümer (Relics)",
+          "details": "6 Holy Relics sammelbar - jeder gibt permanente Stats",
+          "missable": true
+        }
+      ]
+    },
+    "tips": {
+      "startup": [
+        "Sammle ALLE Spirit-Beutel (auch schwache) - piercings stack",
+        "Upgrade deinen Gourd IMMER sofort beim Schmied",
+        "Heilung regeneriert sich NICHT automatisch - Items sparen für Bosskämpfe",
+        "Cool Down Management: Spells haben lange CD - timing ist alles"
+      ],
+      "combat": [
+        "Stance Switching: Heavy/Thrust Stance für Boss-Knockdowns",
+        "Focus Points generieren durch perfektes Dodgen und light attacks",
+        "Transformationen sind Ressourcen - nicht einfach verbrauchen",
+        "Staff Spin (Trie): Perfekt für Projektile und AOE"
+      ],
+      "exploration": [
+        "Keine Minimap - Umgebung merken oder Notizen machen",
+        "Goldene Käfer geben Will-Punkte - ALLE sammeln",
+        "Höhlen haben oft Side-Bosse mit Materialien",
+        "NPCs haben markante Farben - ansprechen!"
+      ],
+      "leveling": [
+        "Will ist XP - beim Sterben verlieren durch Wiederbelebung",
+        "Spark (Skill-Punkte) werden beim Neusetzen zurückerstattet",
+        "Stat-Investition vor Bossen: Will und Focus zuerst"
+      ]
+    },
+    "difficulty": {
+      "rating": "Soulslike - Herausfordernd",
+      "death_penalty": "Verlust von Will-Punkten beim Wiederbeleben",
+      "assist_mode": false,
+      "dlc_difficulty": "Shadow of the Erdtree Level optional"
+    }
+  },
+  "sources": [
+    "https://flingtrainer.com",
+    "https://rockpapershotgun.com",
+    "https://gamingbolt.com",
+    "https://ign.com/wikis",
+    "https://maxroll.gg"
+  ]
+}

@@ -1,0 +1,199 @@
+{
+  "rank": 1,
+  "title": "Counter-Strike 2",
+  "platform": ["PC"],
+  "concurrent_players": 1384702,
+  "sections": {
+    "cheats_console_commands": {
+      "description": "Console commands for Counter-Strike 2",
+      "items": [
+        {
+          "command": "sv_cheats 1",
+          "description": "Aktiviert Cheats (required für alle anderen Befehle)"
+        },
+        {
+          "command": "bot_add",
+          "description": "Fügt einen Bot zur Runde hinzu"
+        },
+        {
+          "command": "bot_kick",
+          "description": "Entfernt alle Bots"
+        },
+        {
+          "command": "give weapon_ak47",
+          "description": "Gibt dir eine AK-47"
+        },
+        {
+          "command": "mp_roundtime 60",
+          "description": "Setzt Rundenzeit auf 60 Minuten"
+        },
+        {
+          "command": "mp_restartgame 1",
+          "description": "Startet das Spiel neu"
+        },
+        {
+          "command": "cl_showfps 1",
+          "description": "Zeigt FPS an"
+        },
+        {
+          "command": "net_graph 1",
+          "description": "Zeigt Netzwerk-Statistiken"
+        },
+        {
+          "command": "r_drawothermodels 2",
+          "description": "Wallhack (nur mit sv_cheats 1)"
+        },
+        {
+          "command": "noclip",
+          "description": "Freier Flug-Modus"
+        },
+        {
+          "command": "god",
+          "description": "Unverwundbar"
+        },
+        {
+          "command": "mat_wireframe 1",
+          "description": "Wireframe-Modus"
+        },
+        {
+          "command": "impulse 101",
+          "description": "Gibt dir $16000"
+        },
+        {
+          "command": "sv_infinite_ammo 1",
+          "description": "Unendlich Munition"
+        },
+        {
+          "command": "fps_max 0",
+          "description": "Entfernt FPS-Limit"
+        }
+      ]
+    },
+    "best_builds": {
+      "description": "Beste Waffen-Setups und Loadouts",
+      "items": [
+        {
+          "category": "Terrorist Side (T)",
+          "builds": [
+            {
+              "name": "AK-47 / M4A4/M4A1-S Standard",
+              "weapons": ["AK-47 (CT: M4A4 oder M4A1-S)", "Kevlar + Helmet", "Defuser (CT)"],
+              "description": "Das klassische Setup. AK-47 ist tödlich mit Headshot, M4 bietet Kontrolle."
+            },
+            {
+              "name": "AWP Sniper",
+              "weapons": ["AWP", "Kevlar + Helmet", "Smoke, Flash, HE Grenade"],
+              "description": "Für aggressive AWPer die Lücken halten und schnelle Picks machen."
+            },
+            {
+              "name": "SMG Rush (Economy Play)",
+              "weapons": ["MAC-10 / MP9", "P90", "Kevlar"],
+              "description": "Günstiges Setup für Force-Buys nach verlorenem Round."
+            }
+          ]
+        },
+        {
+          "category": "Anti-Eco / Full Buy",
+          "builds": [
+            {
+              "name": "Full Utility Setup",
+              "weapons": ["AK-47 / M4", "Kevlar + Helmet", "2x Flash, Smoke, HE/Molotov"],
+              "description": "Maximale Utility für koordinierte Team-Plays."
+            },
+            {
+              "name": "AWP + Support",
+              "weapons": ["AWP (AWP'er)", "M4/AK + Kevlar (Support)", "Smokes für Cover"],
+              "description": "AWP'er hält Pick-Spots, Support spielt dahinter."
+            }
+          ]
+        }
+      ]
+    },
+    "tips": {
+      "description": "Profi-Tipps für Counter-Strike 2",
+      "items": [
+        {
+          "category": "Movement & Positioning",
+          "tip": "Prefire häufig besuchte Ecken - lerne typische Enemy-Positionen"
+        },
+        {
+          "category": "Movement & Positioning",
+          "tip": "Nutze Counter-Strafing für präzise Schüsse - bewege dich in die entgegengesetzte Richtung beim Schießen"
+        },
+        {
+          "category": "Movement & Positioning",
+          "tip": "Crouch-Spamming vermeiden - es macht dich langsam und vorhersehbar"
+        },
+        {
+          "category": "Economy",
+          "tip": "Verliere keine 'Eco-Runden' - spart für Full-Buys wenn möglich"
+        },
+        {
+          "category": "Economy",
+          "tip": "Überlege jeden Kauf - manchmal ist ein Force-Buy mit Pistole + Utility besser als kein Buy"
+        },
+        {
+          "category": "Utility",
+          "tip": "Smoke-Bluffs: Wirf Smokes die Enemy-Sicht zu blocken, nicht nur um dich zu verstecken"
+        },
+        {
+          "category": "Utility",
+          "tip": "Coordinate Flashes mit deinem Team - nutze 'Flash for me' Signale"
+        },
+        {
+          "category": "Aim",
+          "tip": "Übe täglich Aim-Training: HS-Mod, Aim Lab, oder Deathmatch"
+        },
+        {
+          "category": "Aim",
+          "tip": "Headshot-Prio: Ziele immer auf Headhöhe wenn möglich"
+        },
+        {
+          "category": "Teamplay",
+          "tip": "Kommuniziere mit kurzen, präzisen Calls: '2 Middle, A site weak, rush B'"
+        },
+        {
+          "category": "Teamplay",
+          "tip": "Spiele als Team - Solo-Queue erfordert manchmal aggressive Plays um Team zu machen"
+        }
+      ]
+    },
+    "secrets": {
+      "description": "Versteckte Tipps und Easter Eggs",
+      "items": [
+        {
+          "name": "Smoke-Jump",
+          "description": "Du kannst auf Smoke-Granaten springen um erhöhte Positionen zu erreichen (Spot jumps)"
+        },
+        {
+          "name": "Jump-Throw Binding",
+          "description": "Binde '+jump;-attack' für perfekte Jump-Throws: alias +jumpthrow '+jump;-attack'"
+        },
+        {
+          "name": "Buy-Binds",
+          "description": "Setze Buy-Binds für schnelle Käufe: bind 'F1' 'buy ak47; buy m4a1'"
+        },
+        {
+          "name": "Net-Code Optimierung",
+          "description": "cl_interp und cl_interp_ratio für bessere Registration anpassen"
+        },
+        {
+          "name": "Viewmodel-Tricks",
+          "description": "viewmodel_offset für bessere Sicht anpassen: viewmodel_offset_z -2"
+        },
+        {
+          "name": "Radar-Hacks",
+          "description": "cl_radar_always_centered 0 + cl_radar_scale 0.3 für bessere Map-Übersicht"
+        },
+        {
+          "name": "Demo Review",
+          "description": "Nutze demoui command nach dem Match für Tiefenanalyse deiner Deaths"
+        },
+        {
+          "name": "Crosshair-Tuning",
+          "description": "Experimentiere mit cl_crosshairstyle 2 (dynamisch) oder 5 (Ausrichtung an Waffe)"
+        }
+      ]
+    }
+  }
+}

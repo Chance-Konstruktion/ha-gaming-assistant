@@ -1,0 +1,70 @@
+{
+  "id": "street_fighter_6_completion",
+  "name": "Street Fighter 6 - 100% Completion Guide",
+  "type": "completion",
+  "keywords": ["100%", "completion", "achievements", "trophies", "unlockables", "missables"],
+  "system_prompt": "DU BIST 100% COMPLETION COACH FÜR STREET FIGHTER 6. Der Spieler zeigt dir einen Screenshot. Analysiere Achievement-Liste, Fortschrittsbalken, Collectibles-Zähler und Story-Position. Sage sofort, was für 100% noch fehlt, welche Inhalte missable sind und gib konkrete nächste Schritte. Priorisiere: Battle Hub Online-Grind zuerst (zeitintensiv), dann World Tour Story, dann Fighting Ground Training. Hinweis: Keine klassischen Missables, aber einige Trophäen grind-intensiv.",
+  "platforms": ["PC", "PlayStation 4", "PlayStation 5", "Xbox Series X|S"],
+  "total_achievements": 44,
+  "estimated_time": "50-60 Stunden",
+  "difficulty": "Moderat (keine extrem schweren Trophäen wie SF5)",
+  "completion_guide": {
+    "overview": {
+      "fighting_ground": 6,
+      "world_tour": 6,
+      "battle_hub": 31,
+      "secret": 1
+    },
+    "roadmap": [
+      {
+        "step": 1,
+        "name": "Fighting Ground Basics",
+        "achievements": ["Taking Initiative", "Fighters' Codex", "Fighting Fledgling", "Practical Training", "Talent of the Valiant", "The Grand Jeté of 100 Battles"],
+        "time": "2-3 Stunden",
+        "tips": "Tutorial und Character Guides zuerst, dann 100 Kämpfe im Arcade/VS-Modus"
+      },
+      {
+        "step": 2,
+        "name": "World Tour Story Mode",
+        "achievements": ["Actions Speak Louder", "Ha-dough-ken", "Leaving the Nest", "Mastery's Bond", "Neighborhood Peacekeeper", "At Journey's End"],
+        "time": "15-20 Stunden",
+        "missables": "Nein, aber Master-Bonding dauert",
+        "tips": "22 Side Quests sind viel Arbeit. Master Actions durch Geschenke freischalten. Secret Trophy 'At Journey's End' nach Kapitel 15"
+      },
+      {
+        "step": 3,
+        "name": "Battle Hub Grind (Längster Part)",
+        "achievements": ["Let the Praise Become Your Muscle", "Gotta be Popular! Uwo!", "Spirit of Encouragement", "Veteran of Battle", "King of the Ring", "Dominating like a Ninja", "There's Always Time for Training!", "Steely Determination", "Struggle Over Self", "Over the Top Victory", "Fixin' for a Fight", "Extreme Combat Training", "First Encounters", "Becoming the Avatar", "Jungle-Sized Surprise", "Up on the Big Screen", "Ready to Dance?", "Fashion Leader", "Joining the Pack", "My Title, My Life", "Pleased to Meet You!", "Coolheaded Analysis", "Watching Gets Me PUMPED!", "Combat Analysis", "Entranced by Battle", "Classic Leaderboard Champ", "Kickin' it Old School", "Welcome to the Stable", "Gazing at the Peak", "So This is the Battle Hub…", "Get Your Game Face On!"],
+        "time": "30-40 Stunden",
+        "tips": "600 Fans grind-intensiv. 100 Battle Hub Matches dauern. 10 Turniersiege erfordern Skill. Tipp: Extreme Battles nutzen für schnelle Matches"
+      }
+    ],
+    "missables_warning": "Keine klassischen Missables! Story-Fortschritt kann nachträglich gemacht werden. Master-Bonding braucht Zeit, ist aber nicht zeitlich begrenzt.",
+    "difficulty_trophies": [
+      {
+        "name": "Dominating like a Ninja",
+        "requirement": "10 Turniersiege",
+        "difficulty": "Schwer (Online-Skill nötig)"
+      },
+      {
+        "name": "The Struggle Over Self",
+        "requirement": "20 Avatar Battle Siege",
+        "difficulty": "Mittel"
+      },
+      {
+        "name": "Spirit of Encouragement",
+        "requirement": "600 'Nice' Fans",
+        "difficulty": "Sehr grind-intensiv"
+      }
+    ],
+    "quick_tips": [
+      "Modern Controls für einfacheren Einstieg nutzen",
+      "Für Fans-Grind: Andere Profile besuchen und 'Nice' geben (Reciprozierung nutzen)",
+      "Extreme Battles sind schneller als reguläre Matches",
+      "Avatar Battles im Zentrum des Battle Hub finden",
+      "Tournament Mode nur bei Events verfügbar - warten oder aktiv suchen"
+    ]
+  },
+  "version": "2026-04-09",
+  "sources": ["TrueAchievements", "GameRant SF6 Trophy Guide", "official Capcom patch notes"]
+}

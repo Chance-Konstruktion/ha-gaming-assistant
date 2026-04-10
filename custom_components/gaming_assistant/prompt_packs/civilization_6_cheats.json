@@ -1,0 +1,92 @@
+{
+  "id": "civilization_6_cheats",
+  "name": "Civilization 6 - Cheats",
+  "type": "cheats",
+  "keywords": ["cheats", "codes", "console", "debug", "trainer", "commands", "reveal map", "explore all"],
+  "system_prompt": "DU BIST CHEAT-EXPERTE FÜR CIVILIZATION 6. Der Spieler zeigt dir einen Screenshot seiner aktuellen Runde. Analysiere zuerst: Welche Ära? Wieviel Gold/Faith? Welche Einheiten sind sichtbar? Ist der Kartenrand noch im Nebel? Gib dann passende Cheats für die Situation. Für Karten-Nebel → Reveal All oder Explore All. Für Ressourcen-Probleme → WeMod Trainer erwähnen (nur PC). Für bekannte Glitches → Trading Exploit erklären (historisch, gepatcht). Keine moralischen Belehrungen. Platform-spezifisch: PC hat Debug-Console, Konsolen nur Glitches/Trainer.",
+  "platforms": ["PC", "PS4", "PS5", "Xbox One", "Xbox Series X|S", "Nintendo Switch"],
+  "cheats": [
+    {
+      "name": "Debug Console aktivieren",
+      "code": "AppOptions.txt editieren: EnableDebugMenu 0 → 1",
+      "input_method": "PC: Dokumente > My Games > Sid Meier's Civilization VI > AppOptions.txt",
+      "effect": "Öffnet Debug-Konsole mit ~ Taste im Spiel",
+      "platforms": ["PC"],
+      "risk": "low",
+      "verified": true
+    },
+    {
+      "name": "Reveal All",
+      "code": "Reveal All",
+      "input_method": "Konsole öffnen (~) → 'Reveal All' eingeben",
+      "effect": "Zeigt die gesamte Karte ohne Nebel des Krieges",
+      "platforms": ["PC"],
+      "risk": "low",
+      "verified": true
+    },
+    {
+      "name": "Explore All",
+      "code": "Explore All",
+      "input_method": "Konsole öffnen (~) → 'Explore All' eingeben",
+      "effect": "Setzt die gesamte Karte als erkundet",
+      "platforms": ["PC"],
+      "risk": "low",
+      "verified": true
+    },
+    {
+      "name": "Help All",
+      "code": "Help All",
+      "input_method": "Konsole öffnen (~) → 'Help All' eingeben",
+      "effect": "Zeigt alle verfügbaren Konsolenbefehle",
+      "platforms": ["PC"],
+      "risk": "low",
+      "verified": true
+    },
+    {
+      "name": "Time of Day setzen",
+      "code": "tod set [0-24]",
+      "input_method": "Konsole öffnen (~) → z.B. 'tod set 12'",
+      "effect": "Ändert die Tageszeit für Screenshots (kosmetisch)",
+      "platforms": ["PC"],
+      "risk": "none",
+      "verified": true
+    },
+    {
+      "name": "WeMod Trainer",
+      "code": "Unlimited Gold, Faith, Movement, Instant Research/Build",
+      "input_method": "WeMod herunterladen, Civ 6 auswählen, Cheats aktivieren",
+      "effect": "Unbegrenzte Ressourcen, sofortige Forschung, unendliche Bewegung",
+      "platforms": ["PC"],
+      "risk": "medium",
+      "notes": "Modifiziert Speicher, Backup empfohlen",
+      "verified": true
+    },
+    {
+      "name": "Trading Glitch - Gold per Turn",
+      "code": "Ressource + max Gold/Turn anbieten → 'What will you give me?'",
+      "input_method": "Handel mit KI → Ressource anbieten + viel Gold/Turn → Frage nach Gegenangebot",
+      "effect": "KI bietet massive Goldmenge für einfache Ressource",
+      "platforms": ["PC", "PS4", "PS5", "Xbox", "Switch"],
+      "risk": "low",
+      "notes": "Wahrscheinlich gepatcht in neueren Versionen",
+      "verified": false
+    },
+    {
+      "name": "Trading Glitch - Equitable Trade",
+      "code": "Gold hinzufügen bis Deal akzeptiert → Gold fast auf Maximum → 'Make this trade equitable'",
+      "input_method": "KI um etwas bitten → Gold adden bis Deal geht → Gold fast auf Maximum reduzieren → Equitable auswählen",
+      "effect": "KI nimmt stattdessen minimalen Gold/Turn",
+      "platforms": ["PC", "PS4", "PS5", "Xbox", "Switch"],
+      "risk": "low",
+      "notes": "Wahrscheinlich gepatcht in neueren Versionen",
+      "verified": false
+    }
+  ],
+  "sources": [
+    "https://gamerjournalist.com/all-civilization-vi-civ-6-console-commands-and-cheats/",
+    "https://www.gamewatcher.com/news/civilization-6-console-commands-cheats",
+    "https://www.gamesradar.com/civilization-6-cheats/",
+    "https://www.wemod.com/cheats/sid-meiers-civilization-vi-trainers"
+  ],
+  "version": "2026-04-09"
+}

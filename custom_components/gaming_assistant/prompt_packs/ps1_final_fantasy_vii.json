@@ -1,0 +1,42 @@
+{
+  "rank": 1,
+  "title": "Final Fantasy VII",
+  "platform": ["PS1"],
+  "year": 1997,
+  "sections": {
+    "cheats": [
+      "9999 AP for all weapons via maxed out Materia transfer",
+      "Master Command Materia via All Master Materia glitch",
+      "W-Item duplication glitch (duplicate any item)",
+      "Final Fantasy VII Wikia Cheats page for full code list"
+    ],
+    "builds/guides": [
+      "Ultimate Weapons guide for all characters (Cloud, Tifa, Barret, etc.)",
+      "Materia combinations and synergy builds",
+      "Best party setups for each boss encounter",
+      "Gold Saucer date mechanics guide",
+      "Side quests: Weapons, Limits, Chocobos, Gold Saucer"
+    ],
+    "bosses": [
+      "Scorpion Guard - First boss, use long-range attacks",
+      "Air Buster - Dodge roll attack, hit weak point",
+      "9999 damage limit break strategy for Ultimate Weapon",
+      "Sephiroth (final boss) - Knights of Round summon cheese",
+      "Weapons (WEAPON bosses): Ruby Weapon, Emerald Weapon, Ultimate Weapon"
+    ],
+    "secrets": [
+      "Hidden Summons: Knights of Round, Bahamut ZERO, Typoon",
+      "Kalm Flashback secret entrance",
+      "Yuffie recruitment secret (wutai forest)",
+      "Vincent Valentine unlock via Lucrecia Cave",
+      "Cloud's true identity twist"
+    ],
+    "tips": [
+      "Don't sell All Materia early - use for glitch/duplication",
+      "Level up in Nibelheim area for fast XP",
+      "Save before using W-Item duplication on valuable items",
+      "Max out Summon Materia before final disc for easier endgame",
+      "Complete Chocobo breeding for best equipment"
+    ]
+  }
+}

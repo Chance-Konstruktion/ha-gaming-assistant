@@ -1,0 +1,62 @@
+{
+  "id": "age_of_empires_4_completion",
+  "name": "Age of Empires IV - 100% Completion Guide",
+  "type": "completion",
+  "keywords": ["aoe4", "age of empires 4", "100%", "completion", "achievements", "steam", "masteries", "campaigns"],
+  "system_prompt": "DU BIST AGE OF EMPIRES 4 COMPLETION-COACH. Der Spieler zeigt einen Screenshot – analysiere was noch fehlt für 100% Completion. AoE 4 hat 165 Steam-Achievements (89 Base, 20 Anniversary, 21 Sultans Ascend, 15 Knights, 20 Dynasties East). Es gibt 10 Zivilisationen mit je 15 Mastery-Challenges. 4 Kampagnen: Norman, Hundred Years War, Mongol Empire, Rise of Moscow. Zeitaufwand: 45-60 Stunden. Prüfe auf fehlende Campaign-Missions, Masteries, Achievements. DLCs nötig für vollständige Completion.",
+  "platforms": ["PC"],
+  "completion_guide": {
+    "total_achievements": 165,
+    "breakdown": {
+      "base_game": 89,
+      "anniversary_edition": 20,
+      "sultans_ascend": 21,
+      "knights_cross_rose": 15,
+      "dynasties_east": 20
+    },
+    "completion_time": "45-60 hours",
+    "dlc_required": ["The Sultans Ascend", "Knights of Cross and Rose", "Dynasties of the East"],
+    "masteries": {
+      "civilizations": 10,
+      "masteries_per_civ": 15,
+      "total_masteries": 150,
+      "civilizations_list": ["English", "French", "Rus", "Holy Roman Empire", "Mongols", "Chinese", "Delhi Sultanate", "Abbasid Dynasty", "Ottomans", "Malians"],
+      "rewards": ["Portraits", "Sigils", "Monuments", "Historical facts"]
+    },
+    "campaigns": [
+      {
+        "name": "Norman Campaign",
+        "focus": "English",
+        "missions": "Multiple historical battles"
+      },
+      {
+        "name": "The Hundred Years War",
+        "focus": "French",
+        "missions": "Joan of Arc and French history"
+      },
+      {
+        "name": "The Mongol Empire",
+        "focus": "Mongols",
+        "missions": "Genghis Khan campaigns"
+      },
+      {
+        "name": "The Rise of Moscow",
+        "focus": "Rus",
+        "missions": "Russian medieval history"
+      }
+    ],
+    "tips": [
+      "Don't use manual saves during playthrough for proper progress tracking",
+      "Some achievements require specific DLC ownership",
+      "Masteries reward cosmetics only - no gameplay units/unlocks",
+      "Campaign can be played on Easy difficulty for accessibility"
+    ]
+  },
+  "version": "2026-04-09",
+  "sources": [
+    "steamcommunity.com",
+    "ageofempires.fandom.com",
+    "trueachievements.com",
+    "support.ageofempires.com"
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "id": "gta_v_cheats",
+  "name": "Grand Theft Auto V - Cheats",
+  "type": "cheats",
+  "keywords": ["cheats", "codes", "godmode", "money", "weapons", "vehicles", "phone", "pc"],
+  "system_prompt": "DU BIST CHEAT-EXPERTE FÜR GRAND THEFT AUTO V. Der User hat Cheat-Modus aktiviert. Analysiere zuerst den aktuellen Screenshot: Welcher Charakter (Michael/Franklin/Trevor)? Wie viel Geld ($ oben rechts)? Welche Waffen im Wheel? Welches Wanted-Level? Ist der Spieler in einer Mission? Für PC: Cheats werden über die Konsole (~) oder direktes Eintippen aktiviert. Für Konsole (PS/Xbox): Cheats über Telefon-Nummern (eingegeben über das ingame-Handy) oder Controller-Kombinationen. Cheats deaktivieren Trophäen/Achievements für die aktuelle Sitzung. Warne vor Save-Corruption bei Verwendung von Save-Editoren. Gib immer beide Eingabemethoden an (PC-Tastatur & Telefonnummer) – und unterscheide zwischen Story-Modus und GTA Online (Online-Cheats führen zu Bann). // CHEAT-MODE aktiviert – aber verantwortungsvoll nutzen!",
+  "platforms": ["PC", "PS4", "PS5", "Xbox One", "Xbox Series X/S"],
+  "input_methods": {
+    "PC_Keyboard": "Cheats während des Spiels direkt eintippen (ohne Konsole) – z. B. 'PAINKILLER'",
+    "PC_Console": "~ (Tilde) öffnen, 'cheat' gefolgt vom Code",
+    "PlayStation_Xbox": "Telefon-Nummern über das ingame-Handy eingeben (Taste ?)",
+    "Mobile": "Nicht verfügbar (keine mobile Version)"
+  },
+  "warning": "Cheats deaktivieren Erfolge/Trophäen für die aktuelle Sitzung. Speichern vor Cheats empfohlen. Cheats in GTA Online führen zu permanentem Account-Bann!",
+  "cheats_by_category": {
+    "health_armor_money": [
+      {"code": "TURTLE", "effect": "Maximale Gesundheit + Rüstung", "phone": "1-999-887-853", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "PAINKILLER", "effect": "Unsterblichkeit (5 Minuten)", "phone": "1-999-7246-545377", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "HOTHANDS", "effect": "Explosive Faustschläge", "phone": "1-999-4684-2637", "platforms": ["PC", "PS", "Xbox"]}
+    ],
+    "weapons_ammo": [
+      {"code": "TOOLUP", "effect": "Alle Waffen + volle Munition", "phone": "1-999-866-587", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "HIGHEX", "effect": "Feuerwaffen lösen Explosionen aus", "phone": "1-999-444-439", "platforms": ["PC", "PS", "Xbox"]}
+    ],
+    "wanted_level": [
+      {"code": "LAWYERUP", "effect": "Wanted Level löschen", "phone": "1-999-5299-3787", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "FUGITIVE", "effect": "+1 Wanted Level", "phone": "1-999-3844-8483", "platforms": ["PC", "PS", "Xbox"]}
+    ],
+    "player_abilities": [
+      {"code": "CATCHME", "effect": "Super-Sprint (schneller rennen)", "phone": "1-999-228-8463", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "HOPTOIT", "effect": "Super-Sprung (höher springen)", "phone": "1-999-467-8648", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "DEADEYE", "effect": "Zeitlupe beim Zielen", "phone": "1-999-332-3393", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "LIQUOR", "effect": "Betrunken-Modus (wackelige Kamera)", "phone": "1-999-547-861", "platforms": ["PC", "PS", "Xbox"]}
+    ],
+    "vehicles": [
+      {"code": "BUZZOFF", "effect": "Buzzard (Kampfhubschrauber) spawnen", "phone": "1-999-2899-633", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "COMET", "effect": "Comet (Sportwagen) spawnen", "phone": "1-999-266-38", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "RAPIDGT", "effect": "Rapid GT spawnen", "phone": "1-999-727-4348", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "OFFROAD", "effect": "Sanchez (Offroad-Motorrad) spawnen", "phone": "1-999-633-7623", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "BANDIT", "effect": "BMX (Fahrrad) spawnen", "phone": "1-999-226-348", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "ROCKET", "effect": "PCJ-600 (Motorrad) spawnen", "phone": "1-999-762-538", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "VINEWOOD", "effect": "Stretch (Limousine) spawnen", "phone": "1-999-846-39663", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "DEATHCAR", "effect": "Duke O'Death spawnen", "phone": "1-999-3328-4227", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "BUBBLE", "effect": "Kraken (U-Boot) spawnen", "phone": "1-999-282-2537", "platforms": ["PC", "PS", "Xbox"]}
+    ],
+    "world_weather_time": [
+      {"code": "MAKEITRAIN", "effect": "Wetter: Sonnig", "phone": "1-999-625-348-7246", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "CLEARMYELD", "effect": "Wetter: Klar", "phone": "1-999-919-0846", "platforms": ["PC", "PS", "Xbox"]},
+      {"code": "FLOATER", "effect": "Niedrige Schwerkraft", "phone": "1-999-356-2837", "platforms": ["PC", "PS", "Xbox"]}
+    ]
+  },
+  "phone_number_summary": {
+    "health_money": ["1-999-887-853 (TURTLE)", "1-999-7246-545377 (PAINKILLER)", "1-999-4684-2637 (HOTHANDS)"],
+    "weapons": ["1-999-866-587 (TOOLUP)", "1-999-444-439 (HIGHEX)"],
+    "wanted": ["1-999-5299-3787 (LAWYERUP)", "1-999-3844-8483 (FUGITIVE)"],
+    "abilities": ["1-999-228-8463 (CATCHME)", "1-999-467-8648 (HOPTOIT)", "1-999-332-3393 (DEADEYE)", "1-999-547-861 (LIQUOR)"],
+    "vehicles": ["1-999-2899-633 (BUZZOFF)", "1-999-266-38 (COMET)", "1-999-727-4348 (RAPIDGT)", "1-999-633-7623 (OFFROAD)", "1-999-226-348 (BANDIT)", "1-999-762-538 (ROCKET)", "1-999-846-39663 (VINEWOOD)", "1-999-3328-4227 (DEATHCAR)", "1-999-282-2537 (BUBBLE)"],
+    "weather": ["1-999-625-348-7246 (MAKEITRAIN)", "1-999-919-0846 (CLEARMYELD)", "1-999-356-2837 (FLOATER)"]
+  },
+  "online_warning": "Keine Cheats in GTA Online! Jegliche Cheats/Mods führen zu sofortigem permanentem Ban. Diese Cheats gelten NUR für den Story-Modus.",
+  "version": "2026-04-06"
+}

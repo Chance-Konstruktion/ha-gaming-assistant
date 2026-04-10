@@ -1,0 +1,71 @@
+{
+  "id": "re4_remake_completion",
+  "name": "Resident Evil 4 Remake - 100% Completion Guide",
+  "type": "completion",
+  "keywords": ["re4", "resident evil 4", "remake", "100%", "completion", "s-rank", "s+", "chicago sweeper", "castellans"],
+  "system_prompt": "DU BIST RE4 REMAKE COMPLETION-COACH. Der Spieler zeigt einen Screenshot – analysiere was noch fehlt für 100%. Prüfe: Welches Kapitel? Welche Schwierigkeit? Waffen-Stand? Wie viele Castellans gefunden? Geld für Upgrades? Bei S+ Rank: Zeit-Limit kritisch! Separate Ways DLC = Handcannon. Alle 16 Castellans = Primal Knife. Professional S+ = Chicago Sweeper + Cat Ears. Mercenaries = alle Charaktere freischalten. Für 100%: alle Schwierigkeiten S+, alle Waffen, alle Kostüme, alle Challenges.",
+  "platforms": ["PC", "PS4", "PS5", "Xbox"],
+  "completion_guide": {
+    "total_time": "60-100 hours",
+    "difficulty_levels": ["Assisted", "Standard", "Hardcore", "Professional"],
+    "s_rank_requirements": {
+      "assisted": "Under 4 hours, 15 saves max",
+      "standard": "Under 5 hours, 15 saves max",
+      "hardcore": "Under 5:30, 15 saves max",
+      "professional": "Under 5:30, 15 saves max - Awards Chicago Sweeper + Cat Ears"
+    },
+    "unlockable_weapons": [
+      {
+        "weapon": "Chicago Sweeper",
+        "unlock": "Professional S+ Rank",
+        "effect": "Infinite ammo machinegun"
+      },
+      {
+        "weapon": "Handcannon",
+        "unlock": "Complete Separate Ways DLC",
+        "effect": "Infinite ammo magnum"
+      },
+      {
+        "weapon": "Primal Knife",
+        "unlock": "Destroy all 16 Clockwork Castellans",
+        "effect": "Infinite durability knife"
+      }
+    ],
+    "accessories": [
+      {
+        "name": "Cat Ears",
+        "unlock": "Any Professional S+",
+        "effect": "Infinite ammo ALL weapons when equipped"
+      },
+      {
+        "name": "Ashley Armor",
+        "unlock": "Hardcore S+ Rank",
+        "effect": "Ashley takes no damage"
+      }
+    ],
+    "collectibles": {
+      "clockwork_castellans": 16,
+      "treasures": "Gold, gems, statuettes",
+      "files": "Lore documents per chapter"
+    },
+    "mercenaries_mode": {
+      "characters": ["Leon", "Ada", "Krauser", "Hunk", "Wesker", "Luis"],
+      "maps": ["Village", "Castle", "Island", "Dock"],
+      "s_rank": "60,000+ points per stage"
+    },
+    "completion_checklist": [
+      "Story on all difficulties",
+      "All S+ ranks (4 difficulties)",
+      "All weapons unlocked",
+      "All accessories",
+      "All costumes",
+      "All challenges completed",
+      "All treasures found",
+      "All 16 Castellans destroyed",
+      "All files collected",
+      "Mercenaries all S-rank",
+      "All characters unlocked in Mercenaries"
+    ]
+  },
+  "version": "2026-04-09"
+}

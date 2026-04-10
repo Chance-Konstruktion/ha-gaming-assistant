@@ -1,0 +1,39 @@
+{
+  "rank": 1,
+  "title": "Chrono Trigger",
+  "platform": ["SNES"],
+  "year": 1995,
+  "sections": {
+    "cheats": [
+      "Unlimited Mid Tonics: At the Starting Point, press B+A+Right+Y+X until you hear a sound.",
+      "Save anywhere: Enter New Game+ and access the save menu at any point.",
+      "Game Genie codes available for invincibility, infinite items, and more."
+    ],
+    "builds/guides": [
+      "Level up Magic users first (Marle, Lucca) for faster progression.",
+      "Dual/Triple Tech combos: Frog + Lucca = 1000 Water combo; Magus + Frog = Ice Trap.",
+      "Endgame equipment: Use Aeon gear from the Moon and强化装备 for final boss.",
+      "New Game+ recommended for collecting all endings."
+    ],
+    "bosses": [
+      "Lavos (Final Boss) - Multiple phases, use highest level techs.",
+      "Magus (Final Boss variant) - Weak to Lightning, bring Frog.",
+      "Golem (King's Tower) - Thunder element effective.",
+      "Lavos Core - Final form, balance offense and defense."
+    ],
+    "secrets": [
+      "7 different endings based on timing and actions.",
+      "Hidden sidequest: Dream's Sanctuary after defeating Lavos.",
+      "Spekkio gives unlimited MP after defeating all types.",
+      "Dino age Sunken Desert has rare Frog equipment.",
+      "Moon Core contains the strongest weapons and armor."
+    ],
+    "tips": [
+      "Recruit all 7 party members for the best ending.",
+      "Don't sell the Clone and Gate Key - needed for 100% completion.",
+      "Time travel to 65M BC to get the Masa mirror for 230+ damage.",
+      "Frog's Frogcize technique levels up quickly.",
+      "Use Marle's Charm to get rare enemy drops."
+    ]
+  }
+}

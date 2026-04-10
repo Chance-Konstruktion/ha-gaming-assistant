@@ -1,0 +1,40 @@
+{
+  "rank": 2,
+  "title": "Super Mario Odyssey",
+  "platform": ["Switch"],
+  "year": 2017,
+  "sections": {
+    "cheats": [
+      "No official cheats - works with Cappy mechanic.",
+      "Multi-cap throw: Throw cap at multiple enemies in sequence.",
+      "Ground pound cancel: Jump immediately after ground pound input."
+    ],
+    "builds/guides": [
+      "Progression: Collect Power Moons to unlock new kingdoms.",
+      "Cappy combinations: Each capture has unique abilities.",
+      "Endgame: 999 Power Moons and 10000 purple coins for everything.",
+      "Best kingdom order: Cap, Cascade, Sand, Lake, Wood, Lost, Metro, Snow, Seaside, Luncheon, Bowser."
+    ],
+    "bosses": [
+      "Bowser (Metro Kingdom) - Use RC car to hit when he jumps.",
+      "Bowser (Moon Kingdom) - Multi-phase: fireballs, ground pound, final rush.",
+      "Torkdrift (Luncheon) - Grab and throw into volcano.",
+      "Mollusque-Lanceur (Sand Kingdom) - Capture and use drill attack.",
+      "Rango (Metro) - Stealth section, avoid spotlight."
+    ],
+    "secrets": [
+      "Dark Side: 500+ moons unlocks harder version of all kingdoms.",
+      "Moon Rock: 99 moons per kingdom required for Dark Side.",
+      "Hidden Luigi: Appears after collecting 500+ moons.",
+      "8-bit Mario: Hidden in every world, talk to him.",
+      "Forgotten items: Complete story for post-game bonus areas."
+    ],
+    "tips": [
+      "Capture anything: Enemies, objects, vehicles - all unique.",
+      "Purple coins: 100 per world, buy exclusive outfits.",
+      "Wall jumping: Essential for many hidden areas.",
+      "RC Parachute: Hold forward + jump in 2D sections.",
+      "Ground pound after long jump = height gain."
+    ]
+  }
+}

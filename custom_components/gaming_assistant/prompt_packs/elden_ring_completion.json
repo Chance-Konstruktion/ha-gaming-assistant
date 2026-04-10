@@ -1,0 +1,199 @@
+{
+  "id": "elden_ring_completion",
+  "name": "Elden Ring - 100% Completion Guide",
+  "type": "completion",
+  "keywords": ["100%", "completion", "achievements", "trophies", "bosses", "collectibles", "quests", "legendary items"],
+  "system_prompt": "DU BIST 100% COMPLETION COACH FÜR ELDEN RING. Analysiere den Screenshot des Spielers (Status, Map, Inventar, Questlog). Zeige sofort, was für 100% fehlt: Fehlende Great Runes, Remembrances, Legendäre Waffen/Talismane/Zauber, Asche, NPC-Quests, Schrein-Entdeckungen, Boss-Siege. Prioritäten: 1) Missable Quests (z. B. Millicent, Ranni, Goldmask, Dung Eater) – einige schließen andere aus, 2) Legendäre Gegenstände (6 Waffen, 8 Talismane, 7 Zauber, 7 Incantations, 6 Asche), 3) Alle 165 Bosse (davon 12 Hauptstory, 15 Remembrance, Rest optional), 4) Alle 42 Erfolge/Trophäen. Nutze exakte Zahlen und Fundorte. Sei brutal ehrlich, wenn etwas endgültig verpasst wurde (z. B. Bolt of Gransax nach Asche-Kapitel). Verweise auf NG+ bei verpassten Inhalten.",
+  "platforms": ["PC", "PS4", "PS5", "Xbox One", "Xbox Series X/S"],
+  "total_achievements": 42,
+  "completion_categories": {
+    "story_bosses": {
+      "required": true,
+      "count": 12,
+      "list": [
+        "Margit, the Fell Omen (Stormveil)",
+        "Godrick the Grafted (Stormveil)",
+        "Red Wolf of Radagon (Raya Lucaria)",
+        "Rennala, Queen of the Full Moon (Raya Lucaria)",
+        "Starscourge Radahn (Caelid)",
+        "Godfrey, First Elden Lord (Golden Shade – Leyndell)",
+        "Morgott, the Omen King (Leyndell)",
+        "Fire Giant (Mountaintops of the Giants)",
+        "Godskin Duo (Crumbling Farum Azula)",
+        "Maliketh, the Black Blade (Farum Azula)",
+        "Godfrey / Hoarah Loux (Ashen Capital)",
+        "Radagon of the Golden Order / Elden Beast (Erdtree)"
+      ]
+    },
+    "remembrance_bosses": {
+      "required": true,
+      "count": 15,
+      "list": [
+        "Godrick the Grafted",
+        "Rennala",
+        "Starscourge Radahn",
+        "Rykard, Lord of Blasphemy (Mt. Gelmir)",
+        "Morgott",
+        "Mohg, Lord of Blood (Mohgwyn Palace)",
+        "Malenia, Blade of Miquella (Haligtree)",
+        "Maliketh",
+        "Dragonlord Placidusax (Farum Azula)",
+        "Lichdragon Fortissax (Deeproot Depths)",
+        "Fire Giant",
+        "Astel, Naturalborn of the Void (Lake of Rot)",
+        "Elden Beast",
+        "Regal Ancestor Spirit (Nokron)",
+        "Hoarah Loux"
+      ]
+    },
+    "optional_bosses_total": 165,
+    "legendary_arsenal": {
+      "weapons": {
+        "count": 9,
+        "items": [
+          "Grafted Blade Greatsword (Castle Morne)",
+          "Ruins Greatsword (Redmane Castle)",
+          "Starscourge Greatsword (Radahn Remembrance)",
+          "Dark Moon Greatsword (Ranni Quest)",
+          "Eclipse Shotel (Castle Sol)",
+          "Devourer's Scepter (Bernahl Quest – Crumbling Farum Azula)",
+          "Sword of Night and Flame (Caria Manor)",
+          "Golden Order Greatsword (Cave of the Forlorn)",
+          "Marais Executioner's Sword (Shaded Castle)"
+        ],
+        "achievement": "Legendary Armaments"
+      },
+      "talismans": {
+        "count": 8,
+        "items": [
+          "Radagon's Soreseal (Fort Faroth)",
+          "Godfrey Icon (Altus Plateau – Golem)",
+          "Moon of Nokstella (Nokstella – Eternal City)",
+          "Dragoncrest Greatshield Talisman (Elphael – Haligtree)",
+          "Old Lord's Talisman (Crumbling Farum Azula)",
+          "Erdtree's Favor +2 (Ashen Capital – after Maliketh)",
+          "Gold Scarab (Abandoned Cave – Caelid)",
+          "Silver Scarab (Hidden Path to Haligtree – after boss)"
+        ],
+        "achievement": "Legendary Talismans"
+      },
+      "sorceries": {
+        "count": 7,
+        "items": [
+          "Comet Azur (Mt. Gelmir – Primeval Sorcerer Azur)",
+          "Stars of Ruin (Sellia, Town of Sorcery – chest after crystalians)",
+          "Founding Rain of Stars (Heretical Rise – Mt. Gelmir)",
+          "Greyoll's Roar (Dragonbarrow – after Greyoll kill)",
+          "Ranni's Dark Moon (Moonlight Altar – Chelona's Rise puzzle)",
+          "Flame of the Fell God (Giant-Conquering Hero's Grave – after boss)",
+          "Zamor Ice Storm (Giant-Conquering Hero's Grave – before boss)"
+        ],
+        "achievement": "Legendary Sorceries & Incantations"
+      },
+      "incantations": {
+        "count": 7,
+        "items": [
+          "Elden Stars (Deeproot Depths – after Crucible Knight)",
+          "Flame of the Fell God (siehe oben)",
+          "Greyoll's Roar (siehe oben)",
+          "Scarlet Aeonia (Malenia Remembrance)",
+          "Placidusax's Ruin (Placidusax Remembrance)",
+          "Black Blade (Maliketh Remembrance)",
+          "Law of Causality (Roundtable Hold – after giving prayerbook)"
+        ],
+        "achievement": "Legendary Sorceries & Incantations"
+      },
+      "spirit_ashes": {
+        "count": 6,
+        "items": [
+          "Mimic Tear Ashes (Nokron – Night's Sacred Ground)",
+          "Black Knife Tiche (Ranni Quest – Evergaol boss)",
+          "Lhutel the Headless (Tombsward Catacombs – Weeping Peninsula)",
+          "Ancient Dragon Knight Kristoff (Sainted Hero's Grave – Altus)",
+          "Redmane Knight Ogha (War-Dead Catacombs – Caelid)",
+          "Cleanrot Knight Finlay (Elphael – Haligtree)"
+        ],
+        "achievement": "Legendary Spirit Ashes"
+      }
+    },
+    "collectibles": {
+      "golden_seeds": 30,
+      "sacred_tears": 12,
+      "memory_stones": 8,
+      "crystal_tears": 32,
+      "map_fragments": 19,
+      "cookbooks": 59,
+      "sorceries": 70,
+      "incantations": 80,
+      "great_runes": 7,
+      "deathroots": 9,
+      "dragon_hearts": 17
+    },
+    "npc_quests": {
+      "missable": [
+        "Millicent (endet mit Miquella's Needle – wichtig für Frenzied Flame)",
+        "Ranni the Witch (Age of Stars Ending – sehr lang)",
+        "Goldmask & Brother Corhyn (Age of Order Ending – fragiler Questverlauf)",
+        "Dung Eater (Blessing of Despair Ending – kann andere Quests blockieren)",
+        "Fia (Age of Duskborn Ending – nach Lichdragon Fortissax)",
+        "White Mask Varré (früher Zugang zu Mohgwyn – optional)",
+        "Patches (verschwindet nach bestimmten Schritten – Belohnung)",
+        "Blaidd (Teil von Ranni Quest – endet tragisch)",
+        "Alexander (Jar-Bairn – sehr versteckter Endpunkt)",
+        "Sellen (Witchbane Ruins – zwei Enden)",
+        "Corhyn (Goldmask) – leicht zu verpassen"
+      ],
+      "note": "Einige Quests schließen einander aus (z. B. Sellen vs. Jerren; Dung Eater vs. Goldmask). Für 100% (alle Endings) sind mehrere Durchläufe oder Save-Backups nötig."
+    },
+    "endings": {
+      "count": 6,
+      "list": [
+        "Age of Fracture (Standard, no extra rune)",
+        "Age of Stars (Ranni's quest completed)",
+        "Lord of Frenzied Flame (Three Fingers – sperrt andere Endings ohne Miquella's Needle)",
+        "Age of Duskborn (Fia's quest – Mending Rune of the Death-Prince)",
+        "Age of Order (Goldmask's quest – Mending Rune of Perfect Order)",
+        "Blessing of Despair (Dung Eater's quest – Mending Rune of the Fell Curse)"
+      ],
+      "achievement": "Elden Ring (Platinum) requires all 3 base endings (Fracture, Stars, Frenzied Flame) – the other three are additional."
+    }
+  },
+  "checklist_summary": {
+    "story": "Alle 12 Hauptbosskämpfe",
+    "remembrances": "15/15",
+    "optional_bosses": "165 (inkl. alle Dungeon-Bosse, Feldbosse, Weltbosse)",
+    "legendary_weapons": "9/9",
+    "legendary_talismans": "8/8",
+    "legendary_sorceries_incantations": "14/14 (7+7)",
+    "legendary_spirit_ashes": "6/6",
+    "great_runes": "7 (alle aktivieren)",
+    "golden_seeds": "30 (max. 14 Flasks + 12 Upgrades)",
+    "sacred_tears": "12 (max. +12 Potency)",
+    "memory_stones": "8 (max. 10 Spell Slots)",
+    "crystal_tears": "32 (alle Physick-Mischungen)",
+    "map_fragments": "19 (komplette Karte)",
+    "cookbooks": "59 (alle Rezepte)",
+    "sorceries": "70/70",
+    "incantations": "80/80",
+    "deathroots": "9 (Gurranq's rewards)",
+    "dragon_hearts": "17 (alle Drachenzauber bei Kathedrale des Drachenkommunion)"
+  },
+  "missable_content": [
+    "Bolt of Gransax (Legendäre Waffe) – verschwindet nach Asche-Kapitel (Leyndell wird zerstört). Hole es VOR dem Finale von Farum Azula.",
+    "Millicent's Prosthesis (Talisman) – abhängig von Quest-Entscheidung (hilf ihr gegen ihre Schwestern).",
+    "Magic Scorpion Charm (Talisman) – nur erhältlich, wenn du Seluvis' Auftrag ausführst, BEVOR du Rannis Quest abschließt.",
+    "Lionel's Armor Set – verschwindet nach Asche-Kapitel, wenn nicht im Roundtable gekauft.",
+    "All-Knowing Armor Set – nach dem Besiegen von Gideon (Ashen Capital) sofort aufsammeln, sonst weg.",
+    "Zweites Rivers of Blood (Katana) – Okina erscheint nur vor Fire Giant; nach Asche-Kapitel nicht mehr.",
+    "Miquella's Needle (wichtig für Frenzied Flame Umkehr) – nur durch Millicent Quest (nicht missable, aber sehr lang)."
+  ],
+  "tips": [
+    "Sichere vor wichtigen Entscheidungen (Quest-Gabelungen, Endings).",
+    "Nutze die Karte von https://mapgenie.io/elden-ring für alle Collectibles.",
+    "Für Legendäre Waffen/Talismane/etc. reicht es, sie im Inventar zu haben – nicht upgraden.",
+    "Spiele im Offline-Modus für 100%, um Invasionen zu vermeiden.",
+    "Verwende NG+ für verpasste Inhalte (z. B. andere Quest-Zweige).",
+    "Die meisten Boss-Erfolge erfordern nur den Sieg, nicht alle optionalen Bosse – aber für 100% Completion (persönliches Ziel) sind alle 165 empfohlen."
+  ],
+  "version": "2026-04-06"
+}

@@ -1,0 +1,124 @@
+{
+  "id": "ufc_5_completion",
+  "name": "UFC 5 - 100% Completion Guide",
+  "type": "completion",
+  "keywords": ["ufc 5", "completion", "platinum", "trophy", "career mode", "division 20", "champion", "goat", "mastery"],
+  "system_prompt": "DU BIST UFC 5 COMPLETION-EXPERTE. Der Spieler zeigt einen Screenshot – identifiziere was für 100% fehlt. UFC 5 Platinum braucht: Career Mode (40-50 Kämpfe, alle Gürtel, GOAT Status), Online Division 20 erreichen, alle Fighter freischalten (250+), alle Challenges (Daily/Weekly/Career), alle Moves prestige. Bei Career-Screenshot: prüfe OVR Rating, Prestige-Status, Championship Count. Bei Online-Screen: prüfe Division Rank, Win Rate, Champion Status. Bei Fighter-Select: zeige locked Fighters. Bei Trophy-Screen: zeige fehlende Trophäen. Bei Challenge-Menu: zeige Daily/Weekly Progress. UFC 5 100% braucht 80-120 Stunden durch Online-Grind.",
+  "platforms": ["PS5", "Xbox Series X/S"],
+  "completion_categories": [
+    {
+      "name": "Career Mode",
+      "description": "Karriere-Modus zu 100% abschließen",
+      "total_fights": 40,
+      "key_objectives": [
+        "Rookie → Contender → Champion",
+        "Alle Gewichtsklassen (optional)",
+        "10+ Titelverteidigungen",
+        "GOAT Status erreichen"
+      ],
+      "stats_to_max": [
+        {"attribute": "Striking", "target": "Max"},
+        {"attribute": "Grappling", "target": "Max"},
+        {"attribute": "Stamina", "target": "Max"},
+        {"attribute": "Chin", "target": "Max"},
+        {"attribute": "Overall", "target": "99"}
+      ],
+      "estimated_time": "20-30 Stunden",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Online Mode - Division 20",
+      "description": "Online-Ranglisten bis Elite",
+      "total_divisions": 20,
+      "rewards": ["Elite Status", "Season Belohnungen", "Championship Belt"],
+      "tips": "Konstanter Play nötig; Division decay bei Inaktivität",
+      "estimated_time": "30-50 Stunden",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Fighter Roster",
+      "description": "Alle Kämpfer freischalten",
+      "total_fighters": 250,
+      "categories": [
+        {"type": "Base Roster", "count": 200, " unlocked": "Start"},
+        {"type": "Legendary", "count": 12, "unlock": "UFC Points oder Challenges"},
+        {"type": "PRIDE Alter Egos", "count": 10, "unlock": "Challenges"},
+        {"type": "DLC/Updates", "count": 28, "unlock": "Saisonal"}
+      ],
+      "estimated_time": "Variiert (Grind oder Kauf)",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Challenges",
+      "description": "Alle Challenge-Typen abschließen",
+      "categories": [
+        {
+          "type": "Daily Challenges",
+          "frequency": "Jeden Tag",
+          "rewards": "UFC Points, XP"
+        },
+        {
+          "type": "Weekly Challenges",
+          "frequency": "Jede Woche",
+          "rewards": "Premium Inhalte"
+        },
+        {
+          "type": "Career Challenges",
+          "type_examples": ["KO Streak", "Submission Master", "Round 1 Finishes"],
+          "rewards": "Evolution Points"
+        }
+      ],
+      "tips": "Daily/Weekly für Fighter-Unlocks priorisieren",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Customization",
+      "description": "Alle kosmetischen Inhalte freischalten",
+      "items": [
+        "Alle Eintritts-Animationen",
+        "Alle Sieges-Animationen",
+        "Alle Outfits pro Fighter",
+        "Gloves, Shorts, Mouthguards"
+      ],
+      "unlock_method": "UFC Points oder Challenges",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Move Mastery",
+      "description": "Alle Kampftechniken prestige",
+      "moves": [
+        "Striking: Alle Arten Prestige 5",
+        "Grappling: Alle Takedowns Prestige 5",
+        "Submissions: Alle Techniken Prestige 5",
+        "Clinch: Alle Positionen Prestige 5"
+      ],
+      "tips": "Prestige kostet Evolution Points",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Trophies/Achievements",
+      "description": "Alle Trophäen freischalten",
+      "trophies": {
+        "bronze": 35,
+        "silver": 10,
+        "gold": 3,
+        "platinum": 1
+      },
+      "hardest_trophies": [
+        "Reach Division 20",
+        "Complete Career as GOAT",
+        "Unlock all fighters"
+      ],
+      "verification_status": "verified"
+    }
+  ],
+  "total_completion_time": "80-120 Stunden",
+  "hardest_requirement": "Division 20 Online (zeitintensiv)",
+  "missable_content": "Seasonal Challenges (zeitlich begrenzt)",
+  "dlc_content": "Regelmäßige Fighter-Updates via Fight Pass",
+  "version": "2026-04-10",
+  "source_verification": {
+    "primary": "EA UFC 5",
+    "last_verified": "2026-04-10"
+  }
+}

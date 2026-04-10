@@ -1,0 +1,43 @@
+{
+  "rank": 2,
+  "title": "Grand Theft Auto: San Andreas",
+  "platform": ["PS2"],
+  "year": 2004,
+  "sections": {
+    "cheats": [
+      "Infinite ammo, health, armor cheats",
+      "Spawn vehicles (jetpack, tank, hydra, etc.)",
+      "Pedestrians riot mode cheat",
+      "Pedestrian attack pedestrians cheat",
+      "Weather and gravity cheats"
+    ],
+    "builds/guides": [
+      "100% completion checklist",
+      "All weapons locations guide",
+      "Gang territories conquest strategy",
+      "Property investments guide (safe houses)",
+      "Burglary minigame guide"
+    ],
+    "bosses": [
+      "Jizzy B. (Grove Street climax)",
+      "The Truth (endgame missions)",
+      "Las Venturas casinos heist missions",
+      "Zeroing in on Tenpenny (final Grove Street arc)",
+      "Big Smoke (Sweet's missions)"
+    ],
+    "secrets": [
+      "Big Foot / Sasquatch Easter egg",
+      "Jetpack hidden at Area 69",
+      "UFO sightings at various locations",
+      "Secret area 69 interiors",
+      "Drowning money glitch (early game)"
+    ],
+    "tips": [
+      "Do vehicle theft missions early for extra income",
+      "Max out lung capacity at pools for easier underwater",
+      "Use pay 'n' spray to lose wanted level",
+      "Gang territories matter for revenue and safety",
+      "Save often in different slots"
+    ]
+  }
+}

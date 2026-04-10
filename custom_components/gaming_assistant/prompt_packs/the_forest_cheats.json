@@ -1,0 +1,116 @@
+{
+  "id": "the_forest_cheats",
+  "name": "The Forest - Cheats & Console Commands",
+  "type": "cheats",
+  "keywords": ["the forest", "forest", "cheats", "console", "commands", "developermode", "godmode", "building", "survival"],
+  "system_prompt": "DU BIST THE FOREST CHEAT-EXPERTE. Der Spieler zeigt einen Screenshot – erkenne was er braucht für Survival. Prüfe auf: Inventar (Waffen/Ressourcen), Gesundheit/Energie/Stats, Tageszeit (Nacht = Gefahr), Position (Kannibalen-Nähe?), Base-Status. Für Cheats: `developermodeon` im Menü -> F1 für Konsole. Empfohlene Commands: `godmode on` (Unsterblich), `setstat health/fullness/energy/hydration/sanity/strength 100` (Max Stats), `invisible on` (Gegner ignorieren), `additem [id]` für fehlende Items, `killallenemies` bei Überfällen. Bei Nacht/Gefahr schnell: `lightingtimeofdayoverride 12` (Tag).",
+  "platforms": ["PC"],
+  "enable_cheats": {
+    "method": "Im Hauptmenü 'developermodeon' eingeben, dann F1 drücken",
+    "alternative": "Im Spiel F1 wenn bereits aktiviert"
+  },
+  "cheats": [
+    {
+      "name": "God Mode",
+      "code": "godmode on",
+      "disable": "godmode off",
+      "method": "Console Command",
+      "effect": "Unverwundbar - kein Schaden von Gegnern, Fallen, Umgebung",
+      "risk": "Macht Überlebensaspekt trivial",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Invisible to Enemies",
+      "code": "invisible on",
+      "disable": "invisible off",
+      "method": "Console Command",
+      "effect": "Kannibalen und Mutanten ignorieren den Spieler vollständig",
+      "risk": "Spannung verloren",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Max All Stats",
+      "code": "setstat health 100",
+      "examples": [
+        "setstat fullness 100",
+        "setstat energy 100",
+        "setstat hydration 100",
+        "setstat sanity 100",
+        "setstat strength 100"
+      ],
+      "method": "Console Commands",
+      "effect": "Vollständige Heilung und Energie",
+      "risk": "Kein Überlebensdruck mehr",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Builder Mode",
+      "code": "buildermode on",
+      "disable": "buildermode off",
+      "method": "Console Command",
+      "effect": "Bauen ohne Materialien zu verbrauchen",
+      "risk": "Macht Ressourcenmanagement obsolet",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Creative Mode",
+      "code": "creativemode on",
+      "disable": "creativemode off",
+      "method": "Console Command",
+      "effect": "Vollständiger kreativer Modus - fliegen, unendlich Ressourcen, alle Items",
+      "risk": "Kompletter Spielebalance-Verlust",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Time Control",
+      "code": "lightingtimeofdayoverride 12",
+      "disable": "lightingtimeofdayoverride off",
+      "method": "Console Command",
+      "effect": "Setzt Zeit auf 12 Uhr/Tag oder beliebige Stunde (0-24)",
+      "risk": "Keine Nächte/Gefahr mehr",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Teleport",
+      "code": "goto [x] [y] [z]",
+      "examples": [
+        "goto endboss",
+        "goto plane",
+        "goto yacht",
+        "goto sinkhole"
+      ],
+      "method": "Console Command",
+      "effect": "Sofortige Reise zu Script-Locations oder Koordinaten",
+      "risk": "Spoiler für neue Gebiete",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Kill All Enemies",
+      "code": "killallenemies",
+      "method": "Console Command",
+      "effect": "Sofortige Auslöschung aller Kannibalen/Mutanten",
+      "risk": "Temporäre Lösung - Gegner respawnen",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Vegan Mode",
+      "code": "veganmode on",
+      "disable": "veganmode off",
+      "method": "Console Command",
+      "effect": "Keine feindlichen Gegner - nur passive Tiere",
+      "risk": "Keine Bedrohung mehr",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Instant Build",
+      "code": "buildallghosts",
+      "method": "Console Command",
+      "effect": "Alle Baupläne werden sofort fertiggestellt",
+      "risk": "Zeitersparnis, aber Bau-Erfahrung verloren",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Iron Forest",
+      "code": "ironforest on",
+      "disable": "ironforest off",
+      "method": "Console Command",

@@ -1,0 +1,147 @@
+{
+  "id": "the_forest_completion",
+  "name": "The Forest - 100% Completion Guide",
+  "type": "completion",
+  "keywords": ["the forest", "forest", "100%", "completion", "timmy", "endings", "caves", "story", "mutants", "survival"],
+  "system_prompt": "DU BIST THE FOREST COMPLETION-COACH. Der Spieler zeigt einen Screenshot – analysiere was noch fehlt für 100%. The Forest hat: Story (Timmy retten), 2 Endings, 10+ Höhlen, alle Collectibles, alle Baupläne, alle Waffen, alle Mutanten-Typen besiegt, 100 Tage Überleben. Prüfe auf: Höhlen-Fortschritt (Klettern-Axt, Rebreather, Kompass gefunden?), Story-Items, Mutanten-Kills (Armsy, Virginia, Cowman gesehen?), Endgame-Status (Golden Door erreicht?). Für Fast-Completion: `goto endboss` teleportiert direkt zum Ziel.",
+  "platforms": ["PC", "PS4", "PS5"],
+  "completion_guide": {
+    "story": {
+      "main_objective": "Find and rescue Timmy",
+      "key_locations": [
+        "Plane Crash (Start)",
+        "Yacht (Compass, Camcorder, Flare Gun)",
+        "Cave of the Climbing Axe",
+        "Cave of the Submerged (Rebreather)",
+        "Research Facility (Golden Door)",
+        "End Boss Cave"
+      ]
+    },
+    "endings": [
+      {
+        "name": "Plane Ending",
+        "method": "Take plane, rescue Timmy, leave island",
+        "achievement": "Good Parent"
+      },
+      {
+        "name": "Stay Ending",
+        "method": "Destroy artifact, rescue Timmy, stay on island",
+        "achievement": "Survivalist"
+      }
+    ],
+    "caves": {
+      "total": 10,
+      "key_caves": [
+        {
+          "cave": "Cave 1 - Hanging Cave",
+          "item": "Basic survival items"
+        },
+        {
+          "cave": "Cave 3 - Wet Cave",
+          "item": "Rebreather (underwater breathing)"
+        },
+        {
+          "cave": "Cave 5 - Chasm Cave",
+          "item": "Climbing Axe (rope climbing)"
+        },
+        {
+          "cave": "Cave 7 - Submerged Cave",
+          "item": "Modern Bow (endgame weapon)"
+        },
+        {
+          "cave": "Cave 10 - End Boss Cave",
+          "item": "Final fight location"
+        }
+      ]
+    },
+    "collectibles": {
+      "story_items": [
+        "Map (Plane cockpit)",
+        "Compass (Yacht)",
+        "Passenger Manifest",
+        "Timmy Drawings",
+        "Keycard (Research facility)"
+      ],
+      "trophies": "Enemy head trophies",
+      "vhs_tapes": "Backstory tapes",
+      "bible": "Lore items"
+    },
+    "weapons_and_gear": [
+      {
+        "item": "Modern Bow",
+        "location": "Cave 7 (after rebreather)",
+        "importance": "Best weapon"
+      },
+      {
+        "item": "Chainsaw",
+        "location": "Golf course ceremony site",
+        "importance": "Fast tree cutting"
+      },
+      {
+        "item": "Climbing Axe",
+        "location": "Cave 5",
+        "importance": "Vertical exploration"
+      },
+      {
+        "item": "Rebreather",
+        "location": "Cave 3",
+        "importance": "Underwater exploration"
+      },
+      {
+        "item": "Flashlight",
+        "location": "Cave 1",
+        "importance": "Visibility"
+      }
+    ],
+    "mutant_types": [
+      {
+        "name": "Regular Cannibals",
+        "threat": "Low-Medium"
+      },
+      {
+        "name": "Painted Cannibals",
+        "threat": "Medium"
+      },
+      {
+        "name": "Armsy",
+        "threat": "High",
+        "note": "Multi-armed mutant"
+      },
+      {
+        "name": "Virginia",
+        "threat": "High",
+        "note": "Multi-legged female mutant"
+      },
+      {
+        "name": "Cowman",
+        "threat": "Very High",
+        "note": "Bull-like mutant"
+      },
+      {
+        "name": "Worm",
+        "threat": "Extreme",
+        "note": "Giant worm, rare spawn"
+      },
+      {
+        "name": "End Boss",
+        "threat": "Story Boss",
+        "note": "Final fight"
+      }
+    ],
+    "milestones": [
+      "First Night Survived",
+      "Day 100 Reached",
+      "All Caves Explored",
+      "All Mutants Defeated",
+      "Both Endings Seen",
+      "All Blueprints Learned",
+      "All Story Items Found",
+      "All Trophies Collected"
+    ],
+    "completion_time": {
+      "story_only": "10-15 hours",
+      "full_completion": "40-60 hours",
+      "speedrun": "2-5 hours"
+    }
+  },
+  "version": "2026-04-09",

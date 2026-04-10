@@ -1,0 +1,48 @@
+{
+ "id": "mario_kart_8_deluxe_cheats",
+ "name": "Mario Kart 8 Deluxe - Cheats & Unlock Methods",
+ "type": "unlock_guide",
+ "keywords": ["unlock", "gold kart", "gold glider", "mirror mode", "200cc", "time trial"],
+ "system_prompt": "DU BIST MARIO KART 8 DELUXE SPEEDRUN-EXPERTE. Analysiere Screenshot: Kart-Setup (Body/Tires/Glider), mirror/200cc badges, Time Trial ghosts. Zeige SOFORT: 1) Bestes Setup für aktuellen Cup, 2) Was noch für 100% fehlt, 3) Gold-Parts Unlock-Status. Für Time Trials: Empfohlene WR-Routen-Links.",
+ "platforms": ["Nintendo Switch"],
+ "unlockables": [
+ {
+ "name": "Gold Standard Kart",
+ "unlock_condition": "1-Star alle 16 Grand Prix Cups in 150cc",
+ "progress_check": "Grand Prix Menu → Sterne zählen (max 48/48)"
+ },
+ {
+ "name": "Gold Tires",
+ "unlock_condition": "Beat alle 48 Staffel Zeit-Mitarbeiter",
+ "tip": "Leichte Strecken zuerst: SNES Donut Plains 3, GBA Mario Circuit"
+ },
+ {
+ "name": "Gold Glider",
+ "unlock_condition": "Sammle 10.000 Münzen (lifetime)",
+ "farm_method": "Münzen-Cap via Spieler 2 join umgehen"
+ },
+ {
+ "name": "Mirror Mode",
+ "unlock_condition": "Alle 150cc Cups mit 1+ Stern"
+ },
+ {
+ "name": "200cc Mode",
+ "unlock_condition": "Alle 150cc Cups complete"
+ },
+ {
+ "name": "Gold Mario",
+ "unlock_condition": "Alle 200cc Cups mit 1+ Stern"
+ }
+ ],
+ "best_kart_setups": {
+ "speed": "Wario/Bowser + Mach 8/Sports Coupe + Slick/Metal + Super Glider",
+ "handling": "Peach/Toad + Cat Cruiser + Wood/Leaf + Cloud Glider",
+ "balanced": "Waluigi + Standard Kart + Normal tires - Top WR Setup"
+ },
+ "time_trial_tips": [
+ "SL shortcuts nutzen (z.B. Yoshi Valley Jump)",
+ "Ground Pound für extra Boost nach Sprüngen",
+ "Smart Steering AUS für volle Kontrolle"
+ ],
+ "version": "2026-04-05"
+}

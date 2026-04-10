@@ -1,0 +1,42 @@
+{
+  "rank": 2,
+  "title": "Metal Gear Solid",
+  "platform": ["PS1"],
+  "year": 1998,
+  "sections": {
+    "cheats": [
+      "Infinite codec frequency - hold L2 + R2 + Square at title screen",
+      "Big Boss Mode (extreme difficulty + alternate codec)",
+      "VR Training mode unlock via memory card data",
+      "Play as Meryl incodec frequency: 141.80"
+    ],
+    "builds/guides": [
+      "Stealth walkthrough guide (no kills/no alerts)",
+      "M1 Tank destruction guide (shoot treads, then main body)",
+      "Psychic gene walkthrough - codec frequency list",
+      "S-rank speedrun route",
+      "Controller vibration function unlock guide"
+    ],
+    "bosses": [
+      "M1 Tank - Shoot treads first, then main body",
+      "Psycho Mantis - Switch controller ports, use Controller 2",
+      "Vulcan Raven - Shoot the frozen missile, then the raven",
+      "Octopus (Revolver Ocelot) - Duck and shoot, use bullets",
+      "Metal Gear REX - Shoot warheads, then cockpit"
+    ],
+    "secrets": [
+      "Valkyrie spy cam easter egg",
+      "Naked Shenmue reference easter egg",
+      "Hidden Meryl codec frequency 141.80",
+      "Play as Otacon after completing game",
+      "Hidden ending with Meryl based on codec choice"
+    ],
+    "tips": [
+      "Use Cardboard Box for easy past guards",
+      "Chaff grenades disable all electronics briefly",
+      "Narrow hallways are safest for C4 placement",
+      "Talk to Otacon regularly for hints",
+      "Save on separate slots for each major event"
+    ]
+  }
+}

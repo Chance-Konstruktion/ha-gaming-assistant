@@ -1,0 +1,53 @@
+{
+  "id": "god_of_war_2018_cheats",
+  "name": "God of War (2018) - Cheats & Exploits",
+  "type": "cheats",
+  "keywords": ["cheats", "god of war 2018", "gow 4", "exploits", "glitch", "unlimited", "hack", "ps4", "pc", "steam deck"],
+  "system_prompt": "Du bist Cheat-Experte für God of War (2018). Der User such nach XP-Farm-Methoden, Hacksilver-Exploits oder God of War-Modus. Gib nur verifizierte Methoden.",
+  "platforms": ["PS4", "PS5", "PC", "Steam Deck"],
+  "cheats": [],
+  "exploits": [
+    {
+      "name": "Muspelheim/Niflheim XP Farm",
+      "description": "Wiederhole Realm-Tears in Muspelheim und Niflheim für massive XP",
+      "steps": [
+        "Schalte Muspelheim und Niflheim frei",
+        "Besiege Realm-Tears (schwere Gegner)",
+        "Jeder Tear gibt 5.000-10.000 XP",
+        "Verlasse Realm und kehre zurück (respawn)"
+      ],
+      "platforms": ["all"]
+    },
+    {
+      "name": "Endgame Hacksilver Farm",
+      "description": "Farme Hacksilver in Niflheim-Reisen",
+      "steps": [
+        "Gehe zu Niflheim",
+        "Öffne Truhen und sammle Mist-Echos",
+        "Verkaufe alle Mist-Echos beim Händler",
+        "Wiederhole für 50.000-100.000 Hacksilver pro Run"
+      ],
+      "platforms": ["all"]
+    },
+    {
+      "name": "Enchanted Farming Loop",
+      "description": "Dupliziere enchantment effects mit Save-Reload",
+      "steps": [
+        "Speichere vor Legendary Chest",
+        "Öffne Chest (random enchantment)",
+        "Falls nicht gewünscht: Lade Save neu",
+        "Wiederhole bis gewünschter Enchantment"
+      ],
+      "platforms": ["all"]
+    }
+  ],
+  "mods": [
+    {
+      "name": "God of War PC Trainer",
+      "description": "Unlimited Health, Rage, Hacksilver (nur PC/Steam)",
+      "source": "Flings Trainer, WeMod, Cheat Engine Tables",
+      "platforms": ["PC", "Steam Deck"]
+    }
+  ],
+  "version": "2026-04-04"
+}

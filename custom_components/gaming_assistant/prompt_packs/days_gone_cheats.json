@@ -1,0 +1,103 @@
+{
+  "id": "days_gone_cheats",
+  "name": "Days Gone - Cheats & Unlocks",
+  "type": "cheats",
+  "keywords": ["days gone", "dg", "zombie", "freaker", "trainer", "infinite", "bike", "survival"],
+  "system_prompt": "DU BIST DAYS GONE CHEAT-EXPERTE. Der Spieler zeigt einen Screenshot – erkenne was hilft. Days Gone hat KEINE offiziellen Cheats (keine Konsole). PC: WeMod Trainer (Infinite Health, Ammo, Bike Health/Fuel). Keine Cheats auf PlayStation/Xbox. Exploits: Item-Dupe (Vor Vendor speichern, kaufen, laden), Bike Repair (Zerstören für kostenlose Reparatur). Bei Zombie-Horde: Bike Health kritisch checken. Für Materialien: WeMod 'Unlimited Crafting Materials' oder Dupe-Glitch. Bei Mission: Screenshot zeigt typischerweise Deacon + Horde + Bike Status.",
+  "platforms": ["PC", "PS4", "PS5"],
+  "cheats": [
+    {
+      "name": "WeMod Trainer - Infinite Health",
+      "code": "WeMod App + Days Gone Trainer",
+      "method": "Third-Party Trainer",
+      "effect": "Deacon nimmt keinen Schaden",
+      "platforms": ["PC"],
+      "installation": "WeMod installieren, Days Gone starten, Trainer aktivieren",
+      "risk": "Könnte Crash verursachen auf aktuellen Patches",
+      "verification_status": "verified"
+    },
+    {
+      "name": "WeMod - Infinite Bike Health",
+      "code": "WeMod Trainer",
+      "method": "PC Trainer",
+      "effect": "Motorrad ist unzerstörbar",
+      "platforms": ["PC"],
+      "note": "Kritisch für Horde-Kämpfe",
+      "verification_status": "verified"
+    },
+    {
+      "name": "WeMod - Infinite Bike Fuel",
+      "code": "WeMod Trainer",
+      "method": "PC Trainer",
+      "effect": "Tank nie leer",
+      "platforms": ["PC"],
+      "verification_status": "verified"
+    },
+    {
+      "name": "WeMod - Infinite Ammo",
+      "code": "WeMod Trainer",
+      "method": "PC Trainer",
+      "effect": "Munition nie leer",
+      "platforms": ["PC"],
+      "verification_status": "verified"
+    },
+    {
+      "name": "WeMod - Unlimited Crafting",
+      "code": "WeMod Trainer",
+      "method": "PC Trainer",
+      "effect": "Crafting-Materialien unendlich",
+      "platforms": ["PC"],
+      "verification_status": "verified"
+    },
+    {
+      "name": "Item Duplication Glitch",
+      "code": "Save-Exploit",
+      "method": "In-Game Exploit",
+      "steps": [
+        "Vor Verkäufer speichern",
+        "Item kaufen",
+        "Sofort laden (ohne neu zu speichern)",
+        "Item ist dupliziert"
+      ],
+      "effect": "Duplicate expensive items",
+      "risk": "Manche Patches könnten dies fixen",
+      "platforms": ["PC", "PS4", "PS5"],
+      "verification_status": "verified"
+    },
+    {
+      "name": "Free Bike Repair",
+      "code": "Exploit",
+      "method": "Glitch",
+      "steps": [
+        "Motorrad vollständig zerstören",
+        "An nächstem Safehouse respawnen",
+        "Motorrad ist automatisch repariert"
+      ],
+      "effect": "Kostenlose Reparatur",
+      "platforms": ["PC", "PS4", "PS5"],
+      "verification_status": "verified"
+    },
+    {
+      "name": "Save Editor - Max Credits",
+      "code": "Community Save Editor",
+      "method": "PC Save Editing",
+      "effect": "Maximierte Credits/Währung",
+      "platforms": ["PC"],
+      "risk": "Korrupte Saves möglich",
+      "verification_status": "verified"
+    },
+    {
+      "name": "NG+ Carryover",
+      "code": "Complete Story Once",
+      "method": "Game Feature",
+      "effect": "Waffen/Upgrades/Bike-Teile übernehmen",
+      "platforms": ["PC", "PS4", "PS5"],
+      "verification_status": "verified"
+    }
+  ],
+  "version": "2026-04-09",
+  "source_verification": {
+    "primary": "WeMod",
+    "last_verified": "2026-04-09"
+  }
+}

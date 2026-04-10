@@ -1,0 +1,128 @@
+{
+  "id": "tekken_8_completion",
+  "name": "Tekken 8 - 100% Completion Guide",
+  "type": "completion",
+  "keywords": ["achievements", "trophies", "100%", "completion", "platinum"],
+  "platforms": ["PC", "PlayStation 5", "Xbox Series X|S"],
+  "completion_stats": {
+    "total_achievements": 47,
+    "platinum": 1,
+    "gold": 3,
+    "silver": 9,
+    "bronze": 34,
+    "difficulty_rating": "3/10",
+    "estimated_time": "6-10 Stunden",
+    "offline_achievements": 41,
+    "online_achievements": 6,
+    "missable": 0
+  },
+  "categories": [
+    {
+      "name": "Story Campaign - The Dark Awakens",
+      "achievements": [
+        {"name": "Come, humanity! Unleash the dogs of war!", "description": "Kapitel 1 abschließen", "type": "bronze", "hidden": false},
+        {"name": "Into the flames", "description": "Kapitel 15 abschließen (Story durchspielen)", "type": "silver", "hidden": false}
+      ]
+    },
+    {
+      "name": "Arcade Quest",
+      "achievements": [
+        {"name": "Walking the road of champions", "description": "Arcade Quest Champion Cup gewinnen", "type": "silver", "hidden": false},
+        {"name": "Full of possibilities", "description": "Ersten Charakter in Arcade Quest erstellen", "type": "bronze", "hidden": false},
+        {"name": "Fashion is life", "description": "Charakter in Arcade Quest anpassen", "type": "bronze", "hidden": false},
+        {"name": "Novice Fighter", "description": "Rang 1st Dan erreichen", "type": "bronze", "hidden": false},
+        {"name": "Martial Artist", "description": "Rang Initiate erreichen", "type": "bronze", "hidden": false},
+        {"name": "Skilled Fighter", "description": "Rang Mentor erreichen", "type": "bronze", "hidden": false},
+        {"name": "Fighting Spirit", "description": "Rang Brawler erreichen", "type": "bronze", "hidden": false},
+        {"name": "Expert Fighter", "description": "Rang Marauder erreichen", "type": "bronze", "hidden": false},
+        {"name": "Master Fighter", "description": "Rang Warrior erreichen", "type": "silver", "hidden": false},
+        {"name": "Elite Fighter", "description": "Rang Vindicator erreichen", "type": "silver", "hidden": false},
+        {"name": "Supreme Fighter", "description": "Rang Destroyer erreichen", "type": "gold", "hidden": false}
+      ]
+    },
+    {
+      "name": "Super Ghost Battle",
+      "achievements": [
+        {"name": "I'll give you a rematch anytime, guv", "description": "Player Match gewinnen", "type": "silver", "hidden": false},
+        {"name": "Pride of theUnregister", "description": "Eigenen Ghost besiegen", "type": "bronze", "hidden": false},
+        {"name": "You think you're tough?", "description": "Harada_TEKKEN Ghost besiegen", "type": "silver", "hidden": true},
+        {"name": "Ghost Destroyer", "description": "10 CPU Ghosts besiegen", "type": "bronze", "hidden": false}
+      ]
+    },
+    {
+      "name": "Character Episodes",
+      "achievements": [
+        {"name": "One chapter closes", "description": "Ersten Character Episode abschließen", "type": "bronze", "hidden": false},
+        {"name": "I'm a character loyalist", "description": "3 Character Episodes abschließen", "type": "bronze", "hidden": false},
+        {"name": "So many choices", "description": "10 Character Episodes abschließen", "type": "silver", "hidden": false}
+      ]
+    },
+    {
+      "name": "Online Multiplayer",
+      "achievements": [
+        {"name": "It's about survival", "description": "Werde Tekken Lord in Tekken Fight Lounge", "type": "gold", "hidden": false},
+        {"name": "I'll take you on", "description": "Sage einem Spieler im Lounge Ghost Match", "type": "bronze", "hidden": false},
+        {"name": "Excellent!", "description": "10 Online Matches spielen (egal ob gewonnen)", "type": "bronze", "hidden": false},
+        {"name": "Greetings", "description": "Erstelle einen Chat Room", "type": "bronze", "hidden": false}
+      ]
+    },
+    {
+      "name": "Practice & Replay",
+      "achievements": [
+        {"name": "The spirit of training", "description": "Practice Mode für 10 Minuten", "type": "bronze", "hidden": false},
+        {"name": "Witness my growth!", "description": "Replay eines Matches ansehen", "type": "bronze", "hidden": false},
+        {"name": "Combo Maker", "description": "Erstelle 3 eigene Combos in Practice", "type": "bronze", "hidden": false}
+      ]
+    },
+    {
+      "name": "Tekken Ball",
+      "achievements": [
+        {"name": "It's hot, hot, so hot!", "description": "Landle 20 'devilish hits' in Tekken Ball", "type": "silver", "hidden": false}
+      ]
+    },
+    {
+      "name": "Arcade Battle",
+      "achievements": [
+        {"name": "Arcade legend", "description": "Arcade Battle durchspielen", "type": "silver", "hidden": false}
+      ]
+    },
+    {
+      "name": "Heat & Rage System",
+      "achievements": [
+        {"name": "What a rush!", "description": "Führe 5 Heat Bursts aus", "type": "bronze", "hidden": false},
+        {"name": "Thermal energy", "description": "Besiege Gegner während Heat aktiviert", "type": "bronze", "hidden": false}
+      ]
+    },
+    {
+      "name": "Stage Mechanics",
+      "achievements": [
+        {"name": "Don't hold back", "description": "Führe Wall Break durch", "type": "bronze", "hidden": false},
+        {"name": "C'mere!", "description": "Führe Wall Splat/Bounce durch", "type": "bronze", "hidden": false},
+        {"name": "Down with the resistance", "description": "Führe Floor Break durch", "type": "bronze", "hidden": false},
+        {"name": "It's going down", "description": "Führe Floor Splat durch", "type": "bronze", "hidden": false}
+      ]
+    },
+    {
+      "name": "Customization",
+      "achievements": [
+        {"name": "Fashion First", "description": "Passe Charakter in Customize an", "type": "bronze", "hidden": false},
+        {"name": "It's all about the details", "description": "Nutze 20 verschiedene Customization-Teile", "type": "bronze", "hidden": false}
+      ]
+    },
+    {
+      "name": "Hidden Achievements",
+      "achievements": [
+        {"name": "Despair", "description": "Schalte das geheime Ende frei (FINALE verlieren)", "type": "gold", "hidden": true},
+        {"name": "Hope", "description": "Siehe das wahre Ende (FINALE gewinnen)", "type": "silver", "hidden": true}
+      ]
+    }
+  ],
+  "tips": [
+    "Schwierigkeit auf Easy stellen für alle Story/Offline Trophies",
+    "Rundenanzahl auf 1 setzen (Options > Game Options)",
+    "Chapter Select verfügbar - keine verpassbaren Trophies",
+    "Super Ghost Battle gilt als 'Offline' für Trophies die 'nicht Offline Vs' benötigen",
+    "Für Online-Trophies: CPU-Ranked-Fight überspringen für niedrigen Rank"
+  ],
+  "version": "2026-04-08"
+}

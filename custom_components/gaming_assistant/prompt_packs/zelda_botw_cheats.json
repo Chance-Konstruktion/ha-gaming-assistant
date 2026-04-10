@@ -1,0 +1,102 @@
+{
+  "id": "zelda_botw_cheats",
+  "name": "The Legend of Zelda: Breath of the Wild - Cheats & Exploits",
+  "type": "cheats",
+  "keywords": ["cheats", "exploits", "amiibo", "duplication", "infinite", "rupees", "weapons"],
+  "system_prompt": "Du bist Cheat-Experte für Zelda: Breath of the Wild. Der User sucht nach Glitches, Exploits, Duplication-Tricks oder Amiibo-Belohnungen. Antworte präzise mit Schritt-für-Schritt-Anleitungen.",
+  "platforms": ["Nintendo Switch", "Wii U"],
+  "cheats": [
+    {
+      "name": "Weapon/Bow/Shield Duplication Glitch",
+      "description": "Dupliziere beliebige Waffen, Bögen oder Schilde",
+      "steps": [
+        "Öffne das Inventar und halte einen Bogen ausgerüstet",
+        "Drücke ZL (Zielen) und B (Springen) gleichzeitig",
+        "Drücke Y (Waffen-wechsel) im Sprung",
+        "Wechsle im Menü zum zu duplizierenden Item",
+        "Verlasse das Menü — das Item liegt am Boden"
+      ],
+      "platforms": ["Switch", "Wii U"],
+      "version_fixed": "Patch 1.3.1+ (funktionierte in frühen Versionen)"
+    },
+    {
+      "name": "Infinite Rupees (Farosh Horn Farming)",
+      "description": "Forme Drachenhörner für schnelle Reichtümer",
+      "steps": [
+        "Reise zum Floria-Brücke (Südlicher Necluda)",
+        "Warte auf Farosh (04:00-06:00 Uhr in-game)",
+        "Schieße mit Pfeil+Bogen auf das Horn",
+        "Sammile das fallende Material ein",
+        "Ruhe am Feuer bis zum nächsten Morgen",
+        "Verkaufe Horn-Fragmente für 300 Rupees/Stück"
+      ],
+      "platforms": ["Switch", "Wii U"],
+      "material_value": "300 Rupees"
+    },
+    {
+      "name": "Infinite Arrows (Eventide Glitch)",
+      "description": "Unendlich Pfeile durch speziellen Eventide-Bug",
+      "steps": [
+        "Reise zur Eventide-Insel",
+        "Lass Gegner dich mit Pfeilen beschießen",
+        "Weiche aus und sammle Pfeile vom Boden auf",
+        "Gehe in Menü — Pfeilanzahl steigt bei ~20+ Abschüssen",
+        "Wiederhole für unendliche Pfeile"
+      ],
+      "platforms": ["Switch", "Wii U"],
+      "note": "Funktioniert mit Multi-Shot-Bögen am besten"
+    },
+    {
+      "name": "Whistle Sprinting Exploit",
+      "description": "Unendliche Ausdauer beim Sprinten",
+      "steps": [
+        "Halte B (Springen) gedrückt",
+        "Drücke D-Pad Down (Pfeifen) rhythmisch im Sprint",
+        "Link sprintet ohne Ausdauer-Verlust",
+        "Nütze für schnelles Traversal der Map"
+      ],
+      "platforms": ["Switch", "Wii U"],
+      "status": "Unpatchbarer Mechanik-Exploit"
+    },
+    {
+      "name": "Amiibo Loot Table",
+      "items": [
+        {"amiibo": "Link (Smash Bros)", "drops": "Epona (Horse), Twilight Set, Hero's Bow"},
+        {"amiibo": "Zelda (Smash Bros)", "drops": "Hylian Shield, Twilight Bow, Gems"},
+        {"amiibo": "Guardian", "drops": "Ancient Parts, Arrows, Guardian Weapons"},
+        {"amiibo": "Majora's Mask Link", "drops": "Fierce Deity Set, Sword of the Six Sages"},
+        {"amiibo": "Ocarina of Time Link", "drops": "Biggoron's Sword, Tunic of Time Set"},
+        {"amiibo": "Toon Link", "drops": "Hero's Sword, Wind Waker Set, Sea Breeze Boomerang"},
+        {"amiibo": "Wolf Link", "drops": "Wolf Companion (max 20 hearts)"}
+      ],
+      "platforms": ["Switch", "Wii U"],
+      "scan_limit": "Ein Scan alle 24h real-time pro Amiibo"
+    },
+    {
+      "name": "Blood Moon Cooking Glitch",
+      "description": "Erhalte garantiert Critical Cooking zwischen 23:30-00:00",
+      "steps": [
+        "Warte bis kurz vor Blutmond (23:30-00:00)",
+        "Beginne zu kochen während des Cutscenes",
+        "Jedes Gericht wird ++Critical (max Stats)",
+        "Nutze für +3 Herzen/+3 Ausdauer-Gerichte"
+      ],
+      "platforms": ["Switch", "Wii U"],
+      "effect": "Guaranteed critical cooking results"
+    },
+    {
+      "name": "Climbing Without Stamina",
+      "description": "Klettere endlos ohne Ausdauer-Management",
+      "steps": [
+        "Beginne zu klettern",
+        "Drücke B (Fallenlassen) kurz",
+        "Öffne Gleiter unmittelbar danach (X)",
+        "Klicke an die Wand (Anvisieren + Bewegung)",
+        "Link 'schnappt' sich an Wand ohne Ausdauer-Verbrauch"
+      ],
+      "platforms": ["Switch", "Wii U"],
+      "difficulty": "Mittel (Timing erforderlich)"
+    }
+  ],
+  "version": "2026-04-04"
+}

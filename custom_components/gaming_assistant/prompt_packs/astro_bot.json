@@ -1,0 +1,220 @@
+{
+  "rank": 2,
+  "title": "Astro Bot",
+  "platforms": ["PS5"],
+  "metacritic_score": 94,
+  "last_updated": "2026-03-31",
+  "sections": {
+    "cheats": {
+      "description": "Astro Bot hat keine traditionellen Cheats - es ist ein familienfreundliches Spiel ohne Schwierigkeitsgrad",
+      "notes": [
+        "Keine Trainer oder Cheat-Codes verfügbar",
+        "Keine In-Game-Cheats (bewusst design-Entscheidung)",
+        "Schwierigkeit ist übergeordnet niedrig - für alle Spieler zugänglich"
+      ],
+      "trophy_assist": {
+        "description": "Platin-Trophäe ist machbar ohne Guides",
+        "time_estimate": "12-15 Stunden für 100%",
+        "missable_content": 0
+      }
+    },
+    "collectibles": {
+      "description": "Alle 430 Sammelobjekte (nichts ist verpassbar)",
+      "overview": {
+        "regular_bots": 300,
+        "playstation_cameo_bots": 150,
+        "puzzle_pieces": 120,
+        "artifacts": 40,
+        "lost_galaxy_levels": 10,
+        "total_100_percent": "430 Collectibles"
+      },
+      "cameo_bots_highlight": [
+        "Kratos (God of War)",
+        "Jin Sakai (Ghost of Tsushima)",
+        "Aloy (Horizon)",
+        "Nathan Drake (Uncharted)",
+        "Ellie (The Last of Us)",
+        "Joel (The Last of Us)",
+        "Sackboy (LittleBigPlanet)",
+        "Ratchet & Clank",
+        "Sly Cooper",
+        "Parappa the Rapper",
+        "Bloodborne Hunter",
+        "Demon's Souls Knight",
+        "Crash Bandicoot",
+        "Spyro the Dragon",
+        "Lara Croft",
+        "Snake (Metal Gear Solid)"
+      ]
+    },
+    "worlds": {
+      "main_worlds": [
+        {
+          "name": "Gorilla Nebula",
+          "levels": 10,
+          "theme": "Wald/Pflanze",
+          "power_up": "Schwebe-Hover",
+          "secret_portals": 3
+        },
+        {
+          "name": "Tentacle System",
+          "levels": 10,
+          "theme": "Oktoberfest",
+          "power_up": "Oktopus-Saugnäpfe",
+          "secret_portals": 3
+        },
+        {
+          "name": "Serpent Starway",
+          "levels": 10,
+          "theme": "Dschungel/Schlange",
+          "power_up": "Schlangen-Hals-Transformation",
+          "secret_portals": 3
+        },
+        {
+          "name": "Camiño del Mar",
+          "levels": 10,
+          "theme": "Strand/Küste",
+          "power_up": "Wasserstrahl/Düse",
+          "secret_portals": 3
+        },
+        {
+          "name": "Featherfall Fields",
+          "levels": 10,
+          "theme": "Wolken/Himmel",
+          "power_up": "Gleiter/Feder-Fähigkeit",
+          "secret_portals": 3
+        },
+        {
+          "name": "Final World",
+          "levels": 5,
+          "theme": "Finale/Final Boss",
+          "power_up": "Alle Fähigkeiten kombiniert",
+          "secret_portals": 1
+        }
+      ]
+    },
+    "power_ups": {
+      "description": "Spezialfähigkeiten in verschiedenen Welten",
+      "ranked": [
+        {
+          "rank": 1,
+          "name": "Schwebe-Hover",
+          "world": "Gorilla Nebula",
+          "best_for": "Luft-Kontrolle, gefährliche Sprünge",
+          "combo_potential": "Hoch"
+        },
+        {
+          "rank": 2,
+          "name": "Schlangen-Hals",
+          "world": "Serpent Starway",
+          "best_for": "Distanz-Sprünge, hohe Plattformen",
+          "combo_potential": "Sehr hoch"
+        },
+        {
+          "rank": 3,
+          "name": "Oktopus-Saugnäpfe",
+          "world": "Tentacle System",
+          "best_for": "Wand-Klettern, versteckte Pfade",
+          "combo_potential": "Mittel"
+        },
+        {
+          "rank": 4,
+          "name": "Wasser-Düse",
+          "world": "Camiño del Mar",
+          "best_for": "Feuer löschen, Fontänen-Sprünge",
+          "combo_potential": "Mittel"
+        },
+        {
+          "rank": 5,
+          "name": "Feder-Gleiter",
+          "world": "Featherfall Fields",
+          "best_for": "Langsame Fallschirm-Steuerung",
+          "combo_potential": "Niedrig"
+        }
+      ]
+    },
+    "secret_levels": {
+      "description": "10 Lost Galaxy Levels (versteckte Bonus-Welten)",
+      "how_to_unlock": "Sammle alle Puzzle-Pieces eines Main-Worlds",
+      "rewards_per_level": [
+        "1 Trophäe",
+        "1 Cameo-Bot am Ende",
+        "Special Challenge-Mechaniken"
+      ],
+      "types": [
+        "Speedrun-Challenges",
+        "Boss-Rush-Modi",
+        "Retro-Arcade-Homages",
+        "Special Missions (stealth/etc.)"
+      ],
+      "total_bonus": "~2 Stunden zusätzlicher Content"
+    },
+    "hidden_artifacts": {
+      "description": "40 PlayStation Artefakte zur Sammlung",
+      "categories": [
+        "Konsole-Modelle (PS1, PS2, PS3, PS4, PS5)",
+        "Controller-Designs",
+        "Peripherie-Geräte (EyeToy, Move, VR)",
+        "Memory Cards",
+        "PSP und PS Vita",
+        "Merchandise-Figuren"
+      ],
+      "showcase_location": "Astro's CPU-Plaza (Basis-Hangar)",
+      "unlockable": "Je mehr Artefakte, desto mehr Dekoration im Plaza"
+    },
+    "bosses": {
+      "world_bosses": [
+        { "name": "Plant Boss", "world": "Gorilla Nebula", "mechanic": "Gegen-Angriff mit Schwebe" },
+        { "name": "Tentacle Boss", "world": "Tentacle System", "mechanic": "Saugnapf-Klettern für Schwachstelle" },
+        { "name": "Snake Boss", "world": "Serpent Starway", "mechanic": "Reichweiten-Sprünge mit Schlangen-Hals" },
+        { "name": "Water Boss", "world": "Camiño del Mar", "mechanic": "Wasser-Mechaniken zum Sieg" },
+        { "name": "Cloud Boss", "world": "Featherfall Fields", "mechanic": "Gleiter zum Ausweichen" },
+        { "name": "Final Boss", "world": "Final World", "mechanic": "Alle Power-Ups im Kampf" }
+      ],
+      "secret_bosses": [
+        "Retro PS1-Homage Boss (Lost Galaxy)",
+        "Multi-Character Fights"
+      ]
+    },
+    "tips": {
+      "exploration": [
+        "ALLES zerstören - viele Collectibles verstecken sich in Blöcken/Pflanzen",
+        "Jeder Level hat mindestens 1 versteckten Raum",
+        "Hören je nach Control Feedback - Vibrations-Muster zeigen Secrets",
+        "Void-Kristalle markieren geheime Portale"
+      ],
+      "collecting": [
+        "Nichts ist verpassbar - nimm dir Zeit",
+        "Cameo-Bots sind oft visuell versteckt (hinter Objekten)",
+        "Puzzle-Pieces brauchen oft Power-Up-Kombinationen",
+        "Replay Levels mit neuen Power-Ups für neue Pfade"
+      ],
+      "tricks": [
+        "Spin-Attack für kurzes Schwebefenster",
+        "Power-Up-Kombinationen ausnutzen (z.B. Schlangen-Hals + Schwebe)",
+        "Trophäe 'Bounce Off Enemies' - immer auf Gegner springen",
+        "Speedrun-Techniken in Lost Galaxy üben"
+      ]
+    },
+    "dlc_free": {
+      "description": "Kostenloser DLC: Speedrun-Update",
+      "content": [
+        "Online Leaderboards für jeden Level",
+        "Ghost-Races gegen Freunde",
+        "Community Challenges",
+        "Speedrun-Modus ohne Cutscenes"
+      ],
+      "release": "Q4 2024"
+    },
+    "trophies": {
+      "platinum_time": "12-15 Stunden",
+      "difficulty": "2/10 (sehr einfach)",
+      "hardest_trophy": "Speedrun-Zeiten in Lost Galaxy",
+      "missable": 0,
+      "online_required": false,
+      "tip": "Checkliste nutzen, aber nichts stressen"
+    },
+    "easter_eggs": {
+      "description": "PlayStation Geschichte als Easter Eggs",
+      "highlights": [
+        "Astro's Playroom Referenzen in

@@ -1,0 +1,161 @@
+{
+  "id": "tekken_8_master",
+  "name": "Tekken 8 - Master Guide",
+  "description": "Vollständiger Guide für Cheats, Achievements/Trophies, Secrets und Unlockables",
+  "platforms": ["PC", "PlayStation 5", "Xbox Series X|S"],
+  "version": "2026-04-08",
+  "sections": {
+    "cheats": {
+      "summary": "Tekken 8 hat keine klassischen Button-Cheats. Stattdessen gibt es Trainer, Special Style Modus und timesaving Optionen.",
+      "trainers": [
+        {
+          "type": "Cheat Engine Table",
+          "effect": "HP Editor und Heat Energy Editor - manipuliert Health und Heat Bar",
+          "platforms": ["PC"],
+          "source": "vgtimes.com / Fearless Revolution"
+        },
+        {
+          "type": "WeMod Trainer",
+          "effect": "Umfassender Trainer mit unbegrenztem HP, Heat und anderen Optionen",
+          "platforms": ["PC"],
+          "source": "wemod.com"
+        }
+      ],
+      "exploits": [
+        {
+          "name": "Special Style (L1/LB halten)",
+          "effect": "Automatische Kombos ohne Eingaben - AI spielt für dich",
+          "platforms": ["PC", "PlayStation 5", "Xbox Series X|S"],
+          "source": "In-Game Mechanic (PowerPyx)"
+        }
+      ],
+      "timesavers": [
+        {
+          "name": "Schwierigkeit auf Easy stellen",
+          "effect": "Alle Trophies können auf Easy difficulty gemacht werden (außer Arcade Quest)",
+          "platforms": ["PC", "PlayStation 5", "Xbox Series X|S"]
+        },
+        {
+          "name": "Rundenanzahl auf 1 setzen",
+          "effect": "Options > Game Option Settings > No. of Rounds = 1. Schnellere Matches für Ghost Battle etc.",
+          "platforms": ["PC", "PlayStation 5", "Xbox Series X|S"],
+          "source": "PowerPyx Guide"
+        },
+        {
+          "name": "Ranked Match CPU-Fight skippen",
+          "effect": "Ersten CPU-Kampf überspringen um mit niedrigstem Rank zu starten (leichtere Gegner)",
+          "platforms": ["PC", "PlayStation 5", "Xbox Series X|S"],
+          "source": "Online Mode"
+        }
+      ]
+    },
+    "completion": {
+      "summary": "47 Achievements/Trophies (34 Bronze, 9 Silber, 3 Gold, 1 Platin). Schwierigkeit: 3/10. Zeit: 6-10 Stunden.",
+      "stats": {
+        "total": 47,
+        "platinum": 1,
+        "gold": 3,
+        "silver": 9,
+        "bronze": 34,
+        "difficulty_rating": "3/10",
+        "estimated_time": "6-10 Stunden",
+        "offline": 41,
+        "online": 6,
+        "missable": 0
+      },
+      "main_categories": [
+        {
+          "name": "Story Campaign - The Dark Awakens",
+          "key_achievements": [
+            {"name": "Come, humanity! Unleash the dogs of war!", "type": "bronze", "desc": "Kapitel 1 abschließen"},
+            {"name": "Into the flames", "type": "silver", "desc": "Kapitel 15 abschließen (Story durchspielen)"}
+          ]
+        },
+        {
+          "name": "Arcade Quest (11 Trophies)",
+          "key_achievements": [
+            {"name": "Walking the road of champions", "type": "silver", "desc": "Arcade Quest Champion Cup gewinnen"},
+            {"name": "Supreme Fighter (Gold)", "desc": "Rang Destroyer erreichen (Arcade Quest)"}
+          ],
+          "note": "Arcade Quest Trophies MÜSSEN auf Normal oder höher gespielt werden (nicht auf Easy!)"
+        },
+        {
+          "name": "Super Ghost Battle (4 Trophies)",
+          "key_achievements": [
+            {"name": "You think you're tough?", "type": "silver", "hidden": true, "desc": "Harada_TEKKEN Ghost besiegen"},
+            {"name": "Ghost Destroyer", "type": "bronze", "desc": "10 CPU Ghosts besiegen"}
+          ]
+        },
+        {
+          "name": "Online Multiplayer (6 Trophies)",
+          "key_achievements": [
+            {"name": "It's about survival", "type": "gold", "desc": "Werde Tekken Lord in Tekken Fight Lounge"},
+            {"name": "Excellent!", "type": "bronze", "desc": "10 Online Matches spielen"}
+          ]
+        }
+      ],
+      "hidden_achievements": [
+        {"name": "Despair", "type": "gold", "desc": "Geheimes Ende freischalten (FINALE verlieren)"},
+        {"name": "Hope", "type": "silver", "desc": "Wahres Ende sehen (FINALE gewinnen)"}
+      ],
+      "time_saving_tips": [
+        "Schwierigkeit auf Easy für alle Story/Offline Trophies",
+        "Rundenanzahl auf 1 setzen (Options > Game Options)",
+        "Chapter Select verfügbar - keine verpassbaren Trophies",
+        "Super Ghost Battle zählt als 'Offline' für bestimmte Trophies",
+        "Für Online: CPU-Ranked-Fight überspringen für niedrigen Rank"
+      ]
+    },
+    "secrets": {
+      "secret_ending": {
+        "name": "Despair (Geheimes Ende)",
+        "unlock": "Im finalen Kampf von Kapitel 15 (The Dark Awakens) die LETZTE RUNDE absichtlich VERLIEREN",
+        "reward": "Gold Trophy 'Despair' + Geheimes Galerie-Video",
+        "note": "Du startest automatisch im Heat Mode, Gegner hat Rage. Lass dich besiegen."
+      },
+      "secret_battles": [
+        {
+          "name": "Harada_TEKKEN Ghost Battle",
+          "unlock": "Arcade Quest komplett durchspielen (Champion Cup gewinnen)",
+          "description": "Kampf gegen den Producer Ghost (Tekken God Rank)",
+          "reward": "Silver Trophy 'You think you're tough?'"
+        }
+      ],
+      "unlockables": {
+        "gallery": [
+          {"item": "Character Artworks", "unlock": "Story Fortschritt, Character Episodes, Arcade Quest"},
+          {"item": "Ending Movies", "unlock": "Character Episodes abschließen"},
+          {"item": "Secret Ending Movie", "unlock": "Despair Trophy freischalten (FINALE verlieren)"},
+          {"item": "Model Viewer", "unlock": "Story Progress"}
+        ],
+        "customization": [
+          {"item": "Special Outfits", "unlock": "Character Episodes, Arcade Quest Rewards"},
+          {"item": "Accessories", "unlock": "Arcade Quest Champion Cup, Online Ranglisten"},
+          {"item": "Player Card Designs", "unlock": "Online Mode Fortschritt"}
+        ]
+      },
+      "hidden_mechanics": [
+        {
+          "name": "Heat System",
+          "description": "Neue Core-Mechanik: Heat Burst, Heat Smash, Heat Engager",
+          "secret": "Heat Bar füllt sich automatisch zu Rundenbeginn"
+        },
+        {
+          "name": "Rage Art",
+          "description": "Super Move bei niedrigem HP - jeder Charakter hat eine einzigartige Rage Art",
+          "input": "Dpad Down + Triangle/Y (bei Rage Mode)"
+        }
+      ],
+      "easter_eggs": [
+        {"name": "Harada_TEKKEN Ghost", "desc": "Easter Egg zum Producer Katsuhiro Harada", "location": "Super Ghost Battle"},
+        {"name": "Legacy Costumes", "desc": "Einige Customization-Teile referenzieren ältere Tekken-Spiele", "location": "Customization Shop"}
+      ]
+    }
+  },
+  "files": [
+    "tekken_8_cheats.json",
+    "tekken_8_completion.json",
+    "tekken_8_secrets.json"
+  ],
+  "status": "complete"
+}

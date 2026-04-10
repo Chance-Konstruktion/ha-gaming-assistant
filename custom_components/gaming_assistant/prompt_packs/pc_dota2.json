@@ -1,0 +1,234 @@
+{
+  "rank": 2,
+  "title": "Dota 2",
+  "platform": ["PC"],
+  "concurrent_players": 336551,
+  "sections": {
+    "cheats_console_commands": {
+      "description": "Console commands für Dota 2",
+      "items": [
+        {
+          "command": "dota_cheats 1",
+          "description": "Aktiviert Cheats im Owner-Lobby"
+        },
+        {
+          "command": "-gold 1000",
+          "description": "Fügt 1000 Gold hinzu (Tippe im Alltalk)"
+        },
+        {
+          "command": "-lvlup 25",
+          "description": "Erhöht Level um 25"
+        },
+        {
+          "command": "-refresh",
+          "description": " refreshed Cooldowns und Mana"
+        },
+        {
+          "command": "-respawn",
+          "description": "Respawnt alle toten Helden"
+        },
+        {
+          "command": "-spawncreeps",
+          "description": "Spawnt Creeps für beide Teams"
+        },
+        {
+          "command": "-spawnneutrals",
+          "description": "Spawnt Neutralcreeps neu"
+        },
+        {
+          "command": "-wtf",
+          "description": "WTF Mode: Keine Cooldowns, keine Manakosten"
+        },
+        {
+          "command": "-unwtf",
+          "description": "Deaktiviert WTF Mode"
+        },
+        {
+          "command": "-item \"item_name\"",
+          "description": "Gibt dir ein Item (z.B. -item item_rapier)"
+        },
+        {
+          "command": "-givebots item",
+          "description": "Gibt allen Bots Items"
+        },
+        {
+          "command": "-pause / -unpause",
+          "description": "Pausiert das Spiel"
+        },
+        {
+          "command": "-startgame",
+          "description": "Startet das Spiel früher"
+        },
+        {
+          "command": "-endround",
+          "description": "Beendet die aktuelle Runde"
+        },
+        {
+          "command": "fps_max 0",
+          "description": "Entfernt FPS-Limit"
+        },
+        {
+          "command": "cl_showfps 1",
+          "description": "Zeigt FPS an"
+        }
+      ]
+    },
+    "best_builds": {
+      "description": "Meta-Builds und Itemsets",
+      "items": [
+        {
+          "category": "Carry Builds",
+          "builds": [
+            {
+              "name": "Phantom Lancer / Anti-Mage (AGI Carry)",
+              "items": ["Battle Fury", "Manta Style", "Abyssal Blade", "Butterfly", "Skadi", "BKB"],
+              "description": "Klassischer Split-Push oder Teamfight Carry Build."
+            },
+            {
+              "name": "Juggernaut (AGI)",
+              "items": ["Battle Fury", "Manta Style", "Daedalus", "Bloodthorn", "Basher", "BKB"],
+              "description": "Omnislash fokussierter Burst-Build."
+            },
+            {
+              "name": "Sven / Wraith King (STR Carry)",
+              "items": ["Armlet", "Black King Bar", "Daedalus", "Assault Cuirass", "Heart"],
+              "description": "Frontliner mit hoher Survability."
+            }
+          ]
+        },
+        {
+          "category": "Support Builds",
+          "builds": [
+            {
+              "name": "Hard Support (Position 5)",
+              "items": ["Tranquil Boots", "Glimmer Cape", "Force Staff", "Guardian Greaves", "Spirit Vessel"],
+              "description": "Saving-Build für Position 5 Supports wie CM, WD, Lich."
+            },
+            {
+              "name": "Soft Support (Position 4)",
+              "items": ["Arcane Boots", "Eul's Scepter", "Glimmer Cape", "Aether Lens", "Vessel"],
+              "description": "Initiation und Crowd-Control für Position 4."
+            }
+          ]
+        },
+        {
+          "category": "Offlane / Mid Builds",
+          "builds": [
+            {
+              "name": "Offlane Initiator",
+              "items": ["Blink Dagger", "Echo Sabre", "Black King Bar", "Shiva's Guard", "Heart"],
+              "description": "Tank-Initiator Build für Offlane-Heroes wie Tidehunter, Axe."
+            },
+            {
+              "name": "Mid Nuker",
+              "items": ["Kaya und Sange", "BKB", "Hex (Scythe of Vyse)", "Dagon", "Eul's"],
+              "description": " Burst-Damage für Mid-Heroes wie Lina, Lion, Invoker."
+            }
+          ]
+        }
+      ]
+    },
+    "tips": {
+      "description": "Profi-Tipps für Dota 2",
+      "items": [
+        {
+          "category": "Laning",
+          "tip": "Stack Creep Waves bevor sie sichern - ziehe die Creep-Line mit Hits zum eigenen Tower"
+        },
+        {
+          "category": "Laning",
+          "tip": "Denke an Gold/XP denied - laned nie ohne Grund"
+        },
+        {
+          "category": "Laning",
+          "tip": "Kaufe früh regelmäßig Tangoes und Salve - überlebe die Lane"
+        },
+        {
+          "category": "Map Awareness",
+          "tip": "Schau alle 5-10 Sekunden auf die Map - dein Team braucht Info"
+        },
+        {
+          "category": "Map Awareness",
+          "tip": "Ping und kommuniziere MIAs rechtzeitig - 'Care mid, miss mid'"
+        },
+        {
+          "category": "Teamfight",
+          "tip": "Wisse deine Rolle im Teamfight: Support zuerst Items, Carry danach"
+        },
+        {
+          "category": "Teamfight",
+          "tip": "Focus den richtigen Target - nicht immer den Support"
+        },
+        {
+          "category": "Economy",
+          "tip": "Farm effizient: Wechsel zwischen Jungle und Lane je nach Pressure"
+        },
+        {
+          "category": "Economy",
+          "tip": "Kaufe Smoke of Deceit für ganks - billiger als Ward aber gleiche Wirkung"
+        },
+        {
+          "category": "Items",
+          "tip": "Adaptiere Items nach Enemy-Team - kein Build ist in Stein gemeißelt"
+        },
+        {
+          "category": "Items",
+          "tip": "Gemeinsame Items: Dust vs Ghost (Ghost für escape, Dust für invisible)"
+        },
+        {
+          "category": "Mindset",
+          "tip": "Positive Mentality - flämmen ruiniert Spiele"
+        },
+        {
+          "category": "Mindset",
+          "tip": "Lerne aus jedem Tod - was hättest du anders machen können?"
+        }
+      ]
+    },
+    "secrets": {
+      "description": "Versteckte Mechaniken und Easter Eggs",
+      "items": [
+        {
+          "name": "Courier-Control",
+          "description": "Nutze 'Courier Deliver Now' (Tab + Klicken) für schnellen Bottle-Deliver"
+        },
+        {
+          "name": "Smart Attack",
+          "description": "Halte ALT und klicke auf ein Item/Skill für automatische Targets"
+        },
+        {
+          "name": "Quickcast",
+          "description": "Aktiviere Quickcast für alle Skills - spart Millisekunden"
+        },
+        {
+          "name": "Attack-Stop",
+          "description": "Halte S beim Klicken um Attack zu stoppen - wichtig für Lasthitting"
+        },
+        {
+          "name": "Camera-Lock Tricks",
+          "description": "Drücke Space um zwischen eigenem Hero und last hit hin und her zu springen"
+        },
+        {
+          "name": "Pulling/Stacking",
+          "description": "Aggro Creeps und zieh sie zur Large Camp: Timing ist 3:00, 6:00 etc."
+        },
+        {
+          "name": "Glyph Usage",
+          "description": "Nutze Glyph of Fortification um Tower zu schützen wenn dives"
+        },
+        {
+          "name": "TP Scroll Timing",
+          "description": "Habe immer 1x TP Scroll im Inventar - Rotation kann Spiel gewinnen"
+        },
+        {
+          "name": "Mystery Heroes",
+          "description": "Test-Heroes im Lobby mit -createhero <hero> <side> zum Üben"
+        },
+        {
+          "name": "Auto-Execute",
+          "description": " Aktiviere Auto-Execute für besseres Chloro/Beastmaster Bird Micro"
+        }
+      ]
+    }
+  }
+}

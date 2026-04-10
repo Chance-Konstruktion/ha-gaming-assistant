@@ -1,0 +1,174 @@
+{
+  "id": "gta_v_completion",
+  "name": "Grand Theft Auto V - 100% Completion Guide",
+  "type": "completion",
+  "keywords": ["100%", "completion", "guide", "collectibles", "missions", "progress", "strangers", "hobbies", "gold medals"],
+  "system_prompt": "DU BIST 100% COMPLETION COACH FÜR GRAND THEFT AUTO V. Der Spieler zeigt dir einen Screenshot. Analysiere exakt: Story-Mission Fortschritt (Anzahl absolvierter Missionen), Stranger & Freaks (offene Nebenmissionen), Hobbies & Pastimes (Stunt Jumps, Under the Bridge, Flugschule, Rennen, etc.), Collectibles (Briefe, UFO-Teile, Atomarer Abfall, etc.). Zeige sofort, was für 100% fehlt. Prioritäten: Story-Missionen > Stranger & Freaks > Hobbies & Pastimes > Collectibles > Sonstiges (Immobilien, Fahrzeuge, Börse). Missable Inhalte: Einige Stranger-Missionen (z. B. „The Last One“ erst nach 100% verfügbar) und zeitlich limitierte Events (keine echten Missables, aber manche erst nach Hauptstory). Sei brutal ehrlich und präzise. Nutze die offizielle 100%-Checkliste aus dem Spiel (Pause-Menü ? Statistik ? Fortschritt).",
+  "platforms": ["PC", "PS4", "PS5", "Xbox One", "Xbox Series X/S"],
+  "completion_categories": {
+    "story_missions": {
+      "description": "Hauptmissionen (69 insgesamt)",
+      "required": true,
+      "checklist": [
+        "Prolog: The Big Score (Einleitung)",
+        "Franklin & Lamar (Einführung)",
+        "Repossession (Abschleppmission)",
+        "Complications (Michael)",
+        "Father/Son (Michael)",
+        "Marriage Counseling (Michael)",
+        "Friend Request (Michael)",
+        "The Long Stretch (Franklin & Lamar)",
+        "Casing the Jewel Store (Michael)",
+        "Carbine Rifles (Waffenkauf)",
+        "The Jewel Store Job (Raub – verschiedene Ansätze)",
+        "Mr. Philips (Trevor)",
+        "Nervous Ron (Trevor)",
+        "Trevor Philips Industries (Trevor)",
+        "Crystal Maze (Trevor)",
+        "Hang Ten (Trevor)",
+        "Bury the Hatchet (Michael & Trevor)",
+        "Pack Man (Michael & Trevor)",
+        "Fresh Meat (Michael & Trevor)",
+        "Scouting the Port (Michael)",
+        "The Merryweather Heist (Raub – offshore oder offroad)",
+        "Trash Truck (Trevor)",
+        "Blitz Play (Michael, Franklin, Trevor)",
+        "The Hotel Assassination (Lester)",
+        "The Multi Target Assassination (Lester)",
+        "The Vice Assassination (Lester)",
+        "The Bus Assassination (Lester)",
+        "The Construction Assassination (Lester)",
+        "By the Book (Michael & Trevor)",
+        "Predator (Michael)",
+        "The Paleto Score (Raub)",
+        "Derailed (Michael)",
+        "Monkey Business (Michael)",
+        "Hood Safari (Franklin)",
+        "Did Somebody Say Yoga? (Michael)",
+        "Scouting the Port (Michael)",
+        "Meltdown (Michael)",
+        "I Fought the Law (Michael & Franklin)",
+        "Legal Trouble (Michael)",
+        "The Bureau Raid (Raub – Feuerwehr oder Roof Entry)",
+        "The Wrap Up (Michael & Dave)",
+        "Lamar Down (Franklin)",
+        "The Big Score (Raub – offensiv oder verdeckt)",
+        "The Third Way (Finale)"
+      ]
+    },
+    "strangers_and_freaks": {
+      "description": "Nebenmissionen für Fremde & Freaks (58 insgesamt)",
+      "required": true,
+      "list": [
+        "Tonya (Towing) – 5 Missionen",
+        "Hao (Street Racing) – 5 Rennen",
+        "Beverly (Paparazzo) – 4 Missionen",
+        "Mary Ann (Jogging) – 3 Begegnungen",
+        "Dom (Base Jumping) – 4 Sprünge",
+        "Cletus (Hunting) – 2 Missionen",
+        "Nigel & Mrs. Thornhill (Epsilon) – 4 Missionen (nur Michael)",
+        "Abigail (Fleeca Job) – 1 Mission",
+        "Josh (Drug Wars) – 2 Missionen",
+        "Maude (Bounty Hunter) – 4 Missionen",
+        "Omega (Space Docker) – 50 UFO-Teile sammeln (danach Mission)",
+        "Barry (Weed Delivery) – 2 Missionen",
+        "Jimmy (Boston) – 3 Missionen",
+        "Joe & Josef (Rampages) – 5 Missionen (nur Trevor)",
+        "Last One (Bigfoot) – erst nach 100% freischaltbar"
+      ]
+    },
+    "hobbies_and_pastimes": {
+      "description": "Hobbys & Zeitvertreib",
+      "required": true,
+      "categories": [
+        {"name": "Stunt Jumps", "total": 50, "note": "Mit jedem Fahrzeug absolvierbar"},
+        {"name": "Under the Bridge", "total": 50, "note": "Mit Helikopter oder Flugzeug unter Brücken durchfliegen"},
+        {"name": "Knife Flights", "total": 15, "note": "Mit Flugzeug nah an Hindernissen vorbeifliegen"},
+        {"name": "Flugschule", "total": 10 Missionen, "note": "Goldmedaille für 100% nicht nötig, aber alle bestehen"},
+        {"name": "Seerennen", "total": 8, "note": "Bootsrennen gewinnen"},
+        {"name": "Offroad Rennen", "total": 6, "note": "Mit Geländewagen"},
+        {"name": "Triathlon", "total": 3, "note": "Langstrecken-Schwimm-/Lauf-/Radrennen"},
+        {"name": "Yoga", "total": 1, "note": "Alle Posen korrekt ausführen (Michael)"},
+        {"name": "Tennis", "total": 1, "note": "Ein Spiel gewinnen"},
+        {"name": "Golf", "total": 1, "note": "Runde unter Par abschließen (9 Löcher)"},
+        {"name": "Darts", "total": 1, "note": "Ein Spiel gewinnen"},
+        {"name": "Strip Club", "total": 1, "note": "Privaten Tanz ansehen"},
+        {"name": "Bar (Getränke)", "total": 1, "note": "Alkohol trinken"},
+        {"name": "Arm Wrestling", "total": 1, "note": "Gewinnen"},
+        {"name": "Schießstand", "total": 3, "note": "Alle 3 Disziplinen mit Gold (optional, aber für 100%?) – tatsächlich reicht Silber/Bronze? – Gold für Achievement"}
+      ]
+    },
+    "collectibles": {
+      "description": "Sammelobjekte",
+      "required": true,
+      "items": [
+        {"name": "Briefschnipsel", "total": 50, "reward": "Merryweather Mesa (Fahrzeug)", "map_unlock": "Nach 25 Schnipseln"},
+        {"name": "UFO-Teile", "total": 50, "reward": "Space Docker (Fahrzeug)"},
+        {"name": "Nuklearer Abfall", "total": 30, "reward": "$250.000", "note": "Mit U-Boot einsammeln (Trevor)"},
+        {"name": "U-Boot-Teile", "total": 30, "reward": "Sonardevice (für Abfallmission)"},
+        {"name": "Versteckte Pakete (Underwater)", "total": 12, "reward": "$7.500 pro Paket + Waffen"},
+        {"name": "Peyote-Pflanzen", "total": 27, "reward": "Tier-Transformationen (kein Fortschritt für 100%, aber für Achievement)"}
+      ]
+    },
+    "random_events": {
+      "description": "Zufällige Ereignisse (57 insgesamt)",
+      "required": true,
+      "note": "Manche Ereignisse sind zeitlich begrenzt oder erscheinen nur unter bestimmten Bedingungen. Liste: Überfälle auf Geschäfte, Verfolgungsjagden, Unfallopfer helfen, Betrunkene nach Hause fahren, etc."
+    },
+    "property": {
+      "description": "Immobilienbesitz",
+      "required": true,
+      "total": 25 kaufbare Immobilien (Garagen, Hangars, Geschäfte, Wohnungen, etc.)",
+      "note": "Nicht alle müssen für 100% gekauft werden, aber einige sind notwendig (z. B. Hangar für Flugschule, Garage für besondere Fahrzeuge). Tatsächlich reicht es, eine Immobilie zu besitzen – aber das Spiel zählt alle? Laut Social Club: 15 Immobilien reichen. Sicherheitshalber: mindestens 5 (inkl. Flughafen-Hangar)."
+    },
+    "vehicles": {
+      "description": "Fahrzeuge für Garagen",
+      "required": false,
+      "note": "Keine spezifische Anzahl für 100%, aber für das Achievement „Unlocked“ alle 50 Fahrzeuge stehlen/gewinnen? Nicht nötig."
+    },
+    "stock_market": {
+      "description": "Aktienhandel (Lester-Missionen)",
+      "required": false,
+      "note": "Für 100% nicht erforderlich, aber für Geld und einige Achievements (z. B. „The Big Score“ mit maximalem Profit)."
+    },
+    "gold_medals": {
+      "description": "Goldmedaillen für Missionen",
+      "required": false,
+      "note": "Nicht für 100% erforderlich, aber für das Achievement „Career Criminal“ (70 Goldmedaillen)."
+    }
+  },
+  "checklist_summary": {
+    "story": "69 Hauptmissionen abschließen",
+    "strangers": "58 Nebenmissionen abschließen",
+    "stunt_jumps": "50/50",
+    "under_the_bridge": "50/50",
+    "knife_flights": "15/15",
+    "flight_school": "alle Missionen bestehen",
+    "sea_races": "8/8 gewinnen",
+    "offroad_races": "6/6 gewinnen",
+    "triathlons": "3/3 gewinnen",
+    "tennis": "gewinnen",
+    "golf": "unter Par",
+    "darts": "gewinnen",
+    "strip_club": "privater Tanz",
+    "bar_drinks": "Getränk",
+    "arm_wrestling": "gewinnen",
+    "shooting_range": "alle Disziplinen (Gold optional?)",
+    "collectibles": "50 Briefe, 50 UFO-Teile, 30 Atommüll, 30 U-Boot-Teile, 12 Unterwasserpakete",
+    "random_events": "57 erlebt",
+    "properties": "mindestens 5 Immobilien (inkl. Hangar)"
+  },
+  "rewards_100": [
+    "Trophäe/Erfolg: Career Criminal (Platin auf PlayStation)",
+    "Bigfoot-Mission: „The Last One“ (Stranger & Freaks) freigeschaltet",
+    "UFO-Sichtungen auf dem Mount Chiliad (nur bei 100%)",
+    "Space Docker (Fahrzeug) und andere besondere Fahrzeuge",
+    "Zugang zu allen Enden (Option C: Deathwish als kanonisch)"
+  ],
+  "missables": [
+    "Einige Stranger-Missionen erscheinen erst nach bestimmten Story-Fortschritten, sind aber nicht endgültig verpassbar (z. B. „The Last One“ erst nach 100%).",
+    "Goldmedaillen für bestimmte Missionen können nicht wiederholt werden, wenn man weiterspielt (aber man kann über das Pausenmenü jederzeit Missionen wiederholen).",
+    "Bestimmte random events (z. B. der betrunkene Zivilist) verschwinden nach einer Weile, tauchen aber später wieder auf."
+  ],
+  "version": "2026-04-06"
+}

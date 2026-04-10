@@ -1,0 +1,131 @@
+{
+  "id": "minecraft_cheats",
+  "name": "Minecraft - Cheats & Console Commands",
+  "type": "cheats",
+  "keywords": ["minecraft", "mc", "cheats", "commands", "console", "tp", "gamemode", "give", "creative", "survival"],
+  "system_prompt": "DU BIST MINECRAFT CHEAT-EXPERTE. Der Spieler zeigt einen Screenshot – erkenne was gerade passiert im Spiel. Prüfe: Welcher Game Mode? Health/Food Level? Position? Aktive Effekte? Inventar? Tageszeit/Wetter? Abhängig vom Status gib PRÄZISE Commands. Für Teleport: XYZ Koordinaten. Für Items: /give + Item ID. Für Bauen: /fill oder /setblock. Für Überleben: /effect give regeneration/god mode. Für OP-Spiel: /gamemode creative (fliegen, unzerstörbar).",
+  "platforms": ["PC", "Xbox", "PlayStation", "Nintendo Switch", "Mobile"],
+  "enable_cheats": {
+    "singleplayer": "Esc → Open to LAN → Allow Cheats: ON",
+    "multiplayer": "Need OP permissions from server admin"
+  },
+  "cheats": [
+    {
+      "name": "Creative Mode - God Mode",
+      "code": "/gamemode creative",
+      "method": "Command",
+      "effect": "Unlimited resources, instant mining, flight, unkillable except by /kill",
+      "risk": "None - Safe for building/testing",
+      "platforms": ["Java", "Bedrock"],
+      "verification_status": "verified"
+    },
+    {
+      "name": "Survival Mode - Normal",
+      "code": "/gamemode survival",
+      "method": "Command",
+      "effect": "Return to normal gameplay",
+      "risk": "None",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Spectator Mode",
+      "code": "/gamemode spectator",
+      "method": "Command",
+      "effect": "Fly through blocks, invisible, no block interaction",
+      "risk": "Safe for exploring",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Teleport to Coordinates",
+      "code": "/tp <x> <y> <z>",
+      "example": "/tp 100 64 -200",
+      "method": "Command",
+      "effect": "Instant travel to specific coordinates",
+      "risk": "Can teleport into void/death fall - check Y coordinate",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Teleport to Player",
+      "code": "/tp <player>",
+      "example": "/tp Steve",
+      "method": "Command",
+      "effect": "Teleport to another player",
+      "risk": "None",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Give Items",
+      "code": "/give <player> <item> [amount]",
+      "examples": [
+        "/give @p diamond 64",
+        "/give @p netherite_pickaxe",
+        "/give @p command_block"
+      ],
+      "method": "Command",
+      "effect": "Spawn any item in inventory",
+      "risk": "None",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Instant Kill All Mobs",
+      "code": "/kill @e[type=!player]",
+      "method": "Command",
+      "effect": "Eliminates all non-player entities (zombies, creepers, animals)",
+      "risk": "WARNING: Kills ALL mobs including pets/farm animals",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Permanent Night Vision",
+      "code": "/effect give @p minecraft:night_vision 99999",
+      "method": "Command",
+      "effect": "See perfectly in dark caves forever",
+      "risk": "None - QoL improvement",
+      "platforms": ["Java"],
+      "verification_status": "verified"
+    },
+    {
+      "name": "Permanent Strength V",
+      "code": "/effect give @p minecraft:strength 99999 5",
+      "method": "Command",
+      "effect": "One-shot kill most mobs with bare hands",
+      "risk": "Combat becomes trivial",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Set Time to Day",
+      "code": "/time set day",
+      "method": "Command",
+      "effect": "Instant daylight - prevents mob spawning",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Clear Weather",
+      "code": "/weather clear",
+      "method": "Command",
+      "effect": "Stop rain/thunder immediately",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Keep Inventory on Death",
+      "code": "/gamerule keepInventory true",
+      "method": "Command",
+      "effect": "Items don't drop on death",
+      "risk": "QoL improvement - no risk",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Disable Mob Spawning",
+      "code": "/gamerule doMobSpawning false",
+      "method": "Command",
+      "effect": "No hostile mobs spawn naturally",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Get World Seed",
+      "code": "/seed",
+      "method": "Command",
+      "effect": "Shows world generation seed for recreation",
+      "verification_status": "verified"
+    },
+    {
+      "name": "Spawn Ch

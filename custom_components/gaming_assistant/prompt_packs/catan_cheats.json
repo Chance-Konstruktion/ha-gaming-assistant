@@ -1,0 +1,63 @@
+{
+  "id": "catan_cheats",
+  "name": "Die Siedler von Catan - Cheats & Exploits",
+  "type": "cheats",
+  "keywords": ["cheats", "exploits", "resources", "unlimited", "trading", "glitch", "trainer"],
+  "system_prompt": "DU BIST CHEAT-EXPERTE FÜR DIE SIEDLER VON CATAN. Der User fragt nach Cheats für das physische Brettspiel oder die digitalen Versionen (PC, Mobile, Switch). Analysiere den Screenshot: Siehst du eine digitale UI (Ressourcenanzeige, Würfel, Handkarten) oder ein echtes Brett? Für das PHYSISCHE SPIEL: Es gibt KEINE echten Cheat-Codes. Du kannst aber Hausregeln, psychologische Tricks (Bluffen, Handelsmanipulation) und strategische Kniffe nennen. Für DIGITALE VERSIONEN (Catan Universe, Switch, etc.): Auch hier keine offiziellen Cheat-Codes, aber es existieren Glitches (z. B. Netzwerk-Lag beim Würfeln, Speicherstand-Manipulation) und PC-Trainer (Cheat Engine). Warne vor Account-Bann bei Online-Spielen. Gib immer an, ob eine Methode auf der aktuellen Version noch funktioniert. Prioritäten: 1) Digitale Glitches/Exploits (mit Patch-Status), 2) PC-Trainer/Mods (Offline only), 3) Hausregeln/Strategien (nur als solche gekennzeichnet). Sei präzise und unterscheide strikt zwischen echten Cheats und Spielertaktiken. // CHEAT-MODE: Keine offiziellen Codes – nur Exploits und Hausregeln.",
+  "platforms": ["PC", "iOS", "Android", "Nintendo Switch", "Physical"],
+  "cheats": [
+    {
+      "name": "Keine offiziellen Cheat-Codes",
+      "description": "Weder die physische noch die digitale Version von Catan enthält eingebaute Cheat-Codes (wie unendliche Rohstoffe oder Gottmodus). Die Entwickler bieten keine offiziellen Cheats.",
+      "note": "Alle folgenden Einträge sind entweder Hausregeln, strategische Tricks oder digitale Exploits/Glitches."
+    },
+    {
+      "name": "Digitale Version: Netzwerk-Lag Exploit (Catan Universe)",
+      "type": "digital_glitch",
+      "description": "Bei schlechter Internetverbindung kannst du während des Würfelns die App schließen, bevor das Ergebnis übertragen wird. Beim Neustart wird oft der gleiche Rohstoff-Wurf wiederholt – du kannst so mehrmals hintereinander von einer guten Zahl profitieren.",
+      "status": "Patch abhängig – in neueren Versionen möglicherweise gefixt",
+      "risk": "Mittel – kann zu Verbindungsabbrüchen führen",
+      "platforms": ["PC", "iOS", "Android"],
+      "warning": "Nicht im Ranglisten-Modus verwenden (kann zu temporären Sperren führen)."
+    },
+    {
+      "name": "Speicherstand-Manipulation (PC/Mobile)",
+      "type": "digital_exploit",
+      "description": "Bei einigen digitalen Versionen (z. B. Catan Universe offline) kannst du den lokalen Speicherstand sichern, einen Zug durchführen und bei Misserfolg den alten Stand wiederherstellen. So kannst du z. B. eine 7 vermeiden oder einen vorteilhaften Handel wiederholen.",
+      "status": "Funktioniert nur in Offline-Modi oder gegen KI",
+      "risk": "Niedrig (offline), hoch (online – Banngefahr)",
+      "platforms": ["PC", "Android"]
+    },
+    {
+      "name": "PC-Trainer (Cheat Engine)",
+      "type": "external_tool",
+      "description": "Mit Cheat Engine können Ressourcenwerte, Siegpunkte oder die Würfelwahrscheinlichkeit manipuliert werden. Dazu muss der Wert im Arbeitsspeicher gesucht und geändert werden.",
+      "status": "Funktioniert in Offline-Partien gegen KI",
+      "risk": "Hoch – Online-Bann sofort, Save-Corruption möglich",
+      "platforms": ["PC"],
+      "warning": "Nur im reinen Einzelspieler-Modus ohne Internetverbindung verwenden."
+    },
+    {
+      "name": "Hausregel: Chaos-Catan",
+      "type": "house_rule",
+      "description": "Die Zahlenchips werden zufällig auf die Felder verteilt (statt nach Wahrscheinlichkeit). Dadurch entstehen unberechenbare Ressourcenverteilungen – kann als ‚Cheat‘ für erfahrene Spieler genutzt werden, die sich schnell anpassen.",
+      "official": false,
+      "platforms": ["Physical"]
+    },
+    {
+      "name": "Hausregel: Freihandel (1:1)",
+      "type": "house_rule",
+      "description": "Erlaubt 1:1 Handel mit der Bank ohne Hafen (normalerweise 4:1). Beschleunigt das Spiel enorm und macht Rohstoffknappheit unwahrscheinlicher.",
+      "official": false,
+      "platforms": ["Physical"]
+    },
+    {
+      "name": "Strategischer Trick: Rohstoff-Monopol",
+      "type": "strategy",
+      "description": "Sobald du eine Monopol-Entwicklungskarte hast, sammle so viele Rohstoffe einer Sorte wie möglich (z. B. durch Handel), spiele die Monopol-Karte und nimm allen anderen Spielern genau diesen Rohstoff weg. Kein Cheat, aber extrem mächtig.",
+      "platforms": ["Physical", "Digital"]
+    }
+  ],
+  "online_warning": "Cheat-Engine, Speicherstands-Manipulation oder Netzwerk-Exploits im Online-Multiplayer führen zu permanentem Account-Bann (Ubisoft, Playdek). Verwende solche Methoden NUR im Offline-Modus gegen KI.",
+  "version": "2026-04-08"
+}

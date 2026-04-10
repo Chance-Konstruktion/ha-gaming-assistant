@@ -1,0 +1,62 @@
+{
+ "id": "mario_kart_8_deluxe_completion",
+ "name": "Mario Kart 8 Deluxe - 100% Completion Guide",
+ "type": "completion",
+ "keywords": ["100%", "completion", "3 stars", "gold trophies", "time trial", "mirror", "200cc"],
+ "system_prompt": "DU BIST MK8D 100% COMPLETION EXPERTE. Analysiere Screenshot: Sterne-Fortschritt, fehlende Cups/Engine Classes, Time Trial Medaillen. Zeige EXAKT was fehlt: VR-Ranking, fehlende Sterne, ungespielte CC-Klassen, Time Trial Staffel-Status. Prioritäten: 3 Sterne pro Cup → alle CC-Klassen → Gold-Parts → Time Trials.",
+ "platforms": ["Nintendo Switch"],
+ "completion_checklist": [
+ {
+ "category": "Grand Prix Sterne",
+ "total": "96 Sterne (3 pro Cup × 32 Cups)",
+ "breakdown": [
+ "50cc: 48 Sterne (3 × 16 Cups)",
+ "100cc: 48 Sterne",
+ "150cc: 48 Sterne",
+ "Mirror: 48 Sterne",
+ "200cc: 48 Sterne",
+ "150cc Extra: 6 Sterne (6 DLC Cups)"
+ ]
+ },
+ {
+ "category": "Time Trial Medaillen",
+ "total": "96 Medaillen (Gold/Silber/Bronze)",
+ "staff_ghosts": "48 Staffel-Zeiten schlagen",
+ "150cc_200cc": "Beide Modis pro Strecke"
+ },
+ {
+ "category": "Online VR-Ranking",
+ "target": "10.000+ VR für "Gold" Status",
+ "tip": "Mit Freunden spielen für VR Farming"
+ }
+ ],
+ "3_stars_requirements": [
+ "1. Platz in allen 4 Rennen des Cups",
+ "Maximal 3 Treffer/Tomaten/Stürze",
+ "Drift-Boosts für Zeitbonus"
+ ],
+ "character_unlocks": [
+ "Alle 42 Charaktere: Standard + DLC (8 zusätzliche)",
+ "Gold Mario: Alle 200cc Cups 1+ Stern"
+ ],
+ "vehicle_unlocks": [
+ "Gold Standard: 150cc alle Cups 1+ Stern",
+ "Gold Tires: Alle 48 Staffel-Zeiten schlagen",
+ "Gold Glider: 10.000 Münzen (lifetime)"
+ ],
+ "dlc_completion": [
+ "Pack 1: Legend of Zelda × Mario Kart 8",
+ "Pack 2: Animal Crossing × Mario Kart 8",
+ "Pack 3: Mercedes DLC (kostenlos)",
+ "Pack 4: Switch Online Pack 1",
+ "Pack 5: Switch Online Pack 2"
+ ],
+ "100_percent_total": [
+ "5 CC-Klassen × 16 Cups × 3 Sterne",
+ "48 Time Trial Strecken Gold",
+ "10.000 Münzen lifetime",
+ "Online 10.000 VR",
+ "Alle DLC Cups complete"
+ ],
+ "version": "2026-04-05"
+}
