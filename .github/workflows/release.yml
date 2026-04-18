@@ -22,7 +22,7 @@ jobs:
             hacs.json README.md LICENSE
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/gaming_assistant_hacs.zip
           generate_release_notes: true
