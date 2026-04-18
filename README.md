@@ -73,7 +73,7 @@ passthrough mode.
 | **LM Studio** | Local | Yes | OpenAI-compatible |
 | **OpenAI GPT-4o** | Cloud | Yes | Best quality, paid |
 | **Google Gemini** | Cloud | Yes | Free tier available |
-| **DeepSeek** | Cloud | No* | Text-only, cheap |
+| **DeepSeek** | Cloud | No* |  cheap |
 | **Groq** | Cloud | No* | Ultra-fast inference |
 
 > \* Text-only backends never receive images — they get game state + context
