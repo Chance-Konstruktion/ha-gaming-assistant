@@ -516,6 +516,7 @@ Clear history via `gaming_assistant.clear_history`.
 | `gaming_assistant.stop_watch_camera` | Stop camera watcher(s) |
 | `gaming_assistant.announce` | Speak current tip (or custom message) via TTS |
 | `gaming_assistant.summarize_session` | Generate a summary of the last gaming session |
+| `gaming_assistant.refresh_prompt_packs` | Re-download prompt packs from the community repo and hot-reload |
 
 > **Note:** Assistant mode, spoiler level, interval, and timeout are now
 > controlled via entities (see above) instead of services.
