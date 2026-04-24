@@ -1,0 +1,6 @@
+{
+  "id": "BadID With Space",
+  "name": "Bad ID",
+  "keywords": ["bad"],
+  "system_prompt": "nope"
+}

@@ -1,6 +1,7 @@
 """Dynamic prompt construction for Gaming Assistant."""
 from __future__ import annotations
 
+import json
 import re
 
 # Extra context injected when the source is a console game captured via camera.
@@ -195,6 +196,154 @@ class PromptBuilder:
                 parts.append("Do NOT repeat any previous tips. Give a NEW insight.")
 
         return "\n\n".join(parts)
+
+    # -- Phase 5.1: Action mode (structured JSON output) ---------------------
+
+    ACTION_SCHEMA: dict = {
+        "type": "object",
+        "required": ["action"],
+        "properties": {
+            "action": {
+                "type": "string",
+                "enum": [
+                    "press_button",
+                    "release_button",
+                    "tap_button",
+                    "move_stick",
+                    "wait",
+                    "no_op",
+                ],
+            },
+            "button": {
+                "type": "string",
+                "description": "Xbox button name: A, B, X, Y, LB, RB, LT, RT, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT, START, BACK",
+            },
+            "stick": {"type": "string", "enum": ["left", "right"]},
+            "x": {"type": "number", "minimum": -1.0, "maximum": 1.0},
+            "y": {"type": "number", "minimum": -1.0, "maximum": 1.0},
+            "duration_ms": {"type": "integer", "minimum": 0, "maximum": 5000},
+            "reason": {"type": "string"},
+        },
+    }
+
+    _ACTION_SYSTEM = (
+        "You are controlling a virtual game controller (Xbox layout). "
+        "Respond with ONE JSON object describing your single next action. "
+        "Do NOT output prose or markdown – only raw JSON. "
+        "Valid actions: press_button, release_button, tap_button, "
+        "move_stick, wait, no_op. "
+        "Include a short 'reason' field explaining the choice."
+    )
+
+    _ACTION_SYSTEM_COMPACT = (
+        "Control a game controller. Output ONE JSON object only. "
+        "Actions: press_button|tap_button|move_stick|wait|no_op. "
+        "Fields: action, button?, stick?, x?, y?, duration_ms?, reason."
+    )
+
+    @classmethod
+    def build_action(
+        cls,
+        game: str = "",
+        allowed_buttons: list[str] | None = None,
+        history_context: str = "",
+        state_context: str = "",
+        compact: bool = False,
+    ) -> str:
+        """Build a prompt that asks the LLM for a structured controller action.
+
+        The caller is expected to validate the resulting JSON against
+        :attr:`ACTION_SCHEMA` *before* forwarding it to any executor.
+        """
+        parts: list[str] = []
+        parts.append(cls._ACTION_SYSTEM_COMPACT if compact else cls._ACTION_SYSTEM)
+
+        if game:
+            parts.append(f"Game: {game}.")
+
+        if allowed_buttons:
+            allowed = ", ".join(sorted(set(allowed_buttons)))
+            parts.append(
+                f"Only these buttons are permitted: {allowed}. "
+                "Refuse with no_op if no permitted action makes sense."
+            )
+
+        if state_context:
+            parts.append(state_context)
+
+        if history_context:
+            parts.append(history_context)
+
+        parts.append("Schema:\n" + json.dumps(cls.ACTION_SCHEMA, indent=2))
+        parts.append(
+            'Example: {"action":"tap_button","button":"A","duration_ms":80,'
+            '"reason":"confirm menu prompt"}'
+        )
+        parts.append("Return ONLY the JSON object.")
+
+        return "\n\n".join(parts)
+
+    @staticmethod
+    def parse_action(text: str, allowed_buttons: list[str] | None = None) -> dict:
+        """Parse an LLM response into a validated action dict.
+
+        Raises ``ValueError`` when the output is missing, not JSON, or
+        violates the schema / whitelist. Unknown fields are stripped.
+        """
+        if not text or not text.strip():
+            raise ValueError("empty action response")
+
+        # Strip ```json fences if the model added them anyway.
+        stripped = text.strip()
+        if stripped.startswith("```"):
+            stripped = re.sub(r"^```(?:json)?\s*", "", stripped)
+            stripped = re.sub(r"\s*```$", "", stripped)
+
+        try:
+            payload = json.loads(stripped)
+        except json.JSONDecodeError as err:
+            raise ValueError(f"not valid JSON: {err}") from err
+
+        if not isinstance(payload, dict):
+            raise ValueError("action must be a JSON object")
+
+        allowed_actions = set(
+            PromptBuilder.ACTION_SCHEMA["properties"]["action"]["enum"]
+        )
+        action = payload.get("action")
+        if action not in allowed_actions:
+            raise ValueError(f"unknown action {action!r}")
+
+        if action in ("press_button", "release_button", "tap_button"):
+            button = payload.get("button")
+            if not isinstance(button, str) or not button:
+                raise ValueError(f"{action} requires a 'button' string")
+            button_up = button.upper()
+            if allowed_buttons and button_up not in {
+                b.upper() for b in allowed_buttons
+            }:
+                raise ValueError(f"button '{button}' is not whitelisted")
+            payload["button"] = button_up
+
+        if action == "move_stick":
+            stick = payload.get("stick")
+            if stick not in ("left", "right"):
+                raise ValueError("move_stick requires stick in {left, right}")
+            for axis in ("x", "y"):
+                val = payload.get(axis, 0.0)
+                if not isinstance(val, (int, float)) or not -1.0 <= val <= 1.0:
+                    raise ValueError(
+                        f"move_stick axis '{axis}' must be in [-1.0, 1.0]"
+                    )
+
+        duration = payload.get("duration_ms")
+        if duration is not None:
+            if not isinstance(duration, int) or duration < 0 or duration > 5000:
+                raise ValueError("duration_ms must be an int in [0, 5000]")
+
+        # Drop unknown keys to keep the downstream executor minimal.
+        allowed_keys = set(PromptBuilder.ACTION_SCHEMA["properties"])
+        return {k: v for k, v in payload.items() if k in allowed_keys}
 
     @staticmethod
     def build_summary(

@@ -178,6 +178,8 @@ def main():
     last_hash = ""
     consecutive_errors = 0
     max_errors = 20
+    backoff_base = 2
+    backoff_cap = 60
 
     try:
         while True:
@@ -186,6 +188,7 @@ def main():
                 time.sleep(5)
                 continue
 
+            had_error = False
             try:
                 jpeg_bytes, frame_hash = fetch_snapshot(
                     args.url,
@@ -223,15 +226,27 @@ def main():
             except requests.RequestException as err:
                 log.warning("Snapshot request failed: %s", err)
                 consecutive_errors += 1
+                had_error = True
             except Exception as err:
                 log.exception("Capture error: %s", err)
                 consecutive_errors += 1
+                had_error = True
 
             if consecutive_errors >= max_errors:
                 log.error("Too many consecutive errors (%d). Exiting.", max_errors)
                 break
 
-            time.sleep(args.interval)
+            if had_error:
+                # Exponential backoff: 2s, 4s, 8s, … capped at 60s.
+                backoff = min(backoff_base ** consecutive_errors, backoff_cap)
+                sleep_for = max(backoff, args.interval)
+                log.info(
+                    "Backing off %.1fs after %d consecutive errors",
+                    sleep_for, consecutive_errors,
+                )
+                time.sleep(sleep_for)
+            else:
+                time.sleep(args.interval)
 
     except KeyboardInterrupt:
         log.info("Stopping agent...")
