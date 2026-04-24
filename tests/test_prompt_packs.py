@@ -33,7 +33,7 @@ class TestPromptPackValidation(unittest.TestCase):
         """Return all non-template pack files from bundled directory."""
         return [
             f for f in PACK_DIR.glob("*.json")
-            if not f.name.startswith("_") and f.name != "manifest.json"
+            if not f.name.startswith("_") and f.name != "pack_manifest.json"
         ]
 
     def test_packs_directory_exists(self):

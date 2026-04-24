@@ -92,7 +92,7 @@ Windows, Linux, macOS, Android, Android TV, and Raspberry Pi / HDMI bridges.
 
 ## Prompt Pack Manifest (v1)
 
-`custom_components/gaming_assistant/prompt_packs/manifest.json` holds:
+`custom_components/gaming_assistant/prompt_packs/pack_manifest.json` holds:
 
 - `manifest_version` – integer, bumped on breaking pack schema changes.
 - `min_integration_version` – soft floor for loading packs.

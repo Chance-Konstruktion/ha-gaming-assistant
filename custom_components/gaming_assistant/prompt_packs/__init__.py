@@ -14,7 +14,7 @@ import aiohttp
 _LOGGER = logging.getLogger(__name__)
 
 _BUNDLED_DIR = Path(__file__).parent
-_MANIFEST_FILE = _BUNDLED_DIR / "manifest.json"
+_MANIFEST_FILE = _BUNDLED_DIR / "pack_manifest.json"
 
 PROMPTS_REPO_URL = (
     "https://github.com/Chance-Konstruktion/"
@@ -160,7 +160,7 @@ class PromptPackLoader:
         if not directory.is_dir():
             return count
         for path in directory.rglob("*.json"):
-            if path.name.startswith("_") or path.name == "manifest.json":
+            if path.name.startswith("_") or path.name == "pack_manifest.json":
                 continue
             data = self._try_load_pack(path)
             if data is None:
@@ -187,7 +187,7 @@ class PromptPackLoader:
         # 2. Fill in from bundled packs (fallback)
         bundled_count = 0
         for path in _BUNDLED_DIR.rglob("*.json"):
-            if path.name.startswith("_") or path.name == "manifest.json":
+            if path.name.startswith("_") or path.name == "pack_manifest.json":
                 continue
             data = self._try_load_pack(path)
             if data is None:

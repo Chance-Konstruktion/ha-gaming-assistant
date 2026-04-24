@@ -375,7 +375,7 @@ Empfohlener Codex-Workflow je Task:
 - `worker/capture_agent_ipcam.py`
 - `worker/capture_agent_bridge.py`
 - `custom_components/gaming_assistant/spoiler_profiles.py` (optional)
-- `custom_components/gaming_assistant/prompt_packs/manifest.json`
+- `custom_components/gaming_assistant/prompt_packs/pack_manifest.json`
 - `docs/`-Struktur für Setup und Quellen
 
 ### 6.2 Voraussichtlich zu ändernde Dateien

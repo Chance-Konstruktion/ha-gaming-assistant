@@ -256,7 +256,10 @@ class TestBridgeAgent(unittest.TestCase):
 
     def test_grab_frame_formats_jpeg(self):
         """grab_frame should produce valid JPEG bytes and a stable hash."""
-        import numpy as np
+        try:
+            import numpy as np  # noqa: F401 – imported for its array type
+        except ImportError:
+            self.skipTest("numpy not installed (ships with opencv-python)")
         from worker import capture_agent_bridge as bridge
 
         fake_frame = np.zeros((16, 16, 3), dtype=np.uint8)

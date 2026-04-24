@@ -11,7 +11,7 @@ Closes several long-standing items from `ROADMAP_CODEX_MASTERPLAN.md`.
   Uses OpenCV's V4L2 backend, identical MQTT topic layout as the other
   agents. Ships with a systemd unit in `worker/systemd/`.
 - **Added:** Prompt pack manifest + validator (GA-104). Packs are now
-  validated against `prompt_packs/manifest.json`; malformed packs are
+  validated against `prompt_packs/pack_manifest.json`; malformed packs are
   skipped with a clear warning and surfaced in
   `PromptPackLoader.invalid_packs`. Pack schema supports optional
   `version`, `game_id`, `constraints`, and `examples` fields.

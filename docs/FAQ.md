@@ -73,7 +73,7 @@ state + context descriptions instead of raw images.
 ### My custom pack doesn't load
 
 Since v0.13 the loader validates packs against
-`prompt_packs/manifest.json`. Common reasons for rejection:
+`prompt_packs/pack_manifest.json`. Common reasons for rejection:
 
 - `id` is not snake_case (must match `^[a-z0-9_]+$`).
 - `keywords` is missing or empty.
