@@ -31,6 +31,16 @@ class TestServiceContract(unittest.TestCase):
     def test_services_unique(self):
         self.assertEqual(len(self.services), len(set(self.services)))
 
+    def test_refresh_prompt_packs_registered(self):
+        self.assertIn("refresh_prompt_packs", self.services)
+
+    def test_refresh_prompt_packs_documented(self):
+        yaml_text = (
+            Path("custom_components/gaming_assistant/services.yaml")
+            .read_text(encoding="utf-8")
+        )
+        self.assertIn("refresh_prompt_packs:", yaml_text)
+
 
 if __name__ == "__main__":
     unittest.main()
