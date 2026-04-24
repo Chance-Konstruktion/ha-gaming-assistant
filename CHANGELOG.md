@@ -2,6 +2,36 @@
 
 All notable changes to the Gaming Assistant for Home Assistant.
 
+## [0.13.0] - 2026-04-24 — "Roadmap Close-Out: Bridge, Overlay, Action Mode"
+
+Closes several long-standing items from `ROADMAP_CODEX_MASTERPLAN.md`.
+
+- **Added:** `worker/capture_agent_bridge.py` (GA-102) — HDMI bridge
+  capture agent for Raspberry Pi / SBC setups with a USB HDMI dongle.
+  Uses OpenCV's V4L2 backend, identical MQTT topic layout as the other
+  agents. Ships with a systemd unit in `worker/systemd/`.
+- **Added:** Prompt pack manifest + validator (GA-104). Packs are now
+  validated against `prompt_packs/pack_manifest.json`; malformed packs are
+  skipped with a clear warning and surfaced in
+  `PromptPackLoader.invalid_packs`. Pack schema supports optional
+  `version`, `game_id`, `constraints`, and `examples` fields.
+- **Added:** `Gaming Assistant Last Error` diagnostic sensor (GA-106)
+  — shows the latest exception message, type, and timestamp.
+- **Added:** `tools/overlay_pc.py` (GA-107) — lightweight, display-only
+  Tkinter HUD that subscribes to `gaming_assistant/tip` over MQTT.
+  Hotkeys F8 (toggle) / Esc (quit); no input automation.
+- **Added:** Action-mode in `PromptBuilder` (Phase 5.1) —
+  `build_action()` produces a schema-constrained prompt, and
+  `parse_action()` validates the LLM's JSON reply against a button
+  whitelist. Foundation for the upcoming `vgamepad` executor.
+- **Added:** `docs/architecture.md` and `docs/FAQ.md`.
+- **Added:** `tests/fixtures/` with sample prompt packs (valid + invalid)
+  and a tiny synthetic frame (GA-108) plus fixture-based tests.
+- **Improved:** IP Webcam agent (GA-101) now uses exponential backoff
+  (2s, 4s, 8s, …, capped at 60s) when the HTTP endpoint fails, instead
+  of sleeping the regular interval.
+- **Bumped:** Integration version to `0.13.0`.
+
 ## [0.12.1] - 2026-04-05 — "CLI & CI Fixes"
 - **Fixed:** `detect_foreground_app()` in legacy Android worker — shell pipe `|`
   was passed as a literal subprocess argument instead of being interpreted by a

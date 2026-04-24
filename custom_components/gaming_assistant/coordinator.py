@@ -130,6 +130,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._error_count: int = 0
         self._frames_processed: int = 0
         self._last_analysis: str = ""
+        self._last_error_message: str = ""
+        self._last_error_type: str = ""
+        self._last_error_timestamp: str = ""
 
         # Initialize managers
         self._history = HistoryManager(hass.config.config_dir)
@@ -227,7 +230,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             name="Gaming Assistant",
             manufacturer="Chance-Konstruktion",
             model=self.config.get(CONF_MODEL, "qwen2.5vl"),
-            sw_version="0.12.0",
+            sw_version="0.13.0",
             configuration_url=self.config.get(CONF_OLLAMA_HOST, ""),
         )
 
@@ -788,6 +791,27 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         return self._last_analysis
 
     @property
+    def last_error_message(self) -> str:
+        return self._last_error_message
+
+    @property
+    def last_error_type(self) -> str:
+        return self._last_error_type
+
+    @property
+    def last_error_timestamp(self) -> str:
+        return self._last_error_timestamp
+
+    def _record_error(self, err: BaseException) -> None:
+        """Record an error for the diagnostics sensors."""
+        self._error_count += 1
+        self._last_error_message = str(err) or err.__class__.__name__
+        self._last_error_type = err.__class__.__name__
+        self._last_error_timestamp = time.strftime(
+            "%Y-%m-%dT%H:%M:%S", time.localtime()
+        )
+
+    @property
     def last_image_bytes(self) -> bytes | None:
         return self._last_image_bytes
 
@@ -1073,16 +1097,22 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                     self._frames_processed += 1
                     self._status = "idle"
 
-            except (TimeoutError, asyncio.TimeoutError):
+            except (TimeoutError, asyncio.TimeoutError) as err:
                 _LOGGER.warning(
                     "Image processing timed out after %ds for client %s",
                     self._analysis_timeout + 5, client_id
                 )
-                self._error_count += 1
+                self._record_error(
+                    err
+                    if str(err)
+                    else TimeoutError(
+                        f"timeout after {self._analysis_timeout + 5}s"
+                    )
+                )
                 self._status = "error"
             except (OSError, json.JSONDecodeError, ValueError) as err:
                 _LOGGER.error("Image processing failed: %s", err)
-                self._error_count += 1
+                self._record_error(err)
                 self._status = "error"
             finally:
                 self._processing = False
@@ -1384,6 +1414,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "source_type": self._source_type,
             "available_models": self._available_models,
             "active_model": self.active_model,
+            "last_error_message": self._last_error_message,
+            "last_error_type": self._last_error_type,
+            "last_error_timestamp": self._last_error_timestamp,
         }
 
     async def _async_update_data(self) -> dict:

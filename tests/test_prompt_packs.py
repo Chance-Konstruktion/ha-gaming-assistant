@@ -33,7 +33,7 @@ class TestPromptPackValidation(unittest.TestCase):
         """Return all non-template pack files from bundled directory."""
         return [
             f for f in PACK_DIR.glob("*.json")
-            if not f.name.startswith("_")
+            if not f.name.startswith("_") and f.name != "pack_manifest.json"
         ]
 
     def test_packs_directory_exists(self):
@@ -188,6 +188,65 @@ class TestPromptPackLoader(unittest.TestCase):
             loader.load_all()
             result = loader.get("override_test")
             self.assertEqual(result["name"], "Cached Version")
+
+
+class TestPackValidation(unittest.TestCase):
+    """Test the explicit validate_pack function against fixture files."""
+
+    FIXTURE_DIR = Path(__file__).parent / "fixtures" / "prompt_packs"
+
+    @classmethod
+    def setUpClass(cls):
+        cls._mod = _import_prompt_packs()
+
+    def _load_fixture(self, name: str) -> dict:
+        return json.loads((self.FIXTURE_DIR / name).read_text(encoding="utf-8"))
+
+    def test_valid_minimal_pack_passes(self):
+        errors = self._mod.validate_pack(self._load_fixture("valid_minimal.json"))
+        self.assertEqual(errors, [])
+
+    def test_valid_full_pack_passes(self):
+        errors = self._mod.validate_pack(self._load_fixture("valid_full.json"))
+        self.assertEqual(errors, [])
+
+    def test_bad_id_is_rejected(self):
+        errors = self._mod.validate_pack(self._load_fixture("invalid_bad_id.json"))
+        self.assertTrue(any("id" in e for e in errors), errors)
+
+    def test_missing_required_fields_rejected(self):
+        errors = self._mod.validate_pack(
+            self._load_fixture("invalid_missing_fields.json")
+        )
+        joined = " ".join(errors)
+        self.assertIn("keywords", joined)
+        self.assertIn("system_prompt", joined)
+
+    def test_bad_version_rejected(self):
+        errors = self._mod.validate_pack({
+            "id": "x", "name": "x", "keywords": ["x"],
+            "system_prompt": "x", "version": "not-a-version",
+        })
+        self.assertTrue(any("version" in e for e in errors), errors)
+
+    def test_loader_skips_invalid_fixture(self):
+        import tempfile, shutil
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_dir = Path(tmpdir)
+            # Copy only the invalid ID fixture into the cache dir.
+            shutil.copy(self.FIXTURE_DIR / "invalid_bad_id.json", cache_dir)
+            loader = self._mod.PromptPackLoader(cache_dir=cache_dir)
+            loader.load_all()
+            # The invalid one must not appear in loaded packs.
+            for pack in loader._packs.values():
+                self.assertNotEqual(pack.get("name"), "Bad ID")
+            self.assertIn("invalid_bad_id.json", loader.invalid_packs)
+
+    def test_manifest_available(self):
+        loader = self._mod.PromptPackLoader()
+        manifest = loader.manifest
+        self.assertEqual(manifest.get("manifest_version"), 1)
+        self.assertIn("pack_schema", manifest)
 
 
 class TestDownloadConfig(unittest.TestCase):

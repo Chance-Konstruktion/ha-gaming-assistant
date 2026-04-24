@@ -15,7 +15,15 @@ Der **Gaming Assistant** ist eine Home-Assistant-Integration (HACS), die Gamepla
 - Geräteunabhängig durch Thin-Client-Erfassung (PC, Android, Kameraquellen, HDMI-Bridge).
 - Klare Erweiterbarkeit für Community, Overlay, Sprache und Agent-Mode.
 
-### Aktueller Stand (v0.9.1)
+### Aktueller Stand (v0.13.0)
+
+Siehe `CHANGELOG.md`. Phasen 1–3 der ursprünglichen Roadmap
+(Capture-Quellen, Spoiler-Profile, Diagnose-Sensoren, PC-Overlay,
+Prompt-Pack-Manifest, Test-Fixtures) sind abgeschlossen; die Phase-5
+Infrastruktur für strukturierte Aktionen (Action-Mode im PromptBuilder)
+liegt vor, der eigentliche `vgamepad`-Executor folgt als GA-109.
+
+### Historischer Stand (v0.9.1)
 - Thin-Client-Architektur aktiv.
 - Capture Agents für PC, Android (ADB), Android TV, IP Webcam.
 - MQTT-basierte Bild- und Metadaten-Pipeline.
@@ -367,7 +375,7 @@ Empfohlener Codex-Workflow je Task:
 - `worker/capture_agent_ipcam.py`
 - `worker/capture_agent_bridge.py`
 - `custom_components/gaming_assistant/spoiler_profiles.py` (optional)
-- `custom_components/gaming_assistant/prompt_packs/manifest.json`
+- `custom_components/gaming_assistant/prompt_packs/pack_manifest.json`
 - `docs/`-Struktur für Setup und Quellen
 
 ### 6.2 Voraussichtlich zu ändernde Dateien
@@ -448,14 +456,28 @@ Zusätzlich empfohlen:
 
 ## 10) Backlog (konkret formulierte nächste Tasks)
 
-1. **GA-101:** `capture_agent_ipcam.py` implementieren + README-Abschnitt.
-2. **GA-102:** Bridge-Agent-Prototyp für `/dev/video0` + Systemd-Beispiel.
-3. **GA-103:** Spoiler-Profil-Persistenz pro Spiel in Integration ergänzen.
-4. **GA-104:** Prompt-Pack-Manifest/Validierung einführen.
-5. **GA-105:** Session-Summary-Mechanik in History + Prompt Builder integrieren.
-6. **GA-106:** Erweiterte Diagnosesensoren (Latenz, letzter Fehler, Quelle).
-7. **GA-107:** Overlay-PC-Prototyp (nur Anzeige, kein Agent Mode).
-8. **GA-108:** Test-Harness mit Beispielbildern für reproduzierbare E2E-Läufe.
+Status per v0.13.0:
+
+1. **GA-101:** `capture_agent_ipcam.py` — ✅ (inkl. Exponential Backoff v0.13).
+2. **GA-102:** Bridge-Agent `/dev/video0` + Systemd-Beispiel — ✅ v0.13.
+3. **GA-103:** Per-Game Spoiler-Profil-Persistenz — ✅ (seit v0.5).
+4. **GA-104:** Prompt-Pack-Manifest/Validierung — ✅ v0.13.
+5. **GA-105:** Session-Summary + Prompt-Builder-Integration — ✅ (seit v0.9).
+6. **GA-106:** Diagnosesensoren (Latenz + Last Error) — ✅ v0.13
+   (`Gaming Assistant Last Error`).
+7. **GA-107:** Overlay-PC-Prototyp — ✅ v0.13 (`tools/overlay_pc.py`,
+   anzeige-only, kein Agent Mode).
+8. **GA-108:** Test-Harness mit Fixtures — ✅ v0.13 (`tests/fixtures/`).
+
+Offene Folge-Tasks (Phase 5+):
+
+- **GA-109:** `vgamepad`-Executor als separater Worker, gated per
+  Feature-Flag. `PromptBuilder.build_action()` + `parse_action()` sind
+  bereits in v0.13 verfügbar.
+- **GA-110:** Schach-Bot-Prototyp auf Basis des Action-Modes.
+- **GA-111:** ViZDoom-Hybrid (Forschung).
+- **GA-112:** Android Overlay App (Kotlin, draw-over-apps).
+- **GA-113:** Prompt-Pack-Registry (Community-Submissions).
 
 ---
 

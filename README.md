@@ -581,6 +581,58 @@ Same as Android agent, plus:
 |----------|---------|-------------|
 | `--game-hint` | | Manual game name for streaming apps |
 
+### IP Webcam Agent (`capture_agent_ipcam.py`)
+
+Polls a JPEG snapshot URL (Android IP Webcam app, iOS camera apps,
+any MJPEG-friendly device) and publishes frames over MQTT.
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--url` | *(required)* | Snapshot URL, e.g. `http://192.168.1.42:8080/shot.jpg` |
+| `--interval` | 5 | Seconds between captures |
+| `--quality` | 75 | JPEG quality (1-100) |
+| `--resize` | 960x540 | Image dimensions |
+| `--auth-user` / `--auth-password` | | Optional HTTP basic auth |
+| `--timeout` | 8 | HTTP timeout in seconds |
+| `--game-hint` | | Manual game name |
+| `--detect-change` | off | Skip unchanged frames |
+
+On HTTP errors the agent now backs off exponentially (2s, 4s, 8s, …,
+capped at 60s) and exits only after 20 consecutive failures.
+
+### HDMI Bridge Agent (`capture_agent_bridge.py`)
+
+Captures from a V4L2 device (e.g. a USB HDMI dongle on a Raspberry Pi)
+so that game consoles can be analyzed without installing anything on
+the console itself.
+
+```bash
+pip install opencv-python
+python capture_agent_bridge.py --broker 192.168.1.10 --device /dev/video0
+```
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--device` | `/dev/video0` | V4L2 device path or index |
+| `--capture-resolution` | 1280x720 | Requested input resolution |
+| `--resize` | 960x540 | Output size for MQTT |
+| `--quality` | 70 | JPEG quality (1-100) |
+| `--interval` | 2 | Seconds between frames |
+| `--client-type` | `console` | Reported source type |
+| `--game-hint` | | Manual game name |
+| `--detect-change` | off | Skip unchanged frames |
+
+A systemd example is included at
+`worker/systemd/gaming-assistant-bridge.service` — adjust broker IP,
+device path, and the user before enabling.
+
+### PC Overlay HUD (`tools/overlay_pc.py`)
+
+Optional, display-only. Subscribes to `gaming_assistant/tip` over MQTT
+and renders the latest tip in an always-on-top transparent window.
+Press **F8** to toggle, **Esc** to quit. See `tools/README.md` for
+details.
+
 ---
 
 ## Migration from v0.2/v0.3

@@ -28,6 +28,7 @@ async def async_setup_entry(
         GamingAssistantHistorySensor(coordinator),
         GamingAssistantLatencySensor(coordinator),
         GamingAssistantErrorCountSensor(coordinator),
+        GamingAssistantLastErrorSensor(coordinator),
         GamingAssistantFramesProcessedSensor(coordinator),
         GamingAssistantLastAnalysisSensor(coordinator),
         GamingAssistantActiveWatchersSensor(coordinator),
@@ -153,6 +154,37 @@ class GamingAssistantErrorCountSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self) -> int:
         return self._coordinator.error_count
+
+
+class GamingAssistantLastErrorSensor(CoordinatorEntity, SensorEntity):
+    """Shows the most recent error message for easy diagnostics."""
+
+    _attr_name = "Gaming Assistant Last Error"
+    _attr_unique_id = "gaming_assistant_last_error"
+    _attr_icon = "mdi:alert"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def native_value(self) -> str:
+        msg = self._coordinator.last_error_message
+        if not msg:
+            return "ok"
+        if len(msg) > 250:
+            return msg[:247] + "..."
+        return msg
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {
+            "error_type": self._coordinator.last_error_type,
+            "timestamp": self._coordinator.last_error_timestamp,
+            "error_count": self._coordinator.error_count,
+            "full_message": self._coordinator.last_error_message,
+        }
 
 
 class GamingAssistantFramesProcessedSensor(CoordinatorEntity, SensorEntity):

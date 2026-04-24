@@ -1,0 +1,21 @@
+{
+  "id": "test_full",
+  "name": "Test Full",
+  "version": "1.2.3",
+  "game_id": "test-full-123",
+  "keywords": ["test full", "full"],
+  "system_prompt": "You are a full test coach.",
+  "additional_context": "Long form context for vision models.",
+  "spoiler_defaults": {
+    "story": "none",
+    "mechanics": "high"
+  },
+  "constraints": {
+    "min_model_params_b": 3,
+    "requires_vision": true,
+    "supported_modes": ["coach", "analyst"]
+  },
+  "examples": [
+    {"situation": "low health", "tip": "heal up before pushing"}
+  ]
+}

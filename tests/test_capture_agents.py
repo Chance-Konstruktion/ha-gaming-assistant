@@ -244,6 +244,60 @@ class TestIPCamAgent(unittest.TestCase):
 
 
 # ===========================================================================
+# HDMI Bridge Capture Agent tests (opencv optional – test via mocks)
+# ===========================================================================
+
+class TestBridgeAgent(unittest.TestCase):
+    """Tests for capture_agent_bridge.py that don't require OpenCV."""
+
+    def test_topic_cmd_matches(self):
+        from worker.capture_agent_bridge import TOPIC_CMD
+        self.assertEqual(TOPIC_CMD, "gaming_assistant/command")
+
+    def test_grab_frame_formats_jpeg(self):
+        """grab_frame should produce valid JPEG bytes and a stable hash."""
+        try:
+            import numpy as np  # noqa: F401 – imported for its array type
+        except ImportError:
+            self.skipTest("numpy not installed (ships with opencv-python)")
+        from worker import capture_agent_bridge as bridge
+
+        fake_frame = np.zeros((16, 16, 3), dtype=np.uint8)
+        fake_frame[:, :] = (20, 40, 60)  # BGR
+
+        fake_cap = MagicMock()
+        fake_cap.read.return_value = (True, fake_frame)
+
+        # Patch cv2 shims – real OpenCV may not be installed during tests.
+        fake_cv2 = SimpleNamespace(
+            cvtColor=lambda f, code: f[:, :, ::-1],
+            COLOR_BGR2RGB=0,
+        )
+        with patch.object(bridge, "cv2", fake_cv2):
+            jpeg_bytes, frame_hash = bridge.grab_frame(
+                fake_cap, resize=(8, 8), quality=60
+            )
+        self.assertIsInstance(jpeg_bytes, bytes)
+        self.assertGreater(len(jpeg_bytes), 0)
+        self.assertEqual(frame_hash, hashlib.md5(jpeg_bytes).hexdigest())
+
+    def test_grab_frame_raises_on_no_frame(self):
+        from worker import capture_agent_bridge as bridge
+
+        fake_cap = MagicMock()
+        fake_cap.read.return_value = (False, None)
+        with patch.object(bridge, "cv2", SimpleNamespace()):
+            with self.assertRaises(RuntimeError):
+                bridge.grab_frame(fake_cap, resize=(8, 8), quality=50)
+
+    def test_open_device_raises_without_cv2(self):
+        from worker import capture_agent_bridge as bridge
+        with patch.object(bridge, "cv2", None):
+            with self.assertRaises(RuntimeError):
+                bridge.open_device("/dev/video0", 640, 480)
+
+
+# ===========================================================================
 # Cross-agent: MQTT topic format consistency
 # ===========================================================================
 
@@ -255,10 +309,12 @@ class TestMQTTTopicFormat(unittest.TestCase):
         from worker.capture_agent_android import TOPIC_CMD as android_cmd
         from worker.capture_agent_android_tv import TOPIC_CMD as tv_cmd
         from worker.capture_agent_ipcam import TOPIC_CMD as ipcam_cmd
+        from worker.capture_agent_bridge import TOPIC_CMD as bridge_cmd
         self.assertEqual(pc_cmd, "gaming_assistant/command")
         self.assertEqual(android_cmd, "gaming_assistant/command")
         self.assertEqual(tv_cmd, "gaming_assistant/command")
         self.assertEqual(ipcam_cmd, "gaming_assistant/command")
+        self.assertEqual(bridge_cmd, "gaming_assistant/command")
 
 
 if __name__ == "__main__":
