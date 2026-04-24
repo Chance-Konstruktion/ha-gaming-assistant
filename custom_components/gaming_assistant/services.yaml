@@ -367,3 +367,11 @@ list_game_packs:
   description: >
     List all available prompt packs (game-specific AI configurations).
     Results are logged at INFO level and returned as a service response.
+
+refresh_prompt_packs:
+  name: Refresh Prompt Packs
+  description: >
+    Download the latest prompt packs from the community repository
+    (Chance-Konstruktion/ha-gaming-assistant-prompts) and hot-reload
+    them without restarting Home Assistant. Invalid packs are skipped
+    with a warning.

@@ -41,6 +41,7 @@ _ALL_SERVICES = (
     "watch_camera", "stop_watch_camera",
     "announce", "summarize_session", "configure",
     "set_game_hint", "list_game_packs", "set_source_type",
+    "refresh_prompt_packs",
 )
 
 
@@ -412,6 +413,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     _LOGGER.info("Available game packs: %s", packs)
                     break
 
+        async def handle_refresh_prompt_packs(call: ServiceCall) -> None:
+            """Re-download prompt packs from GitHub and hot-reload them."""
+            packs_cache = (
+                Path(hass.config.config_dir) / "gaming_assistant" / "prompt_packs"
+            )
+            downloaded = False
+            try:
+                downloaded = await download_prompt_packs(packs_cache)
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning("Prompt pack refresh failed: %s", err)
+                raise HomeAssistantError(
+                    f"Could not download prompt packs: {err}"
+                ) from err
+
+            if not downloaded:
+                _LOGGER.warning(
+                    "Prompt pack download returned no packs; keeping current set."
+                )
+                return
+
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    coord.pack_loader.reload()
+                    _LOGGER.info(
+                        "Prompt packs reloaded: %d active, %d invalid",
+                        len(coord.available_game_packs),
+                        len(coord.pack_loader.invalid_packs),
+                    )
+
         async def handle_configure(call: ServiceCall) -> None:
             """Update runtime configuration (camera, TTS, model) from the panel."""
             camera = call.data.get("camera_entity")
@@ -476,6 +506,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "set_game_hint", handle_set_game_hint)
         hass.services.async_register(DOMAIN, "set_source_type", handle_set_source_type)
         hass.services.async_register(DOMAIN, "list_game_packs", handle_list_game_packs)
+        hass.services.async_register(
+            DOMAIN, "refresh_prompt_packs", handle_refresh_prompt_packs
+        )
 
     _LOGGER.info("Gaming Assistant integration loaded successfully")
     return True

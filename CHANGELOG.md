@@ -6,6 +6,11 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 Closes several long-standing items from `ROADMAP_CODEX_MASTERPLAN.md`.
 
+- **Added:** `gaming_assistant.refresh_prompt_packs` service — re-downloads
+  the latest packs from the community repository
+  (`Chance-Konstruktion/ha-gaming-assistant-prompts`) and hot-reloads them
+  without restarting Home Assistant. Invalid packs are reported but do
+  not break existing ones.
 - **Added:** `worker/capture_agent_bridge.py` (GA-102) — HDMI bridge
   capture agent for Raspberry Pi / SBC setups with a USB HDMI dongle.
   Uses OpenCV's V4L2 backend, identical MQTT topic layout as the other
