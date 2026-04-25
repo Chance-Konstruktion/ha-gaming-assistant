@@ -4,7 +4,7 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ## [0.13.0] - 2026-04-24 — "Roadmap Close-Out: Bridge, Overlay, Action Mode"
 
-Closes several long-standing items from `ROADMAP_CODEX_MASTERPLAN.md`.
+Closes several long-standing items from `ROADMAP.md`.
 
 - **Added:** `gaming_assistant.refresh_prompt_packs` service — re-downloads
   the latest packs from the community repository

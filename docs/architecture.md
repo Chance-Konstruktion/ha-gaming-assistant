@@ -2,7 +2,7 @@
 
 This document describes how the pieces of the Gaming Assistant integration
 fit together. It is a companion to `README.md`; see the README for setup
-instructions and `ROADMAP_CODEX_MASTERPLAN.md` for the full roadmap.
+instructions and `ROADMAP.md` for the full roadmap.
 
 ## Thin Client Architecture
 
