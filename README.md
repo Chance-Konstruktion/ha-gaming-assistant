@@ -63,7 +63,7 @@ passthrough mode.
 | Home Assistant | 2024.1+ with MQTT integration |
 | MQTT Broker | Mosquitto (built-in HA add-on) |
 | Capture Agent | Windows / Linux / macOS / Android / Android TV |
-| AI Backend | Ollama (local) **or** cloud API (GPT-4o, Gemini, DeepSeek, Groq) |
+| AI Backend | Ollama (local) *or* cloud API (chatGPT, Gemini, DeepSeek, Grok) |
 
 ### Supported LLM Backends
 
@@ -108,7 +108,7 @@ passthrough mode.
 Go to **Settings -> Devices & Services -> Add Integration -> Gaming Assistant**
 
 The config flow has 6 steps:
-1. **LLM Provider** -- Choose your AI backend (Ollama, GPT-4o, Gemini, DeepSeek, etc.)
+1. **LLM Provider** -- Choose your AI backend (Ollama, chatGPT, Gemini, DeepSeek, etc.)
 2. **Connection** -- Host URL + API key (if needed)
 3. **Model & Interval** -- Choose a vision model, capture interval, and timeout
 4. **Spoiler Level** -- Default spoiler level (none/low/medium/high)
