@@ -1,5 +1,5 @@
 Pillow>=10.0.0
-requests>=2.31.0
+requests>=2.33.1
 paho-mqtt>=1.6.1
 # ADB must be installed separately (Android SDK Platform Tools)
 # https://developer.android.com/tools/releases/platform-tools
