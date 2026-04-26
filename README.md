@@ -442,9 +442,14 @@ Civilization VI, Cyberpunk 2077, The Witcher 3, Diablo IV.
 
 **Tabletop games (4):** Chess, Poker, Settlers of Catan, UNO.
 
-Create custom packs by adding JSON files to
-`custom_components/gaming_assistant/prompt_packs/`. See `_template.json`
-for the format.
+Community packs are auto-downloaded from
+[`Chance-Konstruktion/ha-gaming-assistant-prompts`](https://github.com/Chance-Konstruktion/ha-gaming-assistant-prompts)
+and hot-reloaded via the `gaming_assistant.refresh_prompt_packs` service.
+
+To write your own pack, see **[`docs/pack_authoring.md`](docs/pack_authoring.md)**
+— covers the manifest schema, validation rules, local testing, and the
+submission workflow. The bundled `_template.json` is a copy-paste starting
+point.
 
 ### Tip History
 
