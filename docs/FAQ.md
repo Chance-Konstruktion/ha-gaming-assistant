@@ -88,6 +88,12 @@ Check Home Assistant's log for a line such as
 **override** bundled ones with the same `id`, so a user override wins
 over the shipped default.
 
+### How do I write my own pack?
+
+See [`pack_authoring.md`](pack_authoring.md) for the complete schema,
+validation rules, local testing workflow, and how to submit a pack to
+the community repo.
+
 ## Performance tuning
 
 - Reduce capture resolution (`--resize 720x405`) on weak networks or

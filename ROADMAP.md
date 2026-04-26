@@ -173,7 +173,7 @@ Detailliertes Diagramm: `docs/architecture.md`.
 |------|--------------|--------|
 | GA-113 | Prompt-Pack-Sharing über externe Community-Repo + Auto-Download + Hot-Reload | ✅ — Repo + Loader v0.4, Hot-Reload-Service v0.13 |
 | GA-114 | Multi-Client-Routing (eigene Einstellungen / History pro Client) | 🟡 — Active-Client-Tracking ist da, dedizierte UI fehlt |
-| GA-115 | Pack-Authoring-Guide + Submission-Templates im Prompts-Repo | ⬜ |
+| GA-115 | Pack-Authoring-Guide + Submission-Workflow (`docs/pack_authoring.md`) | ✅ v0.13 |
 | GA-116 | Issue-/PR-Templates + Release-Checkliste | 🟡 — CI vorhanden, Checkliste fehlt |
 
 ### Phase 7 — Multi-Modell & Performance

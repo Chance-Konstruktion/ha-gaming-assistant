@@ -11,6 +11,9 @@ Closes several long-standing items from `ROADMAP.md`.
   (`Chance-Konstruktion/ha-gaming-assistant-prompts`) and hot-reloads them
   without restarting Home Assistant. Invalid packs are reported but do
   not break existing ones.
+- **Added:** Pack authoring guide (`docs/pack_authoring.md`) covering the
+  manifest schema, field reference, local-testing workflow, and the
+  community submission process. README and FAQ now link to it.
 - **Added:** `worker/capture_agent_bridge.py` (GA-102) — HDMI bridge
   capture agent for Raspberry Pi / SBC setups with a USB HDMI dongle.
   Uses OpenCV's V4L2 backend, identical MQTT topic layout as the other
