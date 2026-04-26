@@ -1,5 +1,5 @@
 mss>=10.2.0
-Pillow>=10.0.0
+Pillow>=12.2.0
 requests>=2.33.1
 paho-mqtt>=2.1.0
 # Optional: pywin32 (Windows only, for game detection)

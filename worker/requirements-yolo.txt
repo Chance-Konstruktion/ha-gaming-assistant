@@ -3,7 +3,7 @@
 # or use a Raspberry Pi with NCNN/Hailo backend.
 ultralytics>=8.4.41
 paho-mqtt>=2.1.0
-Pillow>=10.0.0
+Pillow>=12.2.0
 
 # --- Backend-specific (install ONE matching your hardware) ---
 
