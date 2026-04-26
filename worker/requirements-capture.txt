@@ -1,6 +1,6 @@
 mss>=10.2.0
 Pillow>=10.0.0
-paho-mqtt>=1.6.1
+paho-mqtt>=2.1.0
 # Optional: pywin32 (Windows only, for window title detection)
 # pywin32>=306
 
