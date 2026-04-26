@@ -4,7 +4,7 @@ paho-mqtt>=1.6.1
 # Optional: pywin32 (Windows only, for window title detection)
 # pywin32>=306
 
-requests>=2.28.0
+requests>=2.33.1
 
 # Optional: only needed for capture_agent_bridge.py (HDMI bridge on Pi/SBC)
 # opencv-python>=4.8.0
