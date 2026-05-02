@@ -1,7 +1,7 @@
 # Requirements for the YOLO Object Detection Worker
 # Install on a machine with a GPU for best performance,
 # or use a Raspberry Pi with NCNN/Hailo backend.
-ultralytics>=8.4.41
+ultralytics>=8.4.46
 paho-mqtt>=2.1.0
 Pillow>=12.2.0
 
