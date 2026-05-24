@@ -35,6 +35,8 @@ from .const import (
     CONF_TIMEOUT,
     CONF_TTS_ENTITY,
     CONF_TTS_TARGET,
+    AGENT_VALID_BUTTONS,
+    DEFAULT_AGENT_MODE,
     DEFAULT_ASSISTANT_MODE,
     DEFAULT_AUTO_ANNOUNCE,
     DEFAULT_AUTO_SUMMARY,
@@ -51,6 +53,7 @@ from .const import (
     MQTT_TIP_TOPIC,
     MQTT_DETECTIONS_TOPIC,
     MQTT_WORKER_REGISTER_TOPIC,
+    MQTT_ACTION_TOPIC,
     MQTT_YOLO_COMMAND_TOPIC,
     MQTT_YOLO_STATUS_TOPIC,
     SESSION_END_DELAY,
@@ -111,6 +114,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
         # Assistant mode (coach, coplay, opponent, analyst)
         self._assistant_mode: str = DEFAULT_ASSISTANT_MODE
+
+        # Agent Mode / Player 2 — opt-in, runtime-only (resets to OFF on restart).
+        self._agent_mode: bool = DEFAULT_AGENT_MODE
+        self._agent_allowed_buttons: list[str] = []
 
         # Persistent game hint – used by camera watchers when no auto-detection
         self._default_game_hint: str = ""
@@ -302,6 +309,17 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             _LOGGER.info("Sent YOLO command: %s", command)
         except HomeAssistantError as err:
             _LOGGER.warning("Failed to send YOLO command: %s", err)
+
+    async def async_publish_action(self, client_id: str, action: dict) -> None:
+        """Publish a validated controller action to the agent executor."""
+        topic = MQTT_ACTION_TOPIC.format(client_id=client_id)
+        try:
+            await mqtt.async_publish(
+                self.hass, topic, json.dumps(action), qos=1,
+            )
+            _LOGGER.info("Published agent action to %s: %s", topic, action)
+        except HomeAssistantError as err:
+            _LOGGER.warning("Failed to publish agent action: %s", err)
 
     @property
     def llm_backend(self) -> LLMBackend:
@@ -586,6 +604,36 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         """Toggle auto-announce on/off."""
         self._auto_announce = enabled
         _LOGGER.info("Auto-announce set to: %s", enabled)
+        self.async_set_updated_data(self._build_data())
+
+    @property
+    def agent_mode(self) -> bool:
+        return self._agent_mode
+
+    @property
+    def agent_allowed_buttons(self) -> list[str]:
+        return list(self._agent_allowed_buttons)
+
+    def set_agent_mode(
+        self, enabled: bool, allowed_buttons: list[str] | None = None
+    ) -> None:
+        """Enable/disable Agent Mode (opt-in autonomous controller actions).
+
+        When enabled, each analyzed frame additionally produces a validated
+        controller action published to ``gaming_assistant/{client_id}/action``.
+        Runtime-only by design: it always resets to OFF on restart.
+        """
+        self._agent_mode = bool(enabled)
+        if allowed_buttons is not None:
+            valid = {b.upper() for b in AGENT_VALID_BUTTONS}
+            self._agent_allowed_buttons = [
+                b.upper() for b in allowed_buttons if b.upper() in valid
+            ]
+        _LOGGER.info(
+            "Agent mode set to: %s (allowed buttons: %s)",
+            self._agent_mode,
+            ", ".join(self._agent_allowed_buttons) or "all",
+        )
         self.async_set_updated_data(self._build_data())
 
     async def async_announce(
@@ -1093,6 +1141,12 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                     # Auto-announce via TTS if enabled
                     if self._auto_announce and self._tts_entity:
                         self.hass.async_create_task(self.async_announce(tip))
+
+                    # Agent Mode: also produce + publish a controller action.
+                    if self._agent_mode:
+                        await self._maybe_publish_agent_action(
+                            client_id, image_bytes, self._current_game
+                        )
                 else:
                     self._frames_processed += 1
                     self._status = "idle"
@@ -1117,6 +1171,30 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             finally:
                 self._processing = False
                 self.async_set_updated_data(self._build_data())
+
+    async def _maybe_publish_agent_action(
+        self, client_id: str, image_bytes: bytes, game: str
+    ) -> None:
+        """Generate one controller action from the frame and publish it.
+
+        Fully isolated: any failure here must never disrupt the tip pipeline,
+        so all exceptions are caught and logged.
+        """
+        try:
+            action = await asyncio.wait_for(
+                self._image_processor.generate_action(
+                    image_bytes,
+                    game,
+                    allowed_buttons=self._agent_allowed_buttons or None,
+                ),
+                timeout=self._analysis_timeout + 5,
+            )
+        except Exception as err:  # noqa: BLE001 - never break analysis on action errors
+            _LOGGER.warning("Agent action generation failed: %s", err)
+            return
+
+        if action:
+            await self.async_publish_action(client_id, action)
 
     # -- Camera watcher ------------------------------------------------------
 

@@ -30,6 +30,9 @@ MQTT_DETECTIONS_TOPIC = "gaming_assistant/+/detections"
 MQTT_YOLO_COMMAND_TOPIC = "gaming_assistant/yolo/command"
 MQTT_YOLO_STATUS_TOPIC = "gaming_assistant/+/status"
 
+# Agent Mode action topic (publish): {client_id} is the target capture client.
+MQTT_ACTION_TOPIC = "gaming_assistant/{client_id}/action"
+
 # Spoiler Levels
 SPOILER_CATEGORIES = [
     "story", "items", "enemies", "bosses", "locations", "lore", "mechanics",
@@ -56,6 +59,18 @@ DEFAULT_ASSISTANT_MODE = "coach"
 # Source Types (how the camera sees the game)
 SOURCE_TYPES = ["auto", "console", "tabletop"]
 DEFAULT_SOURCE_TYPE = "auto"
+
+# Agent Mode / Player 2 — opt-in autonomous controller actions.
+# Runtime-only by design: always starts OFF and resets to OFF on restart,
+# so the AI never controls inputs unless deliberately re-enabled.
+CONF_AGENT_MODE = "agent_mode"
+DEFAULT_AGENT_MODE = False
+# Valid Xbox buttons the AI may use (matches PromptBuilder.ACTION_SCHEMA).
+# An empty whitelist means "all of these".
+AGENT_VALID_BUTTONS = [
+    "A", "B", "X", "Y", "LB", "RB", "LT", "RT",
+    "DPAD_UP", "DPAD_DOWN", "DPAD_LEFT", "DPAD_RIGHT", "START", "BACK",
+]
 
 # TTS / Announce
 CONF_TTS_ENTITY = "tts_entity"

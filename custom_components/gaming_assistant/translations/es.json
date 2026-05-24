@@ -110,6 +110,9 @@
       },
       "auto_summary": {
         "name": "Resumen de sesión automático"
+      },
+      "agent_mode": {
+        "name": "Modo Agente (Jugador 2)"
       }
     }
   }

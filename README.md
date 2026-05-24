@@ -519,7 +519,16 @@ mosquitto_pub -h 192.168.1.10 -t gaming_assistant/gaming-pc/action \
 
 Actions follow `PromptBuilder.ACTION_SCHEMA`: `press_button`, `release_button`, `tap_button` (buttons `A`/`B`/`X`/`Y`/`LB`/`RB`/`LT`/`RT`/`DPAD_*`/`START`/`BACK`), `move_stick` (`left`/`right`, `x`/`y` in `[-1.0, 1.0]`), `wait`, and `no_op`.
 
-> **Note:** the executor *consumes* actions on `gaming_assistant/{client_id}/action`. Wiring Home Assistant to *publish* them automatically (behind an opt-in feature flag, with per-action confirmation) is the next Agent-Mode step — see GA-AUD in `ROADMAP.md`. For now, drive it from automations or manual `mqtt.publish`.
+**Let Home Assistant drive it.** Enable the **Agent Mode** switch (or call `gaming_assistant.set_agent_mode`) and each analyzed frame additionally asks the LLM for one controller action, validates it, and publishes it to `gaming_assistant/{client_id}/action` for the executor:
+
+```yaml
+action: gaming_assistant.set_agent_mode
+data:
+  enabled: true
+  allowed_buttons: "A, B, X, Y, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT"
+```
+
+> **Safety:** Agent Mode is strictly opt-in and **resets to OFF on every Home Assistant restart** — the AI never controls inputs unless you deliberately turn it on. It runs a *second* inference per frame (in addition to the normal tip), so expect higher load, especially on local models. The executor still enforces its own whitelist and `--dry-run`, and `stop` on `gaming_assistant/command` is the emergency brake. Start with the executor in `--dry-run` to watch the action stream safely before going live.
 
 </details>
 

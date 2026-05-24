@@ -41,7 +41,7 @@ _ALL_SERVICES = (
     "watch_camera", "stop_watch_camera",
     "announce", "summarize_session", "configure",
     "set_game_hint", "list_game_packs", "set_source_type",
-    "refresh_prompt_packs",
+    "refresh_prompt_packs", "set_agent_mode",
 )
 
 
@@ -405,6 +405,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     coord.set_source_type(source_type)
                     break
 
+        async def handle_set_agent_mode(call: ServiceCall) -> None:
+            """Enable/disable Agent Mode (opt-in autonomous controller actions)."""
+            enabled = bool(call.data.get("enabled", False))
+            allowed = call.data.get("allowed_buttons")
+            if isinstance(allowed, str):
+                allowed = [b.strip() for b in allowed.split(",") if b.strip()]
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    coord.set_agent_mode(enabled, allowed)
+                    break
+
         async def handle_list_game_packs(call: ServiceCall) -> None:
             """Return available prompt packs (mainly for internal use)."""
             for coord in hass.data[DOMAIN].values():
@@ -505,6 +516,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "configure", handle_configure)
         hass.services.async_register(DOMAIN, "set_game_hint", handle_set_game_hint)
         hass.services.async_register(DOMAIN, "set_source_type", handle_set_source_type)
+        hass.services.async_register(DOMAIN, "set_agent_mode", handle_set_agent_mode)
         hass.services.async_register(DOMAIN, "list_game_packs", handle_list_game_packs)
         hass.services.async_register(
             DOMAIN, "refresh_prompt_packs", handle_refresh_prompt_packs

@@ -110,6 +110,9 @@
       },
       "auto_summary": {
         "name": "Riepilogo sessione automatico"
+      },
+      "agent_mode": {
+        "name": "Modalità Agente (Player 2)"
       }
     }
   }
