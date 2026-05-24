@@ -16,6 +16,14 @@ All notable changes to the Gaming Assistant for Home Assistant.
   Inputs are also released on disconnect and shutdown. Added 38 unit tests
   (`tests/test_agent_executor.py`).
 - **Added:** `paho-mqtt` to `worker/requirements-player2.txt`.
+- **Added:** Home-Assistant-side Agent Mode publishing (GA-AUD). A new
+  `gaming_assistant.set_agent_mode` service and an **Agent Mode** switch
+  enable opt-in action publishing: when on, each analyzed frame also asks
+  the LLM for one controller action (`PromptBuilder.build_action`),
+  validates it (`parse_action` + button whitelist), and publishes it to
+  `gaming_assistant/{client_id}/action` for the executor. Strictly opt-in
+  and **resets to OFF on every restart**; action generation is fully
+  isolated so it can never disrupt the normal tip pipeline.
 
 ## [0.13.0] - 2026-04-24 — "Roadmap Close-Out: Bridge, Overlay, Action Mode"
 

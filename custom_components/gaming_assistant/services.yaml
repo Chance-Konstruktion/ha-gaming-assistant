@@ -375,3 +375,27 @@ refresh_prompt_packs:
     (Chance-Konstruktion/ha-gaming-assistant-prompts) and hot-reload
     them without restarting Home Assistant. Invalid packs are skipped
     with a warning.
+
+set_agent_mode:
+  name: Set Agent Mode (Player 2)
+  description: >
+    Enable or disable Agent Mode. When enabled, each analyzed frame also
+    produces a validated controller action published over MQTT to the
+    agent executor (worker/agent_executor.py). Opt-in and always resets to
+    OFF on restart. Test with the executor in --dry-run first.
+  fields:
+    enabled:
+      name: Enabled
+      description: Turn Agent Mode on or off.
+      required: true
+      selector:
+        boolean:
+    allowed_buttons:
+      name: Allowed buttons
+      description: >
+        Optional whitelist of Xbox buttons the AI may use. Leave empty to
+        allow all. The executor enforces its own whitelist as well.
+      required: false
+      example: "A, B, X, Y, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT"
+      selector:
+        text:

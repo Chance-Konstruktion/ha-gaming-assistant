@@ -110,6 +110,9 @@
       },
       "auto_summary": {
         "name": "Auto Session Summary"
+      },
+      "agent_mode": {
+        "name": "Agent Mode (Player 2)"
       }
     }
   }

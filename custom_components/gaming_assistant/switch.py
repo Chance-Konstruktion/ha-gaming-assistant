@@ -25,6 +25,7 @@ async def async_setup_entry(
     async_add_entities([
         AutoAnnounceSwitch(coordinator),
         AutoSummarySwitch(coordinator),
+        AgentModeSwitch(coordinator),
     ])
 
 
@@ -74,3 +75,31 @@ class AutoSummarySwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs) -> None:
         self._coordinator.set_auto_summary(False)
+
+
+class AgentModeSwitch(CoordinatorEntity, SwitchEntity):
+    """Switch to toggle Agent Mode (opt-in autonomous controller actions).
+
+    Off by default and after every restart — enabling it lets the AI send
+    controller inputs to the agent executor over MQTT.
+    """
+
+    _attr_name = "Gaming Assistant Agent Mode"
+    _attr_unique_id = "gaming_assistant_agent_mode"
+    _attr_icon = "mdi:robot-outline"
+    _attr_translation_key = "agent_mode"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def is_on(self) -> bool:
+        return self._coordinator.agent_mode
+
+    async def async_turn_on(self, **kwargs) -> None:
+        self._coordinator.set_agent_mode(True)
+
+    async def async_turn_off(self, **kwargs) -> None:
+        self._coordinator.set_agent_mode(False)

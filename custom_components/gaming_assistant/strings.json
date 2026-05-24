@@ -107,6 +107,9 @@
     "switch": {
       "auto_announce": {
         "name": "Auto Announce"
+      },
+      "agent_mode": {
+        "name": "Agent Mode (Player 2)"
       }
     }
   }

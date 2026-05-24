@@ -339,6 +339,50 @@ class ImageProcessor:
 
         return tip
 
+    async def generate_action(
+        self,
+        image_bytes: bytes,
+        game: str = "",
+        allowed_buttons: list[str] | None = None,
+    ) -> dict | None:
+        """Ask the LLM for ONE controller action and return it validated.
+
+        Used by Agent Mode (Player 2). Returns a sanitized action dict, or
+        ``None`` if the model declined (``no_op``) or its output failed
+        schema/whitelist validation. Never raises on bad model output.
+        """
+        state_context = ""
+        if self._game_state and game:
+            state_context = self._game_state.format_for_prompt(
+                game, compact=self._compact
+            )
+
+        prompt = PromptBuilder.build_action(
+            game=game,
+            allowed_buttons=allowed_buttons,
+            state_context=state_context,
+            compact=self._compact,
+        )
+
+        llm_image = self._downscale_image(image_bytes)
+        image_b64 = base64.b64encode(llm_image).decode("utf-8")
+        response = await self._backend.generate(
+            prompt, image_b64, max_tokens=OLLAMA_NUM_PREDICT
+        )
+
+        try:
+            action = PromptBuilder.parse_action(response.text, allowed_buttons)
+        except ValueError as err:
+            _LOGGER.warning("Discarding invalid agent action: %s", err)
+            return None
+
+        # "no_op" means the model chose to do nothing — nothing to publish.
+        if action.get("action") == "no_op":
+            _LOGGER.debug("Agent action is no_op, skipping publish")
+            return None
+
+        return action
+
     async def ask(
         self,
         question: str,

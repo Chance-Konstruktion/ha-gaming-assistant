@@ -162,10 +162,10 @@ Detailliertes Diagramm: `docs/architecture.md`.
 | Task | Beschreibung | Status |
 |------|--------------|--------|
 | GA-ACT | Action-Output-Format im PromptBuilder (JSON-Schema + Whitelist-Parser) | ✅ v0.13 |
-| GA-109 | `vgamepad`-Executor-Worker (`worker/agent_executor.py`, MQTT `gaming_assistant/{client_id}/action`, Whitelist + Audit-Log) | ✅ — Worker + Whitelist + Dry-Run + Not-Aus + Audit-Log (unreleased). HA-seitiges Action-Publishing (Coordinator-Gate) als Folge-PR. |
+| GA-109 | `vgamepad`-Executor-Worker (`worker/agent_executor.py`, MQTT `gaming_assistant/{client_id}/action`, Whitelist + Audit-Log) | ✅ — Worker + Whitelist + Dry-Run + Not-Aus + Audit-Log (unreleased). |
 | GA-110 | Schach-Bot-Prototyp auf Action-Mode (TTS-Ansage für physisches Schach + optional vgamepad für PC-Schach) | ⬜ |
 | GA-111 | ViZDoom-Hybrid: Reflex-Agent + LLM-Strategie | 🧪 |
-| GA-AUD | Audit-Log + konfigurierbare Bestätigung pro Aktion | ⬜ |
+| GA-AUD | Audit-Log + konfigurierbare Bestätigung pro Aktion | 🟡 — opt-in HA-seitiges Action-Publishing (`set_agent_mode`-Service + Agent-Mode-Switch, Whitelist, INFO-Audit, Reset-on-restart) implementiert (unreleased). Per-Aktion-Bestätigung fehlt noch. |
 
 ### Phase 6 — Community & Ökosystem
 
@@ -267,7 +267,7 @@ Empfohlener Workflow je Task:
 - Unit-Tests für Spoiler, History, Prompt Builder, Pack-Validator.
 - Integrationstests mit gemocktem MQTT + Ollama API.
 - Regressionstests für Legacy-Topics.
-- Aktueller Stand: **298 Tests grün**.
+- Aktueller Stand: **313 Tests grün**.
 
 ### Test-Matrix
 - Plattformen: Windows, Linux, macOS (best effort), Android (ADB).
@@ -339,8 +339,9 @@ Bei folgenden Themen vor Implementierung Entscheidung dokumentieren:
 - v0.13 hat die letzten Capture- und Diagnose-Lücken geschlossen.
 - Nächster großer Hebel ist **Phase 5** (Agent Mode mit vgamepad), die
   bereits durch das Action-Schema in v0.13 vorbereitet ist. Der Executor
-  (`worker/agent_executor.py`, GA-109) ist implementiert; es fehlt noch das
-  opt-in HA-seitige Action-Publishing und die Bestätigungs-UI (GA-AUD).
+  (`worker/agent_executor.py`, GA-109) ist implementiert, ebenso das opt-in
+  HA-seitige Action-Publishing (`set_agent_mode`, GA-AUD); es fehlt noch die
+  Per-Aktion-Bestätigungs-UI.
 - Community-Beiträge laufen über das separate Prompt-Pack-Repo, das
   per Auto-Download und neuem `refresh_prompt_packs`-Service direkt
   in jede Installation gespiegelt wird.
