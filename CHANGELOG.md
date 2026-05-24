@@ -2,6 +2,21 @@
 
 All notable changes to the Gaming Assistant for Home Assistant.
 
+## [Unreleased]
+
+- **Added:** `worker/agent_executor.py` (GA-109) — the Agent Mode / Player 2
+  executor. An optional worker that subscribes to
+  `gaming_assistant/{client_id}/action`, validates each action against the
+  `PromptBuilder` action schema and a configurable button whitelist, and
+  replays accepted actions on a virtual Xbox controller via `vgamepad`.
+  Safety first: `--dry-run` (and the implicit fallback when `vgamepad` is
+  missing) validates and logs without sending input, every action is
+  appended to a JSON-lines audit log, and `stop`/`start` on
+  `gaming_assistant/command` is an emergency pause that releases all inputs.
+  Inputs are also released on disconnect and shutdown. Added 38 unit tests
+  (`tests/test_agent_executor.py`).
+- **Added:** `paho-mqtt` to `worker/requirements-player2.txt`.
+
 ## [0.13.0] - 2026-04-24 — "Roadmap Close-Out: Bridge, Overlay, Action Mode"
 
 Closes several long-standing items from `ROADMAP.md`.

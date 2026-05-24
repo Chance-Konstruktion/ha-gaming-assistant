@@ -162,7 +162,7 @@ Detailliertes Diagramm: `docs/architecture.md`.
 | Task | Beschreibung | Status |
 |------|--------------|--------|
 | GA-ACT | Action-Output-Format im PromptBuilder (JSON-Schema + Whitelist-Parser) | ✅ v0.13 |
-| GA-109 | `vgamepad`-Executor-Worker (`worker/agent_executor.py`, MQTT `gaming_assistant/{client_id}/action`, Whitelist + Audit-Log) | ⬜ |
+| GA-109 | `vgamepad`-Executor-Worker (`worker/agent_executor.py`, MQTT `gaming_assistant/{client_id}/action`, Whitelist + Audit-Log) | ✅ — Worker + Whitelist + Dry-Run + Not-Aus + Audit-Log (unreleased). HA-seitiges Action-Publishing (Coordinator-Gate) als Folge-PR. |
 | GA-110 | Schach-Bot-Prototyp auf Action-Mode (TTS-Ansage für physisches Schach + optional vgamepad für PC-Schach) | ⬜ |
 | GA-111 | ViZDoom-Hybrid: Reflex-Agent + LLM-Strategie | 🧪 |
 | GA-AUD | Audit-Log + konfigurierbare Bestätigung pro Aktion | ⬜ |
@@ -247,8 +247,8 @@ Empfohlener Workflow je Task:
   - `gaming_assistant/{client_id}/voice`  — optional, Sprachsteuerung
 
 ### Geplante neue Dateien
-- `worker/agent_executor.py` (vgamepad Executor — GA-109)
-- `worker/requirements-player2.txt` ist bereits als Platzhalter vorhanden
+- `worker/agent_executor.py` (vgamepad Executor — GA-109) ✅ implementiert
+- `worker/requirements-player2.txt` enthält jetzt `vgamepad` + `paho-mqtt`
 - `docs/agent_mode.md` (Sicherheitsleitplanken-Doku — GA-AUD)
 
 ### Häufig zu ändernde Dateien
@@ -267,7 +267,7 @@ Empfohlener Workflow je Task:
 - Unit-Tests für Spoiler, History, Prompt Builder, Pack-Validator.
 - Integrationstests mit gemocktem MQTT + Ollama API.
 - Regressionstests für Legacy-Topics.
-- Aktueller Stand: **260+ Tests grün**.
+- Aktueller Stand: **298 Tests grün**.
 
 ### Test-Matrix
 - Plattformen: Windows, Linux, macOS (best effort), Android (ADB).
@@ -338,7 +338,9 @@ Bei folgenden Themen vor Implementierung Entscheidung dokumentieren:
 - Phasen 1–4 sind vollständig ausgeliefert.
 - v0.13 hat die letzten Capture- und Diagnose-Lücken geschlossen.
 - Nächster großer Hebel ist **Phase 5** (Agent Mode mit vgamepad), die
-  bereits durch das Action-Schema in v0.13 vorbereitet ist.
+  bereits durch das Action-Schema in v0.13 vorbereitet ist. Der Executor
+  (`worker/agent_executor.py`, GA-109) ist implementiert; es fehlt noch das
+  opt-in HA-seitige Action-Publishing und die Bestätigungs-UI (GA-AUD).
 - Community-Beiträge laufen über das separate Prompt-Pack-Repo, das
   per Auto-Download und neuem `refresh_prompt_packs`-Service direkt
   in jede Installation gespiegelt wird.

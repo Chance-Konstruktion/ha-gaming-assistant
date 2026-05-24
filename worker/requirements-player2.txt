@@ -5,5 +5,8 @@
 # Safer than pyautogui: can only send controller inputs, no system access.
 vgamepad>=0.1.0
 
+# MQTT client — the executor subscribes to actions from Home Assistant.
+paho-mqtt>=2.1.0
+
 # Optional: for future ViZDoom integration
 # vizdoom>=1.2.0

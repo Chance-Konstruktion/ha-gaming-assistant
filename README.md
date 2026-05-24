@@ -471,6 +471,60 @@ python worker/capture_agent_android.py \
 
 ---
 
+## 🕹️ Agent Mode / Player 2 *(experimental)*
+
+Beyond *watching* your game, the assistant can **play** it. `worker/agent_executor.py` turns the AI's structured action output into real inputs on a **virtual Xbox controller** (`vgamepad`).
+
+> **Why a virtual gamepad?** A virtual controller can *only* send game-controller inputs — it can never move your mouse, alt-tab, or type system commands. The AI is sandboxed to "press buttons", which is the entire safety premise of Agent Mode.
+
+**Safety model — opt-in and conservative by default:**
+
+- **Whitelist** — only buttons you list in `--allow-buttons` are ever forwarded; anything else is rejected and logged.
+- **Dry-run** — `--dry-run` (and the automatic fallback when `vgamepad` isn't installed) validates and logs actions *without sending input*. Always start here.
+- **Audit log** — every action (accepted, rejected, or skipped) is appended as one JSON line to `--audit-log`.
+- **Emergency stop** — publish `stop` to `gaming_assistant/command` to instantly pause and release all inputs; `start` resumes. Inputs are also released on disconnect and shutdown, so nothing ever stays stuck.
+
+```bash
+pip install -r worker/requirements-player2.txt   # vgamepad + paho-mqtt
+# (Windows also needs the free ViGEmBus driver for vgamepad.)
+
+# 1) Safe first run — validates + logs, sends nothing:
+python worker/agent_executor.py --broker 192.168.1.10 --client-id gaming-pc --dry-run
+
+# 2) Go live, restricted to face buttons + D-pad:
+python worker/agent_executor.py --broker 192.168.1.10 --client-id gaming-pc \
+  --allow-buttons A,B,X,Y,DPAD_UP,DPAD_DOWN,DPAD_LEFT,DPAD_RIGHT
+```
+
+Test it end-to-end by publishing an action yourself (HA → *Developer Tools → Actions → `mqtt.publish`*, or `mosquitto_pub`):
+
+```bash
+mosquitto_pub -h 192.168.1.10 -t gaming_assistant/gaming-pc/action \
+  -m '{"action":"tap_button","button":"A","duration_ms":80,"reason":"confirm"}'
+```
+
+<details>
+<summary><b>CLI cheat sheet</b> (`agent_executor.py`)</summary>
+
+| Arg | Default | Notes |
+| :--- | :---: | :--- |
+| `--broker` | `localhost` | MQTT broker IP |
+| `--port` | `1883` | MQTT port |
+| `--username` / `--password` | | MQTT auth |
+| `--client-id` | hostname | Must match the capture client |
+| `--allow-buttons` | `all` | Comma-separated whitelist, e.g. `A,B,X,Y` |
+| `--dry-run` | off | Validate + log, never send input |
+| `--tap-ms` | `80` | Default `tap_button` duration |
+| `--audit-log` | `agent_executor_audit.log` | JSON-lines audit trail (`''` to disable) |
+
+Actions follow `PromptBuilder.ACTION_SCHEMA`: `press_button`, `release_button`, `tap_button` (buttons `A`/`B`/`X`/`Y`/`LB`/`RB`/`LT`/`RT`/`DPAD_*`/`START`/`BACK`), `move_stick` (`left`/`right`, `x`/`y` in `[-1.0, 1.0]`), `wait`, and `no_op`.
+
+> **Note:** the executor *consumes* actions on `gaming_assistant/{client_id}/action`. Wiring Home Assistant to *publish* them automatically (behind an opt-in feature flag, with per-action confirmation) is the next Agent-Mode step — see GA-AUD in `ROADMAP.md`. For now, drive it from automations or manual `mqtt.publish`.
+
+</details>
+
+---
+
 ## 🧩 Entities & services
 
 <details>

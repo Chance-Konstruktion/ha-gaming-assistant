@@ -31,3 +31,7 @@ htmlcov/
 # Binary releases (use GitHub Releases instead)
 *.apk
 *.exe
+
+# Agent Mode executor runtime audit log
+agent_executor_audit.log
+*.audit.log
