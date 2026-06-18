@@ -27,6 +27,7 @@ MQTT_IMAGE_TOPIC = "gaming_assistant/+/image"  # + = client_id wildcard
 MQTT_META_TOPIC = "gaming_assistant/+/meta"
 MQTT_WORKER_REGISTER_TOPIC = "gaming_assistant/+/register"
 MQTT_DETECTIONS_TOPIC = "gaming_assistant/+/detections"
+MQTT_HUD_TOPIC = "gaming_assistant/+/hud"  # OCR'd HUD numbers (health/ammo/…)
 MQTT_YOLO_COMMAND_TOPIC = "gaming_assistant/yolo/command"
 # Per-client status topic. Carries BOTH plain-text capture-agent presence
 # ("online"/"offline" via LWT) and JSON YOLO-worker status on the same

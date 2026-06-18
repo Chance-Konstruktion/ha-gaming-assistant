@@ -67,7 +67,7 @@ loop that re-derives everything from scratch each time.
 
 | Tier | Cadence | Cost | Job | Where |
 |------|---------|------|-----|-------|
-| **1 — Reflex / Perception** | every frame | none (no LLM) | Measure the frame: scene-change magnitude, motion class. Emits *measured* signals. | `perception.py` (`PerceptionTier`) |
+| **1 — Reflex / Perception** | every frame | none (no LLM) | Measure the frame: scene-change magnitude, motion class. Optional external workers add measured signals: YOLO object detection and OCR'd HUD numbers (health/ammo/score). Emits *measured* signals. | `perception.py` (`PerceptionTier`); `worker/yolo_worker.py`, `worker/ocr_agent.py` |
 | **2 — Tactics** | seconds | medium (vision LLM) | Produce the actual tip, consuming Tier 1 signals as input. | `image_processor.py` → `llm_backend.py` |
 | **3 — Strategy / Meta** | every few tips / session | medium (rare LLM, deterministic fallback) | Distil a session-level **strategic focus** (LLM reflection over trends + recent tips) and feed it back down into Tier 2. Also: session recap. | `strategy.py` (`StrategyTier`), `session_tracker.py` (recap) |
 
@@ -149,6 +149,8 @@ than a dead-end recap:
 | In | `gaming_assistant/{client_id}/image` | JPEG bytes |
 | In | `gaming_assistant/{client_id}/meta`  | JSON (game hint, resolution, …) |
 | In | `gaming_assistant/{client_id}/status`| `online` / `offline` (LWT) |
+| In | `gaming_assistant/{client_id}/detections` | YOLO detections (JSON, optional worker) |
+| In | `gaming_assistant/{client_id}/hud` | OCR'd HUD numbers (JSON, optional worker) |
 | Out | `gaming_assistant/tip` | Latest tip (string) |
 | Out | `gaming_assistant/status` | `analyzing` / `idle` / `error` |
 | Experimental | `gaming_assistant/{client_id}/action` | Structured JSON action (Phase 5) |

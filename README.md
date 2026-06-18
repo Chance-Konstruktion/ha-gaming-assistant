@@ -83,8 +83,8 @@ Tracks structured state across frames (health declining, phase changes, momentum
 **⚡ Pluggable backends**
 Ollama · LM Studio · GPT-4o · Gemini · DeepSeek · Groq. Vision or text-only. Raspberry Pi friendly.
 
-**🟢 Optional YOLO worker**
-Real-time object detection on CUDA / NCNN / Hailo-8L / TFLite, feeding the Game State Engine.
+**🟢 Optional YOLO + OCR workers**
+Real-time object detection (CUDA / NCNN / Hailo-8L / TFLite) and HUD number OCR (health/ammo/score) — both feed *measured* values straight into the Game State Engine.
 
 </td>
 </tr>
@@ -466,6 +466,27 @@ python worker/capture_agent_android.py \
   --broker 192.168.1.10 \
   --device 192.168.1.42:5555
 ```
+
+</details>
+
+<details>
+<summary><b>HUD OCR worker</b> — read health/ammo/score straight off the screen</summary>
+
+`worker/ocr_agent.py` is an optional external worker that subscribes to your game frames, runs OCR on **configured HUD regions**, and publishes the numbers to Home Assistant. These land in the Game State Engine as **measured** values (Tier 1) — far more reliable than letting the LLM guess them from the picture.
+
+Regions are given as fractions of the frame (`x,y,w,h` in `0..1`), so they're resolution-independent:
+
+```bash
+pip install -r worker/requirements-ocr.txt   # opencv + numpy + pytesseract
+# Tesseract engine: apt install tesseract-ocr  (or brew install tesseract)
+
+python worker/ocr_agent.py \
+  --broker 192.168.1.10 \
+  --regions "health:0.04,0.90,0.10,0.05;ammo:0.86,0.90,0.10,0.05" \
+  --max-fps 1
+```
+
+Prefer a config file? Use `--regions-file regions.json` with `{"health": [0.04, 0.90, 0.10, 0.05], ...}`. Use `--engine easyocr` for a pure-pip alternative to Tesseract. The numbers show up on `sensor.gaming_assistant_scene_change`'s game state and flow into every tip and the Tier 3 strategy.
 
 </details>
 

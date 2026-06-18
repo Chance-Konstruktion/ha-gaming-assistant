@@ -118,6 +118,7 @@ from custom_components.gaming_assistant.const import (  # noqa: E402
     EVENT_NEW_TIP,
     EVENT_SESSION_ENDED,
     MQTT_DETECTIONS_TOPIC,
+    MQTT_HUD_TOPIC,
     MQTT_IMAGE_TOPIC,
     MQTT_META_TOPIC,
     MQTT_MODE_TOPIC,
@@ -339,7 +340,7 @@ class TestMqttHandlers(unittest.TestCase):
         self.coord, self.hass = _make_coord()
         _MQTT.async_subscribe.reset_mock()
         _run(self.coord._subscribe_topics())
-        # subscribe_topics registers exactly 8 handlers in a fixed order;
+        # subscribe_topics registers exactly 9 handlers in a fixed order;
         # index them by the topic they were bound to.
         self.cb = {
             call.args[1]: call.args[2]
@@ -347,7 +348,7 @@ class TestMqttHandlers(unittest.TestCase):
         }
 
     def test_subscribes_to_all_topics(self):
-        self.assertEqual(len(self.cb), 8)
+        self.assertEqual(len(self.cb), 9)
 
     def test_tip_handler(self):
         self.cb[MQTT_TIP_TOPIC](_msg(MQTT_TIP_TOPIC, b"Use cover"))
@@ -398,6 +399,30 @@ class TestMqttHandlers(unittest.TestCase):
         )
         current = self.coord.game_state_manager.get_current("Doom")
         self.assertEqual(current.get("yolo_top_object"), "enemy")
+
+    def test_hud_handler_feeds_measured_numbers(self):
+        self.coord._current_game = "Doom"
+        self.cb[MQTT_HUD_TOPIC](
+            _msg(
+                "gaming_assistant/rig1/hud",
+                b'{"fields": {"health": 80, "ammo": 24}, "ocr_ms": 5}',
+            )
+        )
+        current = self.coord.game_state_manager.get_current("Doom")
+        self.assertEqual(current.get("health"), 80)
+        self.assertEqual(current.get("ammo"), 24)
+
+    def test_hud_handler_ignores_non_numeric(self):
+        self.coord._current_game = "Doom"
+        self.cb[MQTT_HUD_TOPIC](
+            _msg("gaming_assistant/rig1/hud", b'{"fields": {"label": "x"}}')
+        )
+        # Non-numeric fields produce no snapshot.
+        self.assertIsNone(self.coord.game_state_manager.get_current("Doom"))
+
+    def test_hud_handler_ignores_garbage(self):
+        # Invalid JSON must not raise out of the callback.
+        self.cb[MQTT_HUD_TOPIC](_msg("gaming_assistant/rig1/hud", b"not-json"))
 
     def test_yolo_status_json_recorded(self):
         self.cb[MQTT_YOLO_STATUS_TOPIC](
