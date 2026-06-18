@@ -13,7 +13,8 @@ import sys
 import tempfile
 import types
 import unittest
-from unittest.mock import AsyncMock, MagicMock
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +65,13 @@ def _build_stubs():
     # (MagicMock) components package, which ignores sys.modules — so bind it.
     stubs["homeassistant.components"].mqtt = mqtt_mod
 
+    # The camera watcher does `from homeassistant.components.camera import
+    # async_get_image` inside its loop, so provide a stub module for it.
+    camera_mod = types.ModuleType("homeassistant.components.camera")
+    camera_mod.async_get_image = AsyncMock()
+    stubs["homeassistant.components.camera"] = camera_mod
+    stubs["homeassistant.components"].camera = camera_mod
+
     core_mod = types.ModuleType("homeassistant.core")
     core_mod.HomeAssistant = object
     core_mod.ServiceCall = object
@@ -102,12 +110,23 @@ for _key in list(sys.modules.keys()):
 from custom_components.gaming_assistant.coordinator import (  # noqa: E402
     GamingAssistantCoordinator,
 )
+import custom_components.gaming_assistant.camera_watcher as camera_watcher  # noqa: E402
 from custom_components.gaming_assistant.const import (  # noqa: E402
     AGENT_MAX_CONSECUTIVE_FAILURES,
     EVENT_AGENT_ACTION,
     EVENT_NEW_TIP,
     EVENT_SESSION_ENDED,
+    MQTT_DETECTIONS_TOPIC,
+    MQTT_IMAGE_TOPIC,
+    MQTT_META_TOPIC,
+    MQTT_MODE_TOPIC,
+    MQTT_STATUS_TOPIC,
+    MQTT_TIP_TOPIC,
+    MQTT_WORKER_REGISTER_TOPIC,
+    MQTT_YOLO_STATUS_TOPIC,
 )
+
+_CAMERA = sys.modules["homeassistant.components.camera"]
 
 
 # ---------------------------------------------------------------------------
@@ -304,6 +323,202 @@ class TestRegistryAndClients(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# MqttRouter message handlers (driven through real subscriptions)
+# ---------------------------------------------------------------------------
+
+def _msg(topic, payload):
+    m = MagicMock()
+    m.topic = topic
+    m.payload = payload
+    return m
+
+
+class TestMqttHandlers(unittest.TestCase):
+    def setUp(self):
+        self.coord, self.hass = _make_coord()
+        _MQTT.async_subscribe.reset_mock()
+        _run(self.coord._subscribe_topics())
+        # subscribe_topics registers exactly 8 handlers in a fixed order;
+        # index them by the topic they were bound to.
+        self.cb = {
+            call.args[1]: call.args[2]
+            for call in _MQTT.async_subscribe.await_args_list
+        }
+
+    def test_subscribes_to_all_topics(self):
+        self.assertEqual(len(self.cb), 8)
+
+    def test_tip_handler(self):
+        self.cb[MQTT_TIP_TOPIC](_msg(MQTT_TIP_TOPIC, b"Use cover"))
+        self.assertEqual(self.coord.tip, "Use cover")
+
+    def test_mode_handler(self):
+        self.cb[MQTT_MODE_TOPIC](_msg(MQTT_MODE_TOPIC, b"on"))
+        self.assertTrue(self.coord.gaming_mode)
+        self.cb[MQTT_MODE_TOPIC](_msg(MQTT_MODE_TOPIC, b"off"))
+        self.assertFalse(self.coord.gaming_mode)
+
+    def test_status_handler(self):
+        self.cb[MQTT_STATUS_TOPIC](_msg(MQTT_STATUS_TOPIC, b"analyzing"))
+        self.assertEqual(self.coord.status, "analyzing")
+
+    def test_image_handler_records_and_registers(self):
+        self.cb[MQTT_IMAGE_TOPIC](
+            _msg("gaming_assistant/rig1/image", b"jpegbytes")
+        )
+        self.assertEqual(self.coord.last_image_bytes, b"jpegbytes")
+        self.assertEqual(self.coord.last_image_client_id, "rig1")
+        self.assertIn("rig1", self.coord.registered_workers)
+
+    def test_meta_handler_sets_game(self):
+        self.cb[MQTT_META_TOPIC](
+            _msg("gaming_assistant/rig1/meta", b'{"window_title": "Doom"}')
+        )
+        self.assertEqual(self.coord.current_game, "Doom")
+        self.assertIn("rig1", self.coord.registered_workers)
+
+    def test_meta_handler_ignores_garbage(self):
+        # Invalid JSON must not raise out of the callback.
+        self.cb[MQTT_META_TOPIC](_msg("gaming_assistant/rig1/meta", b"not-json"))
+
+    def test_register_handler(self):
+        self.cb[MQTT_WORKER_REGISTER_TOPIC](
+            _msg("gaming_assistant/rig1/register", b'{"type": "console"}')
+        )
+        self.assertEqual(self.coord.registered_workers["rig1"]["type"], "console")
+
+    def test_detections_handler_feeds_game_state(self):
+        self.coord._current_game = "Doom"
+        self.cb[MQTT_DETECTIONS_TOPIC](
+            _msg(
+                "gaming_assistant/yolo1/detections",
+                b'{"detections": [{"class": "enemy", "confidence": 0.9}]}',
+            )
+        )
+        current = self.coord.game_state_manager.get_current("Doom")
+        self.assertEqual(current.get("yolo_top_object"), "enemy")
+
+    def test_yolo_status_json_recorded(self):
+        self.cb[MQTT_YOLO_STATUS_TOPIC](
+            _msg(
+                "gaming_assistant/yolo1/status",
+                b'{"status": "ready", "model": "yolov8s", "backend": "cuda"}',
+            )
+        )
+        self.assertEqual(self.coord.yolo_workers["yolo1"]["status"], "ready")
+
+
+# ---------------------------------------------------------------------------
+# Camera watcher capture loop
+# ---------------------------------------------------------------------------
+
+class TestCameraLoop(unittest.TestCase):
+    def setUp(self):
+        self.coord, self.hass = _make_coord()
+
+    def test_loop_captures_one_frame_then_stops(self):
+        ev = asyncio.Event()
+
+        async def fake_get_image(hass, entity_id):
+            ev.set()  # make the post-capture wait return immediately
+            return SimpleNamespace(content=b"frame-bytes")
+
+        _CAMERA.async_get_image = fake_get_image
+        _run(self.coord._camera_watcher._watch_loop(
+            "camera.tv", "Doom", "console", 1, ev
+        ))
+        self.assertEqual(self.coord.last_image_bytes, b"frame-bytes")
+        self.assertIn("camera_tv", self.coord._client_metadata)
+        self.assertEqual(
+            self.coord._client_metadata["camera_tv"]["window_title"], "Doom"
+        )
+
+    def test_loop_stops_after_max_consecutive_errors(self):
+        old = camera_watcher.MAX_CONSECUTIVE_ERRORS
+        camera_watcher.MAX_CONSECUTIVE_ERRORS = 1
+        try:
+            cw = self.coord._camera_watcher
+            cw._watchers["camera.tv"] = {"task": MagicMock()}
+            self.coord._gaming_mode = True
+
+            async def always_fail(hass, entity_id):
+                raise RuntimeError("camera offline")
+
+            _CAMERA.async_get_image = always_fail
+            _run(cw._watch_loop("camera.tv", "", "console", 1, asyncio.Event()))
+            self.assertNotIn("camera.tv", cw._watchers)
+            self.assertFalse(self.coord.gaming_mode)
+        finally:
+            camera_watcher.MAX_CONSECUTIVE_ERRORS = old
+
+
+# ---------------------------------------------------------------------------
+# ClientRegistry inactivity handling
+# ---------------------------------------------------------------------------
+
+class TestClientInactivity(unittest.TestCase):
+    def setUp(self):
+        self.coord, self.hass = _make_coord()
+
+    def test_inactive_client_disables_gaming_mode(self):
+        self.coord._touch_client("rig1", {"window_title": "Doom"})
+        self.coord._gaming_mode = True
+        reg = self.coord._client_registry
+        # Force last-seen far in the past so the age guard lets it through.
+        reg.clients["rig1"]["last_seen_ts"] = 0
+        _run(reg._handle_inactive("rig1"))
+        self.assertFalse(self.coord.gaming_mode)
+
+    def test_inactive_kept_alive_by_camera_watcher(self):
+        self.coord._touch_client("rig1", {"window_title": "Doom"})
+        self.coord._gaming_mode = True
+        reg = self.coord._client_registry
+        reg.clients["rig1"]["last_seen_ts"] = 0
+        self.coord._camera_watcher._watchers["camera.tv"] = {"task": MagicMock()}
+        _run(reg._handle_inactive("rig1"))
+        self.assertTrue(self.coord.gaming_mode)
+
+    def test_recent_client_not_marked_inactive(self):
+        self.coord._touch_client("rig1", {"window_title": "Doom"})
+        self.coord._gaming_mode = True
+        # last_seen_ts is "now" → age < threshold → handler bails out early.
+        _run(self.coord._client_registry._handle_inactive("rig1"))
+        self.assertTrue(self.coord.gaming_mode)
+
+
+# ---------------------------------------------------------------------------
+# MqttRouter setup (retry / connection state)
+# ---------------------------------------------------------------------------
+
+class TestMqttSetup(unittest.TestCase):
+    def setUp(self):
+        self.coord, self.hass = _make_coord()
+
+    def tearDown(self):
+        # Never let a side_effect leak into other tests that subscribe.
+        _MQTT.async_subscribe.side_effect = None
+
+    def test_async_setup_connects(self):
+        _MQTT.async_subscribe.side_effect = None
+        _run(self.coord.async_setup_mqtt())
+        self.assertTrue(self.coord.mqtt_connected)
+
+    def test_async_setup_gives_up_after_retries(self):
+        # Read the globals of the *actual* subscribe_topics function so that
+        # both the exception class and the mqtt mock match what the running
+        # router code captured at import time (test_init_services.py reloads
+        # stubs and custom_components, so sys.modules may hold a different
+        # copy than the class used by this coordinator instance).
+        g = self.coord._mqtt_router.subscribe_topics.__globals__
+        HAError = g["HomeAssistantError"]
+        actual_mqtt = g["mqtt"]
+        with patch.object(actual_mqtt, "async_subscribe", side_effect=HAError("no broker")):
+            with patch("asyncio.sleep", new=AsyncMock()):
+                _run(self.coord.async_setup_mqtt())
+        self.assertFalse(self.coord.mqtt_connected)
+
+
+# ---------------------------------------------------------------------------
 # Async lifecycle + events
 # ---------------------------------------------------------------------------
 
@@ -334,9 +549,9 @@ class TestAsyncLifecycle(unittest.TestCase):
         self.assertEqual(fired[0]["tip"], "tip")
 
     def test_session_tracking_and_end(self):
-        self.coord._session_track_tip("t1", "Doom")
-        self.coord._session_track_tip("t2", "Doom")
-        _run(self.coord._end_session())
+        self.coord.session_tracker.track_tip("t1", "Doom")
+        self.coord.session_tracker.track_tip("t2", "Doom")
+        _run(self.coord.session_tracker.async_end_session())
         fired = self.hass.bus.fired(EVENT_SESSION_ENDED)
         self.assertEqual(len(fired), 1)
         self.assertEqual(fired[0]["game"], "Doom")
@@ -346,8 +561,8 @@ class TestAsyncLifecycle(unittest.TestCase):
         self.coord._image_processor._call_ollama_text = AsyncMock(
             return_value="You played aggressively."
         )
-        self.coord._session_tips = ["a", "b", "c"]
-        self.coord._session_game = "Doom"
+        self.coord.session_tracker._session_tips = ["a", "b", "c"]
+        self.coord.session_tracker._session_game = "Doom"
         out = _run(self.coord.async_summarize_session())
         self.assertEqual(out, "You played aggressively.")
         self.assertEqual(self.coord.last_summary, "You played aggressively.")
