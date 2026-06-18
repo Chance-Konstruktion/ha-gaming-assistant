@@ -11,6 +11,7 @@ coordinator and exercise its logic for real.
 import asyncio
 import sys
 import tempfile
+import time
 import types
 import unittest
 from types import SimpleNamespace
@@ -644,7 +645,9 @@ class TestTier2Escalation(unittest.TestCase):
         _run(self.coord._process_image("rig1", b"same-frame"))
         # Pretend the last Tier 2 analysis was long ago; an identical frame
         # must still escalate via the heartbeat instead of being skipped.
-        self.coord._last_tier2_ts = 0.0
+        # Use a delta from *now* (monotonic's absolute value is unspecified
+        # and can be < the heartbeat on a freshly booted CI runner).
+        self.coord._last_tier2_ts = time.monotonic() - 10_000
         _run(self.coord._process_image("rig1", b"same-frame"))
         self.assertEqual(self.coord._image_processor.process.await_count, 2)
 
