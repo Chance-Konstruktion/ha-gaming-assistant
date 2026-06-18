@@ -24,14 +24,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r worker/requirements-capture.txt
           pip install aiohttp>=3.9.0
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov ruff
 
       - name: Python syntax check (all .py files)
         run: find . -name '*.py' -not -path './.git/*' -exec python -m py_compile {} +
+
+      - name: Lint (ruff)
+        run: ruff check custom_components/gaming_assistant tests
 
       - name: Run tests + coverage
         run: |
           pytest -q \
             --cov=custom_components/gaming_assistant \
             --cov-report=term-missing \
-            --cov-fail-under=45
+            --cov-fail-under=50

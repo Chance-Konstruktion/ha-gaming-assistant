@@ -3,7 +3,7 @@
 import asyncio
 import sys
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
 
@@ -25,7 +25,6 @@ for mod in _HA_MODULES:
     sys.modules.setdefault(mod, MagicMock())
 
 from custom_components.gaming_assistant.image_processor import ImageProcessor
-from custom_components.gaming_assistant.llm_backend import LLMResponse, OllamaBackend
 from custom_components.gaming_assistant.history import HistoryManager
 from custom_components.gaming_assistant.spoiler import SpoilerManager
 from custom_components.gaming_assistant.const import OLLAMA_TIMEOUT

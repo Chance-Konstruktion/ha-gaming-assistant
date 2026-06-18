@@ -5,7 +5,7 @@ Statusangaben werden bei jeder Release aktualisiert; abgehakte Tasks
 bleiben als Beleg im Dokument stehen, damit nachvollziehbar ist, was
 ausgeliefert wurde.
 
-**Aktueller Stand:** v0.13.0 (April 2026).
+**Aktueller Stand:** 260618.
 Detaillierte Versionshistorie: `CHANGELOG.md`.
 
 Statusmarker:
@@ -35,7 +35,7 @@ Game-spezifischer Prompt-Logik.
 
 ---
 
-## 2) Architektur (Stand v0.13.0)
+## 2) Architektur (Stand 260618)
 
 ```text
 Capture Source (PC / Android / Android TV / IP Webcam / HDMI-Bridge)
@@ -106,7 +106,8 @@ Detailliertes Diagramm: `docs/architecture.md`.
   Packs.
 - Manifest + Schema-Validator (`pack_manifest.json`, v0.13).
 - Hot-Reload-Service `gaming_assistant.refresh_prompt_packs` (v0.13).
-- 26+ gebündelte Packs (Action, RPG, Tabletop, Card).
+- 26+ Community-Packs (Action, RPG, Tabletop, Card), beim HA-Start
+  automatisch heruntergeladen und lokal gecacht (nicht im Repo gebündelt).
 
 ### Diagnose & UX — ✅
 - Sensoren: Tip, Status, Latency, Frames Processed, Error Count,
@@ -226,7 +227,7 @@ docs_update:
 Empfohlener Workflow je Task:
 1. Relevante Dateien lesen, Diff-Plan erzeugen.
 2. Minimalen funktionsfähigen Patch erstellen.
-3. Tests + Lint ausführen (`python -m unittest discover -s tests`).
+3. Tests + Lint ausführen (`pytest`).
 4. Doku aktualisieren (`README.md`, `docs/`, `CHANGELOG.md`).
 5. PR mit klarer Risk/Impact-Section.
 

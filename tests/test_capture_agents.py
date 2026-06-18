@@ -4,7 +4,6 @@ Tests game detection, ADB helpers, snapshot fetching, and window title parsing.
 """
 
 import hashlib
-import subprocess
 import unittest
 from io import BytesIO
 from types import SimpleNamespace

@@ -2,7 +2,6 @@
 
 import importlib
 import json
-import sys
 import unittest
 from pathlib import Path
 
@@ -230,7 +229,8 @@ class TestPackValidation(unittest.TestCase):
         self.assertTrue(any("version" in e for e in errors), errors)
 
     def test_loader_skips_invalid_fixture(self):
-        import tempfile, shutil
+        import tempfile
+        import shutil
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_dir = Path(tmpdir)
             # Copy only the invalid ID fixture into the cache dir.

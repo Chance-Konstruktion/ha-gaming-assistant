@@ -17,7 +17,7 @@ from .const import (
 )
 from .game_state import GameStateManager, extract_observations_from_tip
 from .history import HistoryManager
-from .llm_backend import LLMBackend, OllamaBackend, create_backend
+from .llm_backend import LLMBackend, OllamaBackend
 from .prompt_builder import PromptBuilder
 from .spoiler import SpoilerManager
 
@@ -253,9 +253,13 @@ class ImageProcessor:
         """Run the full image processing pipeline. Returns the tip string."""
         metadata = metadata or {}
 
-        # 1. Compute hashes
+        # 1. Compute hashes. The perceptual hash decodes the image with PIL,
+        # so run it in the executor to keep the event loop responsive.
+        loop = asyncio.get_running_loop()
         image_hash = hashlib.md5(image_bytes).hexdigest()
-        image_phash = self._compute_phash(image_bytes)
+        image_phash = await loop.run_in_executor(
+            None, self._compute_phash, image_bytes
+        )
 
         # 2. Extract game info from metadata
         game = metadata.get("window_title", "") or metadata.get("game", "")
@@ -310,8 +314,10 @@ class ImageProcessor:
             state_context=state_context,
         )
 
-        # 9. Downscale + compress image
-        llm_image = self._downscale_image(image_bytes)
+        # 9. Downscale + compress image (PIL work → executor)
+        llm_image = await loop.run_in_executor(
+            None, self._downscale_image, image_bytes
+        )
 
         # 10. Call LLM backend
         image_b64 = base64.b64encode(llm_image).decode("utf-8")
@@ -364,7 +370,10 @@ class ImageProcessor:
             compact=self._compact,
         )
 
-        llm_image = self._downscale_image(image_bytes)
+        loop = asyncio.get_running_loop()
+        llm_image = await loop.run_in_executor(
+            None, self._downscale_image, image_bytes
+        )
         image_b64 = base64.b64encode(llm_image).decode("utf-8")
         response = await self._backend.generate(
             prompt, image_b64, max_tokens=OLLAMA_NUM_PREDICT
@@ -428,7 +437,10 @@ class ImageProcessor:
         )
 
         if image_bytes:
-            llm_image = self._downscale_image(image_bytes)
+            loop = asyncio.get_running_loop()
+            llm_image = await loop.run_in_executor(
+                None, self._downscale_image, image_bytes
+            )
             image_b64 = base64.b64encode(llm_image).decode("utf-8")
             response = await self._backend.generate(
                 prompt, image_b64, max_tokens=OLLAMA_NUM_PREDICT
