@@ -65,6 +65,7 @@ from .history import HistoryManager
 from .image_processor import ImageProcessor
 from .llm_backend import LLMBackend, create_backend
 from .camera_watcher import CameraWatcher
+from .client_registry import ClientRegistry
 from .prompt_packs import PromptPackLoader
 from .session_tracker import SessionTracker
 from .spoiler import SpoilerManager
@@ -106,9 +107,6 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._last_image_bytes: bytes | None = None
         self._last_image_client_id: str = ""
         self._last_image_timestamp: str = ""
-        self._client_inactivity_timers: dict[str, asyncio.TimerHandle] = {}
-        self._active_client_id: str = ""
-        self._clients: dict[str, dict[str, Any]] = {}
 
         # Configurable interval & timeout
         self._analysis_interval: int = config.get(CONF_INTERVAL, DEFAULT_INTERVAL)
@@ -134,8 +132,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         # Camera watchers: continuous capture from HA camera entities.
         self._camera_watcher = CameraWatcher(self)
 
-        # Registered workers: client_id → {name, type, platform, last_seen, ...}
-        self._registered_workers: dict[str, dict[str, Any]] = {}
+        # Worker/client registry + per-client inactivity timers.
+        self._client_registry = ClientRegistry(self)
         self._yolo_workers: dict[str, dict[str, Any]] = {}
 
         # Runtime metrics
@@ -353,9 +351,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._gaming_mode = False
         if self._status != "error":
             self._status = "idle"
-        for handle in self._client_inactivity_timers.values():
-            handle.cancel()
-        self._client_inactivity_timers.clear()
+        self._client_registry.cancel_timers()
         while not self._image_queue.empty():
             try:
                 self._image_queue.get_nowait()
@@ -480,88 +476,19 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
     @property
     def registered_workers(self) -> dict[str, dict[str, Any]]:
-        return self._registered_workers
+        return self._client_registry.registered_workers
 
-    def _register_worker(self, client_id: str, info: dict[str, Any] | None = None) -> None:
-        """Register or update a worker. Called automatically on MQTT activity."""
-        now = time.strftime("%Y-%m-%dT%H:%M:%S")
-        self._active_client_id = client_id
-        if client_id in self._registered_workers:
-            self._registered_workers[client_id]["last_seen"] = now
-            if info:
-                self._registered_workers[client_id].update(info)
-        else:
-            worker_info = {
-                "name": info.get("name", client_id) if info else client_id,
-                "type": info.get("type", "unknown") if info else "unknown",
-                "platform": info.get("platform", "") if info else "",
-                "version": info.get("version", "") if info else "",
-                "first_seen": now,
-                "last_seen": now,
-            }
-            if info:
-                worker_info.update({k: v for k, v in info.items() if k not in worker_info})
-            self._registered_workers[client_id] = worker_info
-            _LOGGER.info("New worker registered: %s (%s)", client_id, worker_info.get("type"))
-        self._touch_client(client_id, info)
-        self.async_set_updated_data(self._build_data())
+    def _register_worker(
+        self, client_id: str, info: dict[str, Any] | None = None
+    ) -> None:
+        """Register or update a worker (delegated to ClientRegistry)."""
+        self._client_registry.register_worker(client_id, info)
 
-    def _touch_client(self, client_id: str, metadata: dict[str, Any] | None = None) -> None:
-        """Update per-client runtime state and inactivity timer."""
-        now_ts = time.time()
-        now_iso = time.strftime("%Y-%m-%dT%H:%M:%S")
-        current = self._clients.get(client_id, {})
-        meta = dict(current.get("meta", {}))
-        if metadata:
-            meta.update(metadata)
-        client_state: dict[str, Any] = {
-            "client_id": client_id,
-            "last_seen": now_iso,
-            "last_seen_ts": now_ts,
-            "meta": meta,
-            "last_game": current.get("last_game", ""),
-        }
-        # Backward compatibility: keep selected metadata mirrored at top-level
-        # so older dashboards/templates continue to work after merge updates.
-        client_state.update(meta)
-
-        game = (meta.get("window_title") or meta.get("game") or "").strip()
-        if game:
-            client_state["last_game"] = game
-            self._current_game = game
-        self._clients[client_id] = client_state
-        self._current_client_id = client_id
-        self._active_client_id = client_id
-        self._schedule_client_inactivity(client_id)
-
-    def _schedule_client_inactivity(self, client_id: str) -> None:
-        """Reset the inactivity timer for a client."""
-        handle = self._client_inactivity_timers.pop(client_id, None)
-        if handle:
-            handle.cancel()
-        timeout = max(self._analysis_interval * 3, 30)
-        self._client_inactivity_timers[client_id] = self.hass.loop.call_later(
-            timeout,
-            lambda: self.hass.async_create_task(self._handle_client_inactive(client_id)),
-        )
-
-    async def _handle_client_inactive(self, client_id: str) -> None:
-        """Mark client as inactive when no frames arrive for a while."""
-        self._client_inactivity_timers.pop(client_id, None)
-        client = self._clients.get(client_id)
-        if client:
-            age = time.time() - float(client.get("last_seen_ts", 0))
-            if age < 30:
-                return
-        if self._active_client_id != client_id:
-            return
-        if self._camera_watcher.has_active:
-            return
-        self._gaming_mode = False
-        if self._status != "error":
-            self._status = "idle"
-        _LOGGER.info("Client %s inactive – switching gaming mode off", client_id)
-        self.async_set_updated_data(self._build_data())
+    def _touch_client(
+        self, client_id: str, metadata: dict[str, Any] | None = None
+    ) -> None:
+        """Update per-client runtime state (delegated to ClientRegistry)."""
+        self._client_registry.touch_client(client_id, metadata)
 
     def _ensure_image_worker(self) -> None:
         """Ensure the image queue worker is running."""
@@ -970,12 +897,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             # Plain-text capture-agent / executor presence (LWT).
             if lowered in ("online", "offline"):
                 online = lowered == "online"
-                now_iso = time.strftime("%Y-%m-%dT%H:%M:%S")
-                if cid in self._registered_workers:
-                    self._registered_workers[cid]["online"] = online
-                    self._registered_workers[cid]["last_seen"] = now_iso
-                if cid in self._clients:
-                    self._clients[cid]["online"] = online
+                self._client_registry.mark_presence(cid, online)
                 _LOGGER.debug("Client %s presence: %s", cid, lowered)
                 self.async_set_updated_data(self._build_data())
                 return
@@ -1096,7 +1018,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         async with self._process_lock:
             self._status = "analyzing"
             self._current_client_id = client_id
-            self._active_client_id = client_id
+            self._client_registry.set_active(client_id)
             self._gaming_mode = True
             self._touch_client(client_id, self._client_metadata.get(client_id, {}))
             self.async_set_updated_data(self._build_data())
@@ -1369,9 +1291,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             self._cleanup_unsub()
             self._cleanup_unsub = None
         self._session_tracker.cancel_timer()
-        for handle in self._client_inactivity_timers.values():
-            handle.cancel()
-        self._client_inactivity_timers.clear()
+        self._client_registry.cancel_timers()
         if self._image_worker_task and not self._image_worker_task.done():
             self._image_worker_task.cancel()
             try:
@@ -1415,9 +1335,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "analysis_interval": self._analysis_interval,
             "analysis_timeout": self._analysis_timeout,
             "spoiler_level": self._spoiler.default_level,
-            "registered_workers": self._registered_workers,
-            "clients": self._clients,
-            "active_client_id": self._active_client_id,
+            "registered_workers": self._client_registry.registered_workers,
+            "clients": self._client_registry.clients,
+            "active_client_id": self._client_registry.active_client_id,
             "default_game_hint": self._default_game_hint,
             "source_type": self._source_type,
             "available_models": self._available_models,

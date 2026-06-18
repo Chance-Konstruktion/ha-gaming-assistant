@@ -7,7 +7,9 @@ import unittest
 class TestCoordinatorContracts(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.src = Path("custom_components/gaming_assistant/coordinator.py").read_text(encoding="utf-8")
+        base = Path("custom_components/gaming_assistant")
+        cls.src = (base / "coordinator.py").read_text(encoding="utf-8")
+        cls.registry_src = (base / "client_registry.py").read_text(encoding="utf-8")
 
     def test_has_bounded_image_queue(self):
         self.assertIn("asyncio.Queue(maxsize=3)", self.src)
@@ -22,7 +24,8 @@ class TestCoordinatorContracts(unittest.TestCase):
 
     def test_has_inactivity_and_lock(self):
         self.assertIn("self._process_lock = asyncio.Lock()", self.src)
-        self.assertIn("async def _handle_client_inactive", self.src)
+        # Inactivity handling now lives in the ClientRegistry collaborator.
+        self.assertIn("async def _handle_inactive", self.registry_src)
 
 
 if __name__ == "__main__":
