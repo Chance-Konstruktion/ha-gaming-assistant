@@ -68,6 +68,17 @@ AGENT_VALID_BUTTONS = [
     "A", "B", "X", "Y", "LB", "RB", "LT", "RT",
     "DPAD_UP", "DPAD_DOWN", "DPAD_LEFT", "DPAD_RIGHT", "START", "BACK",
 ]
+# Agent Mode safety rails.
+# Minimum seconds between two published controller actions (rate limit) so the
+# AI can never flood the executor with inputs.
+AGENT_ACTION_MIN_INTERVAL = 1.0
+# Auto-disable Agent Mode after this many consecutive action-generation
+# failures (e.g. backend down / timeouts) so a broken pipeline never keeps
+# the AI "driving" blindly.
+AGENT_MAX_CONSECUTIVE_FAILURES = 5
+# Event fired for every Agent Mode action decision (published / no_op /
+# error / auto_disabled) so automations can audit autonomous play.
+EVENT_AGENT_ACTION = "gaming_assistant_agent_action"
 
 # TTS / Announce
 CONF_TTS_ENTITY = "tts_entity"

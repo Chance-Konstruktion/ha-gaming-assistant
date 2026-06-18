@@ -36,6 +36,8 @@ from .const import (
     CONF_TTS_ENTITY,
     CONF_TTS_TARGET,
     AGENT_VALID_BUTTONS,
+    AGENT_ACTION_MIN_INTERVAL,
+    AGENT_MAX_CONSECUTIVE_FAILURES,
     DEFAULT_AGENT_MODE,
     DEFAULT_ASSISTANT_MODE,
     DEFAULT_AUTO_ANNOUNCE,
@@ -44,6 +46,7 @@ from .const import (
     DEFAULT_SPOILER_LEVEL,
     DEFAULT_TIMEOUT,
     DOMAIN,
+    EVENT_AGENT_ACTION,
     EVENT_NEW_TIP,
     EVENT_SESSION_ENDED,
     MQTT_IMAGE_TOPIC,
@@ -58,6 +61,7 @@ from .const import (
     MQTT_YOLO_STATUS_TOPIC,
     SESSION_END_DELAY,
 )
+from .agent_governor import AgentActionGovernor
 from .game_state import GameStateManager
 from .history import HistoryManager
 from .image_processor import ImageProcessor
@@ -117,6 +121,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         # Agent Mode / Player 2 — opt-in, runtime-only (resets to OFF on restart).
         self._agent_mode: bool = DEFAULT_AGENT_MODE
         self._agent_allowed_buttons: list[str] = []
+        # Safety governor: rate limit + failure auto-disable + audit counters.
+        self._agent_governor = AgentActionGovernor(
+            AGENT_ACTION_MIN_INTERVAL, AGENT_MAX_CONSECUTIVE_FAILURES
+        )
 
         # Persistent game hint – used by camera watchers when no auto-detection
         self._default_game_hint: str = ""
@@ -624,6 +632,26 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     def agent_allowed_buttons(self) -> list[str]:
         return list(self._agent_allowed_buttons)
 
+    @property
+    def agent_actions_published(self) -> int:
+        return self._agent_governor.published
+
+    @property
+    def agent_actions_failed(self) -> int:
+        return self._agent_governor.failed
+
+    @property
+    def agent_last_action(self) -> dict | None:
+        return self._agent_governor.last_action
+
+    @property
+    def agent_last_action_status(self) -> str:
+        return self._agent_governor.last_status
+
+    @property
+    def agent_last_action_timestamp(self) -> str:
+        return self._agent_governor.last_timestamp
+
     def set_agent_mode(
         self, enabled: bool, allowed_buttons: list[str] | None = None
     ) -> None:
@@ -633,6 +661,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         controller action published to ``gaming_assistant/{client_id}/action``.
         Runtime-only by design: it always resets to OFF on restart.
         """
+        if enabled and not self._agent_mode:
+            # Fresh enable: clear any stale failure streak from a prior run.
+            self._agent_governor.reset_failures()
         self._agent_mode = bool(enabled)
         if allowed_buttons is not None:
             valid = {b.upper() for b in AGENT_VALID_BUTTONS}
@@ -1244,9 +1275,20 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     ) -> None:
         """Generate one controller action from the frame and publish it.
 
-        Fully isolated: any failure here must never disrupt the tip pipeline,
-        so all exceptions are caught and logged.
+        Safety-governed: actions are rate limited, repeated failures
+        auto-disable Agent Mode (dead-man switch), and every decision is
+        recorded for audit. Fully isolated: any failure here must never
+        disrupt the tip pipeline.
         """
+        now = time.monotonic()
+        if self._agent_governor.rate_limited(now):
+            _LOGGER.debug(
+                "Agent action rate-limited (<%.1fs), skipping",
+                AGENT_ACTION_MIN_INTERVAL,
+            )
+            return
+
+        ts = time.strftime("%Y-%m-%dT%H:%M:%S")
         try:
             action = await asyncio.wait_for(
                 self._image_processor.generate_action(
@@ -1258,10 +1300,43 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             )
         except Exception as err:  # noqa: BLE001 - never break analysis on action errors
             _LOGGER.warning("Agent action generation failed: %s", err)
+            if self._agent_governor.record_error(ts):
+                _LOGGER.error(
+                    "Agent Mode auto-disabled after %d consecutive failures",
+                    self._agent_governor.max_consecutive_failures,
+                )
+                self.set_agent_mode(False)
+                self._fire_agent_action_event(client_id, game, "auto_disabled", None)
+            else:
+                self._fire_agent_action_event(client_id, game, "error", None)
+            self.async_set_updated_data(self._build_data())
             return
 
-        if action:
-            await self.async_publish_action(client_id, action)
+        if not action:
+            self._agent_governor.record_no_op(ts)
+            self.async_set_updated_data(self._build_data())
+            return
+
+        await self.async_publish_action(client_id, action)
+        self._agent_governor.record_published(action, now, ts)
+        self._fire_agent_action_event(client_id, game, "published", action)
+        self.async_set_updated_data(self._build_data())
+
+    def _fire_agent_action_event(
+        self, client_id: str, game: str, status: str, action: dict | None
+    ) -> None:
+        """Fire an event for each Agent Mode decision (audit / automations)."""
+        self.hass.bus.async_fire(
+            EVENT_AGENT_ACTION,
+            {
+                "client_id": client_id,
+                "game": game,
+                "status": status,
+                "action": action,
+                "published": self._agent_governor.published,
+                "failed": self._agent_governor.failed,
+            },
+        )
 
     # -- Camera watcher ------------------------------------------------------
 
@@ -1565,6 +1640,13 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "last_error_message": self._last_error_message,
             "last_error_type": self._last_error_type,
             "last_error_timestamp": self._last_error_timestamp,
+            "agent_mode": self._agent_mode,
+            "agent_allowed_buttons": self._agent_allowed_buttons,
+            "agent_actions_published": self._agent_governor.published,
+            "agent_actions_failed": self._agent_governor.failed,
+            "agent_last_action": self._agent_governor.last_action,
+            "agent_last_action_status": self._agent_governor.last_status,
+            "agent_last_action_timestamp": self._agent_governor.last_timestamp,
         }
 
     async def _async_update_data(self) -> dict:
