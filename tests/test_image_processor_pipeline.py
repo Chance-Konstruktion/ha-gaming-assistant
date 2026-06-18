@@ -120,6 +120,16 @@ class TestProcessPipeline(unittest.TestCase):
         current = proc._game_state.get_current("Doom")
         self.assertEqual(current.get("score"), 999)
 
+    def test_strategy_note_injected_into_prompt(self):
+        # Tier 3 feedback: the strategic focus must reach the LLM prompt.
+        proc = _make_processor("ok")
+        _run(proc.process(
+            b"frame-s", "rig1", {"window_title": "Doom"},
+            strategy_note="Play defensively.",
+        ))
+        prompt = proc._backend.generate.call_args[0][0]
+        self.assertIn("Strategic focus: Play defensively.", prompt)
+
 
 class TestAskPipeline(unittest.TestCase):
     def test_ask_with_image(self):

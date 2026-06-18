@@ -69,7 +69,7 @@ loop that re-derives everything from scratch each time.
 |------|---------|------|-----|-------|
 | **1 — Reflex / Perception** | every frame | none (no LLM) | Measure the frame: scene-change magnitude, motion class. Emits *measured* signals. | `perception.py` (`PerceptionTier`) |
 | **2 — Tactics** | seconds | medium (vision LLM) | Produce the actual tip, consuming Tier 1 signals as input. | `image_processor.py` → `llm_backend.py` |
-| **3 — Strategy / Meta** | per session | high (rare, big model) | Session recap; long-horizon patterns (planned: death-pattern analysis, goals feeding back down). | `session_tracker.py` (recap today) |
+| **3 — Strategy / Meta** | every few tips / session | low today (deterministic) | Distil a session-level **strategic focus** from game-state trends and feed it back down into Tier 2. Also: session recap. | `strategy.py` (`StrategyTier`), `session_tracker.py` (recap) |
 
 **Why Tier 1 exists.** Structured game state used to be produced *after*
 the LLM, by scraping the prose tip back out with regexes
@@ -111,7 +111,29 @@ frames is exposed as `frames_skipped` for diagnostics.
 frame ─► Tier 1 ─► should_escalate(significant | heartbeat)?
                        │ no  ──► record measured state, idle, frames_skipped++
                        │ yes ──► Tier 2 (LLM) ─► tip + merged snapshot
+                                     ▲                    │
+                          strategy_note (fed back down)   ▼
+                                     └────────  Tier 3: record_tip ─► refresh focus
 ```
+
+### Tier 3 feedback loop
+
+`StrategyTier` (`strategy.py`) makes the strategy a *live* input rather
+than a dead-end recap:
+
+- After each Tier 2 tip the coordinator calls `record_tip(game, tip)`.
+  Every `STRATEGY_EVERY_N_TIPS` tips it recomputes a **strategic focus**
+  from the trends `GameStateManager.detect_trends()` already surfaces
+  (e.g. declining health → "prioritise survival and play defensively";
+  a stalled phase → "try a different approach"; sinking momentum →
+  "change tactics").
+- Before each Tier 2 call the coordinator reads `note(game)` and passes it
+  as `strategy_note`, which `ImageProcessor.process` puts at the **top** of
+  the prompt context (above the Tier 1 live signals and the rolling state
+  block). So tactical tips reason under the session's higher-level frame.
+- The current focus is exposed as `strategy_note` for diagnostics. The
+  deterministic synthesiser can later be swapped for an LLM "reflection"
+  behind the same interface and injection point.
 
 ## MQTT Topic Conventions
 

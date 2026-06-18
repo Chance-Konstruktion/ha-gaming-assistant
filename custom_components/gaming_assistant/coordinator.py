@@ -63,6 +63,7 @@ from .perception import PerceptionTier
 from .prompt_packs import PromptPackLoader
 from .session_tracker import SessionTracker
 from .spoiler import SpoilerManager
+from .strategy import StrategyTier
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -131,6 +132,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         # feeds measured signals into Tier 2 instead of scraping them back
         # out of the LLM's prose afterwards.
         self._perception = PerceptionTier(self)
+
+        # Tier 3 — slow session-level strategy that distils a focus from
+        # game-state trends and feeds it back down into the Tier 2 prompt.
+        self._strategy = StrategyTier(self)
 
         # Runtime metrics
         self._latency: float = 0.0
@@ -711,6 +716,11 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         return self._frames_skipped
 
     @property
+    def strategy_note(self) -> str:
+        """Tier 3 strategic focus for the current game (empty if none)."""
+        return self._strategy.note(self._current_game)
+
+    @property
     def last_analysis(self) -> str:
         return self._last_analysis
 
@@ -851,10 +861,14 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
             try:
                 start = time.monotonic()
+                # Tier 3 feedback: inject the current strategic focus so the
+                # tactical tip reasons under the session's higher-level frame.
+                strategy_note = self._strategy.note(game)
                 tip = await asyncio.wait_for(
                     self._image_processor.process(
                         image_bytes, client_id, metadata,
                         measured=perception.measured,
+                        strategy_note=strategy_note,
                     ),
                     timeout=self._analysis_timeout + 5,
                 )
@@ -879,6 +893,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
                     # Track tip for session summary
                     self._session_tracker.track_tip(tip, self._current_game)
+
+                    # Tier 3: refresh the session-level strategic focus
+                    # (game state is already updated for this frame).
+                    self._strategy.record_tip(self._current_game, tip)
 
                     # Fire event for automations
                     self._fire_new_tip_event(tip, self._current_game, client_id)
@@ -1153,6 +1171,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "analysis_interval": self._analysis_interval,
             "analysis_timeout": self._analysis_timeout,
             "frames_skipped": self._frames_skipped,
+            "strategy_note": self._strategy.note(self._current_game),
             "spoiler_level": self._spoiler.default_level,
             "registered_workers": self._client_registry.registered_workers,
             "clients": self._client_registry.clients,

@@ -250,6 +250,7 @@ class ImageProcessor:
         client_id: str,
         metadata: dict | None = None,
         measured: dict | None = None,
+        strategy_note: str = "",
     ) -> str:
         """Run the full image processing pipeline. Returns the tip string.
 
@@ -258,6 +259,10 @@ class ImageProcessor:
         LLM as live input and merged into the single per-frame game-state
         snapshot, so structured state is *measured* first rather than only
         scraped back out of the model's prose.
+
+        ``strategy_note`` is the Tier 3 strategic focus fed back down into
+        the tactical prompt, so per-frame tips reason under the session's
+        higher-level frame.
         """
         metadata = metadata or {}
         measured = measured or {}
@@ -303,21 +308,23 @@ class ImageProcessor:
         recent = await self._history.get_recent(key, HISTORY_CONTEXT_SIZE)
         history_context = HistoryManager.format_for_prompt(recent)
 
-        # 7b. Game state context
-        state_context = ""
-        if self._game_state and game:
-            state_context = self._game_state.format_for_prompt(
-                game, compact=self._compact
-            )
-
-        # 7c. Tier 1 live signals — measured this frame, shown to the LLM as
-        # input (prepended) instead of being inferred from its own output.
+        # 7b/7c. Assemble the layered context shown to the LLM, top-down:
+        #   Tier 3 strategic focus (frames everything) →
+        #   Tier 1 live measured signals →
+        #   the rolling game-state block (current state, changes, trends).
+        context_parts: list[str] = []
+        if strategy_note:
+            context_parts.append(f"Strategic focus: {strategy_note}")
         if measured:
             signal_str = ", ".join(f"{k}: {v}" for k, v in measured.items())
-            live_line = f"Live signals: {signal_str}"
-            state_context = (
-                f"{live_line}\n{state_context}" if state_context else live_line
+            context_parts.append(f"Live signals: {signal_str}")
+        if self._game_state and game:
+            state_block = self._game_state.format_for_prompt(
+                game, compact=self._compact
             )
+            if state_block:
+                context_parts.append(state_block)
+        state_context = "\n".join(context_parts)
 
         # 8. Build prompt
         prompt = PromptBuilder.build(

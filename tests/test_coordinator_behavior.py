@@ -653,6 +653,21 @@ class TestTier2Escalation(unittest.TestCase):
         _run(self.coord._process_image("rig1", b"a-very-different-frame-B"))
         self.assertEqual(self.coord._image_processor.process.await_count, 2)
 
+    def test_strategy_note_fed_into_tier2(self):
+        # Tier 3 note must flow back down into the Tier 2 processor call.
+        self.coord._strategy._notes["Doom"] = "Be aggressive."
+        captured = {}
+
+        async def fake_process(image_bytes, client_id, metadata,
+                               measured=None, strategy_note=""):
+            captured["note"] = strategy_note
+            return "tip"
+
+        self.coord._image_processor.process = fake_process
+        _run(self.coord._process_image("rig1", b"frame-A"))
+        self.assertEqual(captured["note"], "Be aggressive.")
+        self.assertEqual(self.coord.strategy_note, "Be aggressive.")
+
 
 # ---------------------------------------------------------------------------
 # Agent Mode safety wiring (behavioural)
