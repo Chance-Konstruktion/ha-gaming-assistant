@@ -48,16 +48,8 @@ from .const import (
     DOMAIN,
     EVENT_AGENT_ACTION,
     EVENT_NEW_TIP,
-    MQTT_IMAGE_TOPIC,
-    MQTT_META_TOPIC,
-    MQTT_MODE_TOPIC,
-    MQTT_STATUS_TOPIC,
-    MQTT_TIP_TOPIC,
-    MQTT_DETECTIONS_TOPIC,
-    MQTT_WORKER_REGISTER_TOPIC,
     MQTT_ACTION_TOPIC,
     MQTT_YOLO_COMMAND_TOPIC,
-    MQTT_YOLO_STATUS_TOPIC,
 )
 from .agent_governor import AgentActionGovernor
 from .game_state import GameStateManager
@@ -66,14 +58,12 @@ from .image_processor import ImageProcessor
 from .llm_backend import LLMBackend, create_backend
 from .camera_watcher import CameraWatcher
 from .client_registry import ClientRegistry
+from .mqtt_router import MqttRouter
 from .prompt_packs import PromptPackLoader
 from .session_tracker import SessionTracker
 from .spoiler import SpoilerManager
 
 _LOGGER = logging.getLogger(__name__)
-
-MQTT_RETRY_ATTEMPTS = 5
-MQTT_RETRY_BASE_DELAY = 3  # seconds, doubles each attempt
 
 
 class GamingAssistantCoordinator(DataUpdateCoordinator):
@@ -92,8 +82,6 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._tip: str = "Waiting for tips..."
         self._gaming_mode: bool = False
         self._status: str = "idle"
-        self._unsubscribe_callbacks: list = []
-        self._mqtt_connected: bool = False
 
         # v0.4 Thin Client components
         self._current_game: str = ""
@@ -134,7 +122,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
         # Worker/client registry + per-client inactivity timers.
         self._client_registry = ClientRegistry(self)
-        self._yolo_workers: dict[str, dict[str, Any]] = {}
+
+        # MQTT subscription routing + connection state + YOLO worker status.
+        self._mqtt_router = MqttRouter(self)
 
         # Runtime metrics
         self._latency: float = 0.0
@@ -260,7 +250,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
     @property
     def mqtt_connected(self) -> bool:
-        return self._mqtt_connected
+        return self._mqtt_router.connected
 
     @property
     def current_game(self) -> str:
@@ -301,7 +291,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     @property
     def yolo_workers(self) -> dict[str, dict[str, Any]]:
         """Return status of connected YOLO workers."""
-        return self._yolo_workers
+        return self._mqtt_router.yolo_workers
 
     async def async_send_yolo_command(self, command: str, **kwargs: Any) -> None:
         """Send a command to YOLO workers via MQTT."""
@@ -758,237 +748,18 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         return models
 
     async def async_setup_mqtt(self) -> None:
-        """Subscribe to MQTT topics with exponential-backoff retry."""
-        delay = MQTT_RETRY_BASE_DELAY
-
-        for attempt in range(1, MQTT_RETRY_ATTEMPTS + 1):
-            try:
-                await self._subscribe_topics()
-                self._mqtt_connected = True
-                _LOGGER.info(
-                    "MQTT subscriptions active (attempt %d/%d)",
-                    attempt, MQTT_RETRY_ATTEMPTS,
-                )
-                return
-            except HomeAssistantError as err:
-                _LOGGER.warning(
-                    "MQTT subscribe attempt %d/%d failed: %s – retrying in %ds",
-                    attempt, MQTT_RETRY_ATTEMPTS, err, delay,
-                )
-                if attempt < MQTT_RETRY_ATTEMPTS:
-                    await asyncio.sleep(delay)
-                    delay = min(delay * 2, 60)
-
-        _LOGGER.error(
-            "Could not subscribe to MQTT after %d attempts. "
-            "Verify that the MQTT integration is configured and the broker is reachable. "
-            "Reload this integration to retry.",
-            MQTT_RETRY_ATTEMPTS,
-        )
+        """Subscribe to MQTT topics with retry (delegated to MqttRouter)."""
+        await self._mqtt_router.async_setup()
 
     async def _subscribe_topics(self) -> None:
-        """Subscribe to all Gaming Assistant MQTT topics."""
-
-        # -- Legacy topics (v0.2/v0.3 compatibility) -------------------------
-
-        @callback
-        def tip_received(msg) -> None:
-            payload = msg.payload
-            if isinstance(payload, bytes):
-                payload = payload.decode("utf-8")
-            self._tip = payload
-            _LOGGER.debug("New tip received (legacy): %s", payload)
-            self.async_set_updated_data(self._build_data())
-
-        @callback
-        def mode_received(msg) -> None:
-            payload = msg.payload
-            if isinstance(payload, bytes):
-                payload = payload.decode("utf-8")
-            self._gaming_mode = payload.strip().lower() in ("on", "true", "1")
-            _LOGGER.debug("Gaming mode changed: %s", self._gaming_mode)
-            self.async_set_updated_data(self._build_data())
-
-        @callback
-        def status_received(msg) -> None:
-            payload = msg.payload
-            if isinstance(payload, bytes):
-                payload = payload.decode("utf-8")
-            self._status = payload.strip().lower()
-            self.async_set_updated_data(self._build_data())
-
-        # -- New topics (v0.4 Thin Client) -----------------------------------
-
-        @callback
-        def image_received(msg) -> None:
-            """Handle incoming image from a capture agent."""
-            client_id = msg.topic.split("/")[1]
-            _LOGGER.debug("Image received from client: %s", client_id)
-            self._record_last_image(client_id, msg.payload)
-            self._register_worker(client_id)
-            self.hass.async_create_task(self._enqueue_image(client_id, msg.payload))
-
-        @callback
-        def meta_received(msg) -> None:
-            """Handle incoming metadata from a capture agent."""
-            client_id = msg.topic.split("/")[1]
-            try:
-                payload = msg.payload
-                if isinstance(payload, bytes):
-                    payload = payload.decode("utf-8")
-                metadata = json.loads(payload)
-                self._client_metadata[client_id] = metadata
-                self._touch_client(client_id, metadata)
-                self._register_worker(client_id, metadata)
-                _LOGGER.debug("Metadata from %s: %s", client_id, metadata)
-            except (json.JSONDecodeError, UnicodeDecodeError) as err:
-                _LOGGER.warning("Invalid metadata from %s: %s", client_id, err)
-
-        @callback
-        def worker_register_received(msg) -> None:
-            """Handle explicit worker registration."""
-            client_id = msg.topic.split("/")[1]
-            try:
-                payload = msg.payload
-                if isinstance(payload, bytes):
-                    payload = payload.decode("utf-8")
-                info = json.loads(payload)
-                self._register_worker(client_id, info)
-                _LOGGER.info("Worker registered via MQTT: %s", client_id)
-            except (json.JSONDecodeError, UnicodeDecodeError) as err:
-                _LOGGER.warning("Invalid register payload from %s: %s", client_id, err)
-
-        @callback
-        def detections_received(msg) -> None:
-            """Handle YOLO detections from external worker."""
-            client_id = msg.topic.split("/")[1]
-            try:
-                payload = msg.payload
-                if isinstance(payload, bytes):
-                    payload = payload.decode("utf-8")
-                data = json.loads(payload)
-                self._handle_yolo_detections(client_id, data)
-            except (json.JSONDecodeError, UnicodeDecodeError) as err:
-                _LOGGER.warning("Invalid detections from %s: %s", client_id, err)
-
-        @callback
-        def client_status_received(msg) -> None:
-            """Handle per-client status on ``gaming_assistant/{id}/status``.
-
-            Two payload shapes share this 3-segment topic pattern:
-              * plain ``online``/``offline`` – capture agents and the agent
-                executor (their retained Last-Will presence), and
-              * a JSON document – YOLO worker status.
-
-            Plain presence updates the worker/client registry; JSON is recorded
-            as YOLO worker status. Anything else is ignored quietly instead of
-            spamming a warning on every capture-agent connect/disconnect.
-            """
-            cid = msg.topic.split("/")[1]
-            payload = msg.payload
-            if isinstance(payload, bytes):
-                try:
-                    payload = payload.decode("utf-8")
-                except UnicodeDecodeError:
-                    return
-            text = (payload or "").strip()
-            lowered = text.lower()
-
-            # Plain-text capture-agent / executor presence (LWT).
-            if lowered in ("online", "offline"):
-                online = lowered == "online"
-                self._client_registry.mark_presence(cid, online)
-                _LOGGER.debug("Client %s presence: %s", cid, lowered)
-                self.async_set_updated_data(self._build_data())
-                return
-
-            # Otherwise expect a JSON YOLO-worker status document.
-            try:
-                data = json.loads(text)
-            except (json.JSONDecodeError, ValueError):
-                _LOGGER.debug(
-                    "Ignoring non-JSON status from %s: %s", cid, text[:40]
-                )
-                return
-            status = data.get("status", "unknown")
-            self._yolo_workers[cid] = data
-            _LOGGER.info(
-                "YOLO worker %s: %s (model=%s, backend=%s)",
-                cid, status,
-                data.get("model", "?"), data.get("backend", "?"),
-            )
-
-        unsub_tip = await mqtt.async_subscribe(
-            self.hass, MQTT_TIP_TOPIC, tip_received, 0
-        )
-        unsub_mode = await mqtt.async_subscribe(
-            self.hass, MQTT_MODE_TOPIC, mode_received, 0
-        )
-        unsub_status = await mqtt.async_subscribe(
-            self.hass, MQTT_STATUS_TOPIC, status_received, 0
-        )
-        unsub_image = await mqtt.async_subscribe(
-            self.hass, MQTT_IMAGE_TOPIC, image_received, 0, encoding=None
-        )
-        unsub_meta = await mqtt.async_subscribe(
-            self.hass, MQTT_META_TOPIC, meta_received, 0
-        )
-        unsub_register = await mqtt.async_subscribe(
-            self.hass, MQTT_WORKER_REGISTER_TOPIC, worker_register_received, 0
-        )
-        unsub_detections = await mqtt.async_subscribe(
-            self.hass, MQTT_DETECTIONS_TOPIC, detections_received, 0
-        )
-        unsub_client_status = await mqtt.async_subscribe(
-            self.hass, MQTT_YOLO_STATUS_TOPIC, client_status_received, 0
-        )
-
-        self._unsubscribe_callbacks = [
-            unsub_tip, unsub_mode, unsub_status, unsub_image, unsub_meta,
-            unsub_register, unsub_detections, unsub_client_status,
-        ]
-
-    # -- YOLO detection handling -----------------------------------------------
+        """Subscribe to all Gaming Assistant MQTT topics (delegated)."""
+        await self._mqtt_router.subscribe_topics()
 
     def _handle_yolo_detections(
         self, client_id: str, data: dict[str, Any]
     ) -> None:
-        """Process structured detections from the YOLO worker.
-
-        Detections are fed into the game state engine as observations
-        so the LLM can use them for context.
-        """
-        detections = data.get("detections", [])
-        if not detections:
-            return
-
-        game = self._current_game or "unknown"
-        inference_ms = data.get("inference_ms", 0)
-
-        # Build observations from detections
-        observations: dict[str, Any] = {
-            "yolo_objects": [d["class"] for d in detections[:10]],
-            "yolo_count": len(detections),
-            "yolo_inference_ms": inference_ms,
-        }
-
-        # Extract prominent objects by confidence
-        if detections:
-            top = max(detections, key=lambda d: d.get("confidence", 0))
-            observations["yolo_top_object"] = top["class"]
-            observations["yolo_top_confidence"] = top.get("confidence", 0)
-
-        # Feed into game state engine
-        self._game_state.update(
-            game, observations, source=f"yolo:{client_id}"
-        )
-
-        _LOGGER.debug(
-            "YOLO detections from %s: %d objects (%.0fms)",
-            client_id,
-            len(detections),
-            inference_ms,
-        )
+        """Feed YOLO detections into the game state (delegated to MqttRouter)."""
+        self._mqtt_router.handle_yolo_detections(client_id, data)
 
     # -- Game-state persistence ----------------------------------------------
 
@@ -1305,11 +1076,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         await self._llm_backend.close()
 
     def async_unsubscribe(self) -> None:
-        """Unsubscribe from all MQTT topics."""
-        for unsub in self._unsubscribe_callbacks:
-            unsub()
-        self._unsubscribe_callbacks.clear()
-        self._mqtt_connected = False
+        """Unsubscribe from all MQTT topics (delegated to MqttRouter)."""
+        self._mqtt_router.unsubscribe()
 
     # -- data helpers --------------------------------------------------------
 
