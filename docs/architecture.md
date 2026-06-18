@@ -90,9 +90,28 @@ frame ─► Tier 1 (perception.py)  ── measured signals ─►  Tier 2 (ima
 
 Tier 1 keeps a per-client perceptual-hash memory so scene change is
 computed per capture source. The first frame from a client is always
-treated as significant. `PerceptionResult.significant` is the escalation
-hint a future event-driven Tier 2 will use to fire on *change* rather than
-on a dumb timer.
+treated as significant.
+
+**Event-driven escalation.** Tier 2 is no longer run on every frame.
+`coordinator._process_image` consults `PerceptionTier.should_escalate()`
+and spends an LLM call only when:
+
+- the frame is a **significant** change (`scene_change ≥ SCENE_CHANGE_SIGNIFICANT`
+  or it is the first frame for the client), or
+- the **heartbeat** has elapsed (`TIER2_HEARTBEAT_SECONDS`) since the last
+  analysis, so a paused or slowly-changing scene still gets a refreshed tip
+  instead of going silent.
+
+Frames that don't escalate are handled by Tier 1 only: their measured
+signals are still written to the game state (keeping trends flowing), the
+status returns to `idle`, and no LLM call is made. The count of such
+frames is exposed as `frames_skipped` for diagnostics.
+
+```
+frame ─► Tier 1 ─► should_escalate(significant | heartbeat)?
+                       │ no  ──► record measured state, idle, frames_skipped++
+                       │ yes ──► Tier 2 (LLM) ─► tip + merged snapshot
+```
 
 ## MQTT Topic Conventions
 

@@ -610,6 +610,51 @@ class TestAsyncLifecycle(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Tier 2 event-driven escalation gate
+# ---------------------------------------------------------------------------
+
+class TestTier2Escalation(unittest.TestCase):
+    def setUp(self):
+        self.coord, self.hass = _make_coord()
+        self.coord._image_processor.process = AsyncMock(return_value="Tip.")
+        self.coord._client_metadata["rig1"] = {"window_title": "Doom"}
+
+    def test_first_frame_escalates(self):
+        # First frame for a client is always significant -> Tier 2 runs.
+        _run(self.coord._process_image("rig1", b"frame-A"))
+        self.assertEqual(self.coord._image_processor.process.await_count, 1)
+        self.assertEqual(self.coord.frames_skipped, 0)
+
+    def test_static_frame_is_skipped(self):
+        _run(self.coord._process_image("rig1", b"same-frame"))
+        # Identical frame within the heartbeat -> no LLM call, counted skipped.
+        _run(self.coord._process_image("rig1", b"same-frame"))
+        self.assertEqual(self.coord._image_processor.process.await_count, 1)
+        self.assertEqual(self.coord.frames_skipped, 1)
+        self.assertEqual(self.coord.status, "idle")
+
+    def test_skipped_frame_records_measured_state(self):
+        _run(self.coord._process_image("rig1", b"same-frame"))
+        _run(self.coord._process_image("rig1", b"same-frame"))
+        current = self.coord.game_state_manager.get_current("Doom")
+        self.assertIsNotNone(current)
+        self.assertEqual(current.get("frame_motion"), "static")
+
+    def test_heartbeat_forces_analysis_on_static_frame(self):
+        _run(self.coord._process_image("rig1", b"same-frame"))
+        # Pretend the last Tier 2 analysis was long ago; an identical frame
+        # must still escalate via the heartbeat instead of being skipped.
+        self.coord._last_tier2_ts = 0.0
+        _run(self.coord._process_image("rig1", b"same-frame"))
+        self.assertEqual(self.coord._image_processor.process.await_count, 2)
+
+    def test_changed_frame_escalates(self):
+        _run(self.coord._process_image("rig1", b"frame-A"))
+        _run(self.coord._process_image("rig1", b"a-very-different-frame-B"))
+        self.assertEqual(self.coord._image_processor.process.await_count, 2)
+
+
+# ---------------------------------------------------------------------------
 # Agent Mode safety wiring (behavioural)
 # ---------------------------------------------------------------------------
 

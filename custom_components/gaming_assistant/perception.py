@@ -45,6 +45,11 @@ SCENE_CHANGE_SIGNIFICANT = 0.18
 MOTION_STATIC_BELOW = 0.03
 MOTION_HIGH_ABOVE = 0.18
 
+# Heartbeat: even when nothing changes, escalate to Tier 2 at least this
+# often so a slowly-changing or paused scene still gets a refreshed tip
+# instead of going silent.
+TIER2_HEARTBEAT_SECONDS = 45.0
+
 
 @dataclass(frozen=True)
 class PerceptionResult:
@@ -109,6 +114,16 @@ class PerceptionTier:
             significant=significant,
             measured=measured,
         )
+
+    @staticmethod
+    def should_escalate(result: PerceptionResult, idle_seconds: float) -> bool:
+        """Decide whether this frame warrants an expensive Tier 2 call.
+
+        Escalate when the frame is a significant change, or when the
+        heartbeat has elapsed since the last Tier 2 analysis so a static
+        scene still gets periodically refreshed.
+        """
+        return result.significant or idle_seconds >= TIER2_HEARTBEAT_SECONDS
 
     @staticmethod
     def _build_measured(scene_change: float) -> dict[str, Any]:

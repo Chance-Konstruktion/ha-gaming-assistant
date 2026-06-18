@@ -30,8 +30,10 @@ for _mod in _HA_MODULES:
     sys.modules.setdefault(_mod, MagicMock())
 
 from custom_components.gaming_assistant.perception import (  # noqa: E402
+    PerceptionResult,
     PerceptionTier,
     SCENE_CHANGE_SIGNIFICANT,
+    TIER2_HEARTBEAT_SECONDS,
 )
 
 
@@ -102,6 +104,24 @@ class TestPerceptionTier(unittest.TestCase):
     def test_significant_threshold_constant_in_range(self):
         self.assertGreater(SCENE_CHANGE_SIGNIFICANT, 0.0)
         self.assertLess(SCENE_CHANGE_SIGNIFICANT, 1.0)
+
+
+class TestEscalationPolicy(unittest.TestCase):
+    def test_significant_frame_escalates(self):
+        result = PerceptionResult(scene_change=0.5, significant=True)
+        self.assertTrue(PerceptionTier.should_escalate(result, idle_seconds=0.0))
+
+    def test_static_frame_does_not_escalate(self):
+        result = PerceptionResult(scene_change=0.0, significant=False)
+        self.assertFalse(PerceptionTier.should_escalate(result, idle_seconds=1.0))
+
+    def test_heartbeat_forces_escalation_when_idle(self):
+        result = PerceptionResult(scene_change=0.0, significant=False)
+        self.assertTrue(
+            PerceptionTier.should_escalate(
+                result, idle_seconds=TIER2_HEARTBEAT_SECONDS + 1
+            )
+        )
 
 
 if __name__ == "__main__":
