@@ -249,8 +249,8 @@ class TestServiceHandlers(unittest.TestCase):
         self.coord._image_processor._call_ollama_text = AsyncMock(
             return_value="A tidy summary."
         )
-        self.coord._session_tips = ["a", "b", "c"]
-        self.coord._session_game = "Doom"
+        self.coord.session_tracker._session_tips = ["a", "b", "c"]
+        self.coord.session_tracker._session_game = "Doom"
         _run(self.h["summarize_session"](self._call({})))
         self.assertEqual(self.coord.last_summary, "A tidy summary.")
 

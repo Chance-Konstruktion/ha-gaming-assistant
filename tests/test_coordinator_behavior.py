@@ -334,9 +334,9 @@ class TestAsyncLifecycle(unittest.TestCase):
         self.assertEqual(fired[0]["tip"], "tip")
 
     def test_session_tracking_and_end(self):
-        self.coord._session_track_tip("t1", "Doom")
-        self.coord._session_track_tip("t2", "Doom")
-        _run(self.coord._end_session())
+        self.coord.session_tracker.track_tip("t1", "Doom")
+        self.coord.session_tracker.track_tip("t2", "Doom")
+        _run(self.coord.session_tracker.async_end_session())
         fired = self.hass.bus.fired(EVENT_SESSION_ENDED)
         self.assertEqual(len(fired), 1)
         self.assertEqual(fired[0]["game"], "Doom")
@@ -346,8 +346,8 @@ class TestAsyncLifecycle(unittest.TestCase):
         self.coord._image_processor._call_ollama_text = AsyncMock(
             return_value="You played aggressively."
         )
-        self.coord._session_tips = ["a", "b", "c"]
-        self.coord._session_game = "Doom"
+        self.coord.session_tracker._session_tips = ["a", "b", "c"]
+        self.coord.session_tracker._session_game = "Doom"
         out = _run(self.coord.async_summarize_session())
         self.assertEqual(out, "You played aggressively.")
         self.assertEqual(self.coord.last_summary, "You played aggressively.")
