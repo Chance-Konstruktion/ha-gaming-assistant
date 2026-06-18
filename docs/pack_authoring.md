@@ -222,7 +222,7 @@ For unit-test-style checks, the integration ships fixtures under
 (`tests/test_prompt_packs.py::TestPackValidation`). Run:
 
 ```bash
-python -m unittest tests.test_prompt_packs
+pytest tests/test_prompt_packs.py
 ```
 
 after dropping a copy of your pack into `tests/fixtures/prompt_packs/`

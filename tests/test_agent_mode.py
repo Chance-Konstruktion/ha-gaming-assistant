@@ -125,7 +125,6 @@ class TestAgentModeContracts(unittest.TestCase):
         cls.services = (base / "services.yaml").read_text(encoding="utf-8")
 
     def test_const_defines_agent_mode(self):
-        self.assertIn('CONF_AGENT_MODE = "agent_mode"', self.const)
         self.assertIn("DEFAULT_AGENT_MODE = False", self.const)
         self.assertIn(
             'MQTT_ACTION_TOPIC = "gaming_assistant/{client_id}/action"', self.const

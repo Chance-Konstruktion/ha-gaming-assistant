@@ -485,6 +485,7 @@ def run(args) -> None:
     register_topic = REGISTER_TOPIC_TEMPLATE.format(client_id=args.client_id)
 
     client = mqtt_client.Client(
+        mqtt_client.CallbackAPIVersion.VERSION1,
         client_id=f"gaming_assistant_executor_{args.client_id}",
         protocol=mqtt_client.MQTTv311,
     )

@@ -28,6 +28,9 @@ MQTT_META_TOPIC = "gaming_assistant/+/meta"
 MQTT_WORKER_REGISTER_TOPIC = "gaming_assistant/+/register"
 MQTT_DETECTIONS_TOPIC = "gaming_assistant/+/detections"
 MQTT_YOLO_COMMAND_TOPIC = "gaming_assistant/yolo/command"
+# Per-client status topic. Carries BOTH plain-text capture-agent presence
+# ("online"/"offline" via LWT) and JSON YOLO-worker status on the same
+# 3-segment pattern, so the handler must tolerate both payload shapes.
 MQTT_YOLO_STATUS_TOPIC = "gaming_assistant/+/status"
 
 # Agent Mode action topic (publish): {client_id} is the target capture client.
@@ -44,13 +47,8 @@ DEFAULT_HISTORY_SIZE = 50
 HISTORY_CONTEXT_SIZE = 5  # Last N tips included in prompt
 
 # Config Keys
-CONF_SPOILER_SETTINGS = "spoiler_settings"
 CONF_DEFAULT_SPOILER = "default_spoiler_level"
 DEFAULT_SPOILER_LEVEL = "medium"
-
-# Attributes
-ATTR_LAST_TIP = "last_tip"
-ATTR_GAMING_MODE = "gaming_mode"
 
 # Assistant Modes
 ASSISTANT_MODES = ["coach", "coplay", "opponent", "analyst"]
@@ -63,7 +61,6 @@ DEFAULT_SOURCE_TYPE = "auto"
 # Agent Mode / Player 2 — opt-in autonomous controller actions.
 # Runtime-only by design: always starts OFF and resets to OFF on restart,
 # so the AI never controls inputs unless deliberately re-enabled.
-CONF_AGENT_MODE = "agent_mode"
 DEFAULT_AGENT_MODE = False
 # Valid Xbox buttons the AI may use (matches PromptBuilder.ACTION_SCHEMA).
 # An empty whitelist means "all of these".
@@ -95,5 +92,4 @@ IMAGE_DEDUP_WINDOW_SECONDS = 60
 IMAGE_MAX_DIMENSION = 1280  # Max width/height before sending to LLM
 IMAGE_DOWNSCALE_QUALITY = 85  # JPEG quality for downscaled images
 OLLAMA_TIMEOUT = 60
-OLLAMA_RETRY_DELAY = 5
 OLLAMA_NUM_PREDICT = 200

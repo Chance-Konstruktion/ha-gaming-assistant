@@ -41,7 +41,7 @@ _ALL_SERVICES = (
     "watch_camera", "stop_watch_camera",
     "announce", "summarize_session", "configure",
     "set_game_hint", "list_game_packs", "set_source_type",
-    "refresh_prompt_packs", "set_agent_mode",
+    "refresh_prompt_packs", "set_agent_mode", "send_yolo_command",
 )
 
 
@@ -416,6 +416,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     coord.set_agent_mode(enabled, allowed)
                     break
 
+        async def handle_send_yolo_command(call: ServiceCall) -> None:
+            """Send a runtime command to connected YOLO detection workers.
+
+            Supported commands (handled by worker/yolo_worker.py):
+            ``status``, ``restart`` (optional ``model``),
+            ``set_confidence`` (``value`` 0-1), ``set_max_fps`` (``value``).
+            """
+            command = (call.data.get("command") or "").strip()
+            if not command:
+                _LOGGER.error("send_yolo_command requires a command")
+                return
+            extra: dict[str, object] = {}
+            if "value" in call.data and call.data["value"] is not None:
+                extra["value"] = call.data["value"]
+            if call.data.get("model"):
+                extra["model"] = call.data["model"]
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_send_yolo_command(command, **extra)
+                    break
+
         async def handle_list_game_packs(call: ServiceCall) -> None:
             """Return available prompt packs (mainly for internal use)."""
             for coord in hass.data[DOMAIN].values():
@@ -465,7 +486,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if not isinstance(coord, GamingAssistantCoordinator):
                     continue
                 if camera is not None:
-                    coord._tts_entity = coord._tts_entity  # keep
                     # Stop old watcher, start new one if non-empty
                     if coord.active_camera_watchers:
                         await coord.async_stop_watch_camera()
@@ -520,6 +540,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "list_game_packs", handle_list_game_packs)
         hass.services.async_register(
             DOMAIN, "refresh_prompt_packs", handle_refresh_prompt_packs
+        )
+        hass.services.async_register(
+            DOMAIN, "send_yolo_command", handle_send_yolo_command
         )
 
     _LOGGER.info("Gaming Assistant integration loaded successfully")

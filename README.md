@@ -68,8 +68,8 @@ Chess, Poker, Catan, UNO via webcam. Consoles via HDMI capture or IP webcam. No 
 **🎙 HA Assist conversation agent**
 "Wechsel modus auf gegner." "How do I beat this boss?" Both work.
 
-**📦 26 prompt packs included**
-Elden Ring, BG3, CS2, Zelda, Hearthstone, MTG Arena, FIFA, Civ VI, Rocket League… plus community packs hot-reloaded from a sibling repo.
+**📦 26+ community prompt packs**
+Elden Ring, BG3, CS2, Zelda, Hearthstone, MTG Arena, FIFA, Civ VI, Rocket League… auto-downloaded from a sibling repo on first start (cached locally) and hot-reloaded on demand.
 
 </td>
 <td width="50%" valign="top">
@@ -94,7 +94,7 @@ Real-time object detection on CUDA / NCNN / Hailo-8L / TFLite, feeding the Game 
 
 ## 🧠 Architecture
 
-`v0.11` is a **Thin Client** design. The gaming device only captures and ships frames. All intelligence lives in Home Assistant.
+`v260618` is a **Thin Client** design. The gaming device only captures and ships frames. All intelligence lives in Home Assistant.
 
 ```
 ┌─────────────────────────────────────────┐        ┌───────────────────────────────────────────────┐
@@ -207,13 +207,13 @@ Tips start landing on `sensor.gaming_assistant_tip` within seconds.
 <table>
 <tr><td valign="top">
 
-**🎮 Video (18)**
+**🎮 Video (19)**
 
 Elden Ring · Dark Souls III · Baldur's Gate 3 · Minecraft · Zelda: TotK · Zelda: BotW · Stardew Valley · Hades · Mario Kart · CS2 · League of Legends · Valorant · Fortnite · Rocket League · FIFA / EA FC · Civ VI · Cyberpunk 2077 · The Witcher 3 · Diablo IV
 
 </td><td valign="top">
 
-**🃏 Card / Strategy (4)**
+**🃏 Card / Strategy (3)**
 
 Hearthstone · MTG Arena · Among Us
 
@@ -543,6 +543,7 @@ data:
 | :--- | :--- | :--- |
 | `select.gaming_assistant_assistant_mode` | Select | Coach / Co-Player / Opponent / Analyst |
 | `select.gaming_assistant_spoiler_level` | Select | Default spoiler level |
+| `select.gaming_assistant_source_type` | Select | Capture source interpretation: auto / console / tabletop |
 | `number.gaming_assistant_interval` | Number | Capture interval (5–120 s) |
 | `number.gaming_assistant_timeout` | Number | Analysis timeout (10–300 s) |
 | `switch.gaming_assistant_auto_announce` | Switch | Auto-announce tips via TTS |
@@ -560,6 +561,7 @@ data:
 | `sensor.gaming_assistant_history` | Tip count + recent tips |
 | `sensor.gaming_assistant_latency` | Duration of last analysis (s) |
 | `sensor.gaming_assistant_error_count` | Errors since startup |
+| `sensor.gaming_assistant_last_error` | Last error message (attrs: error_type, timestamp) |
 | `sensor.gaming_assistant_frames_processed` | Total frames analyzed |
 | `sensor.gaming_assistant_last_analysis` | Timestamp of last success |
 | `sensor.gaming_assistant_active_watchers` | Active camera watchers |
@@ -669,7 +671,7 @@ Install `pywin32` on Windows; make sure the game is in the foreground. Or add yo
 Issues, PRs, and prompt-pack submissions are welcome.
 
 - Bug? File an [issue](https://github.com/Chance-Konstruktion/ha-gaming-assistant/issues).
-- New game? Drop a pack — start from [`_template.json`](custom_components/gaming_assistant/prompts/_template.json), follow [`docs/pack_authoring.md`](docs/pack_authoring.md), open a PR against [`ha-gaming-assistant-prompts`](https://github.com/Chance-Konstruktion/ha-gaming-assistant-prompts).
+- New game? Drop a pack — start from [`_template.json`](custom_components/gaming_assistant/prompt_packs/_template.json), follow [`docs/pack_authoring.md`](docs/pack_authoring.md), open a PR against [`ha-gaming-assistant-prompts`](https://github.com/Chance-Konstruktion/ha-gaming-assistant-prompts).
 - Tests live in `tests/`. CI is green or it doesn't merge.
 
 ---
@@ -684,6 +686,6 @@ Issues, PRs, and prompt-pack submissions are welcome.
 
 **Built by gamers, for the HA homelab crowd.**
 
-<sub>v0.11 · `Thin Client` · Local-first · Open source · Made with 🟦 and 🟪</sub>
+<sub>v260618 · `Thin Client` · Local-first · Open source · Made with 🟦 and 🟪</sub>
 
 </div>

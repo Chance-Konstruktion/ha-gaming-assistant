@@ -1,0 +1,17 @@
+# Tooling configuration for the Gaming Assistant integration.
+# Ruff is used for linting in CI (see .github/workflows/ci.yml).
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+# Ruff's default rule set (pyflakes F + a curated pycodestyle subset).
+# This catches undefined names, unused imports, and other real bugs
+# without the noise of opinionated style rules.
+
+[tool.ruff.lint.per-file-ignores]
+# The test suite intentionally injects stub HA modules into sys.modules
+# *before* importing the integration, so module-level imports are not at the
+# top of the file. That is by design, not a defect.
+"tests/**" = ["E402"]

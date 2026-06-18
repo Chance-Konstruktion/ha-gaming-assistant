@@ -399,3 +399,40 @@ set_agent_mode:
       example: "A, B, X, Y, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT"
       selector:
         text:
+
+send_yolo_command:
+  name: Send YOLO Command
+  description: >
+    Send a runtime command to connected external YOLO detection workers
+    (worker/yolo_worker.py) over MQTT. Useful to reload a model, change the
+    confidence threshold, or cap the detection frame rate without restarting
+    the worker.
+  fields:
+    command:
+      name: Command
+      description: The command to send.
+      required: true
+      selector:
+        select:
+          options:
+            - "status"
+            - "restart"
+            - "set_confidence"
+            - "set_max_fps"
+    value:
+      name: Value
+      description: >
+        Numeric argument for set_confidence (0-1) or set_max_fps (frames/s).
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 60
+          step: 0.1
+          mode: box
+    model:
+      name: Model
+      description: Optional model name for the restart command (e.g. yolov8s).
+      required: false
+      selector:
+        text:

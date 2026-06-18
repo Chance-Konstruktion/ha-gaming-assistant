@@ -61,9 +61,9 @@ from .const import (
 from .game_state import GameStateManager
 from .history import HistoryManager
 from .image_processor import ImageProcessor
-from .llm_backend import LLMBackend, create_backend, PROVIDER_PRESETS
+from .llm_backend import LLMBackend, create_backend
 from .prompt_builder import PromptBuilder
-from .prompt_packs import PromptPackLoader, download_prompt_packs
+from .prompt_packs import PromptPackLoader
 from .spoiler import SpoilerManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -97,7 +97,6 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._recent_tips: list[dict] = []
         self._tip_count: int = 0
         self._client_metadata: dict[str, dict] = {}
-        self._processing: bool = False
         self._process_lock = asyncio.Lock()
         self._image_queue: asyncio.Queue[tuple[str, bytes]] = asyncio.Queue(maxsize=3)
         self._image_worker_task: asyncio.Task | None = None
@@ -155,6 +154,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._pack_loader = PromptPackLoader(cache_dir=self._packs_cache_dir)
         self._pack_loader.load_all()
         self._game_state = GameStateManager(hass.config.config_dir)
+        # Games whose persisted state has already been loaded from disk
+        # (lazy load-once tracking so we don't hit the filesystem per frame).
+        self._loaded_state_games: set[str] = set()
         # TTS / Announce
         self._tts_entity: str = config.get(CONF_TTS_ENTITY, "")
         self._tts_target: str = config.get(CONF_TTS_TARGET, "")
@@ -179,9 +181,12 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         # Resolve language from HA config (e.g. "de", "en", "fr")
         self._language = self._resolve_language(hass)
 
-        # Create LLM backend
+        # Create LLM backend. Remember the configured provider id so a later
+        # model switch reconstructs the SAME provider (preset host, rate limit,
+        # image policy) instead of collapsing to the generic backend class.
+        self._provider = config.get(CONF_LLM_BACKEND, DEFAULT_LLM_BACKEND)
         self._llm_backend = create_backend(
-            provider=config.get(CONF_LLM_BACKEND, DEFAULT_LLM_BACKEND),
+            provider=self._provider,
             host=config.get(CONF_OLLAMA_HOST, "http://localhost:11434"),
             model=config.get(CONF_MODEL, "qwen2.5vl"),
             timeout=self._analysis_timeout,
@@ -237,7 +242,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             name="Gaming Assistant",
             manufacturer="Chance-Konstruktion",
             model=self.config.get(CONF_MODEL, "qwen2.5vl"),
-            sw_version="0.13.0",
+            sw_version="260618",
             configuration_url=self.config.get(CONF_OLLAMA_HOST, ""),
         )
 
@@ -367,12 +372,17 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self.async_set_updated_data(self._build_data())
 
     async def async_set_model(self, model: str) -> None:
-        """Switch active model for both backend and image processor."""
+        """Switch active model for both backend and image processor.
+
+        Reuses the configured provider id (e.g. ``deepseek``/``gemini``) so the
+        provider's preset – host, rate limit, and image policy – is preserved.
+        Using ``backend_type`` here would map every OpenAI-compatible provider
+        back to the generic ``openai`` preset and silently flip ``allow_images``.
+        """
         if not model:
             return
-        backend_type = self._llm_backend.backend_type
         self._llm_backend = create_backend(
-            provider=backend_type,
+            provider=self._provider,
             host=self.config.get(CONF_OLLAMA_HOST, "http://localhost:11434"),
             model=model,
             timeout=self._analysis_timeout,
@@ -742,6 +752,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "Session ended for %s (%d tips in session)", game, tip_count
         )
 
+        # Persist the game's accumulated state so it survives restarts.
+        if self._session_game:
+            await self._persist_game_state(self._session_game)
+
         summary = ""
         if self._auto_summary and tip_count >= 3:
             summary = await self.async_summarize_session(game, tips)
@@ -997,23 +1011,56 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 _LOGGER.warning("Invalid detections from %s: %s", client_id, err)
 
         @callback
-        def yolo_status_received(msg) -> None:
-            """Handle YOLO worker status updates."""
-            worker_id = msg.topic.split("/")[1]
-            try:
-                payload = msg.payload
-                if isinstance(payload, bytes):
+        def client_status_received(msg) -> None:
+            """Handle per-client status on ``gaming_assistant/{id}/status``.
+
+            Two payload shapes share this 3-segment topic pattern:
+              * plain ``online``/``offline`` – capture agents and the agent
+                executor (their retained Last-Will presence), and
+              * a JSON document – YOLO worker status.
+
+            Plain presence updates the worker/client registry; JSON is recorded
+            as YOLO worker status. Anything else is ignored quietly instead of
+            spamming a warning on every capture-agent connect/disconnect.
+            """
+            cid = msg.topic.split("/")[1]
+            payload = msg.payload
+            if isinstance(payload, bytes):
+                try:
                     payload = payload.decode("utf-8")
-                data = json.loads(payload)
-                status = data.get("status", "unknown")
-                self._yolo_workers[worker_id] = data
-                _LOGGER.info(
-                    "YOLO worker %s: %s (model=%s, backend=%s)",
-                    worker_id, status,
-                    data.get("model", "?"), data.get("backend", "?"),
+                except UnicodeDecodeError:
+                    return
+            text = (payload or "").strip()
+            lowered = text.lower()
+
+            # Plain-text capture-agent / executor presence (LWT).
+            if lowered in ("online", "offline"):
+                online = lowered == "online"
+                now_iso = time.strftime("%Y-%m-%dT%H:%M:%S")
+                if cid in self._registered_workers:
+                    self._registered_workers[cid]["online"] = online
+                    self._registered_workers[cid]["last_seen"] = now_iso
+                if cid in self._clients:
+                    self._clients[cid]["online"] = online
+                _LOGGER.debug("Client %s presence: %s", cid, lowered)
+                self.async_set_updated_data(self._build_data())
+                return
+
+            # Otherwise expect a JSON YOLO-worker status document.
+            try:
+                data = json.loads(text)
+            except (json.JSONDecodeError, ValueError):
+                _LOGGER.debug(
+                    "Ignoring non-JSON status from %s: %s", cid, text[:40]
                 )
-            except (json.JSONDecodeError, UnicodeDecodeError) as err:
-                _LOGGER.warning("Invalid YOLO status from %s: %s", worker_id, err)
+                return
+            status = data.get("status", "unknown")
+            self._yolo_workers[cid] = data
+            _LOGGER.info(
+                "YOLO worker %s: %s (model=%s, backend=%s)",
+                cid, status,
+                data.get("model", "?"), data.get("backend", "?"),
+            )
 
         unsub_tip = await mqtt.async_subscribe(
             self.hass, MQTT_TIP_TOPIC, tip_received, 0
@@ -1036,13 +1083,13 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         unsub_detections = await mqtt.async_subscribe(
             self.hass, MQTT_DETECTIONS_TOPIC, detections_received, 0
         )
-        unsub_yolo_status = await mqtt.async_subscribe(
-            self.hass, MQTT_YOLO_STATUS_TOPIC, yolo_status_received, 0
+        unsub_client_status = await mqtt.async_subscribe(
+            self.hass, MQTT_YOLO_STATUS_TOPIC, client_status_received, 0
         )
 
         self._unsubscribe_callbacks = [
             unsub_tip, unsub_mode, unsub_status, unsub_image, unsub_meta,
-            unsub_register, unsub_detections, unsub_yolo_status,
+            unsub_register, unsub_detections, unsub_client_status,
         ]
 
     # -- YOLO detection handling -----------------------------------------------
@@ -1087,12 +1134,32 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             inference_ms,
         )
 
+    # -- Game-state persistence ----------------------------------------------
+
+    async def _ensure_state_loaded(self, game: str) -> None:
+        """Load a game's persisted state from disk once, off the event loop."""
+        if not game or game in self._loaded_state_games:
+            return
+        self._loaded_state_games.add(game)
+        try:
+            await self.hass.async_add_executor_job(self._game_state.load, game)
+        except Exception as err:  # noqa: BLE001 - persistence must never break analysis
+            _LOGGER.debug("Could not load persisted state for %s: %s", game, err)
+
+    async def _persist_game_state(self, game: str) -> None:
+        """Persist a game's state snapshots to disk, off the event loop."""
+        if not game:
+            return
+        try:
+            await self.hass.async_add_executor_job(self._game_state.save, game)
+        except Exception as err:  # noqa: BLE001 - persistence must never break shutdown
+            _LOGGER.debug("Could not persist state for %s: %s", game, err)
+
     # -- Image processing pipeline -------------------------------------------
 
     async def _process_image(self, client_id: str, image_bytes: bytes) -> None:
         """Run the image processing pipeline for a received image."""
         async with self._process_lock:
-            self._processing = True
             self._status = "analyzing"
             self._current_client_id = client_id
             self._active_client_id = client_id
@@ -1107,6 +1174,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 game = metadata.get("window_title", "")
                 if game:
                     self._current_game = game
+                    await self._ensure_state_loaded(game)
 
                 start = time.monotonic()
                 tip = await asyncio.wait_for(
@@ -1169,7 +1237,6 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 self._record_error(err)
                 self._status = "error"
             finally:
-                self._processing = False
                 self.async_set_updated_data(self._build_data())
 
     async def _maybe_publish_agent_action(
@@ -1441,6 +1508,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
     async def async_shutdown(self) -> None:
         """Stop all camera watchers, cancel timers, and unsubscribe MQTT."""
+        # Persist the current game's state before tearing down.
+        for game in self._game_state.tracked_games:
+            await self._persist_game_state(game)
         if self._cleanup_unsub is not None:
             self._cleanup_unsub()
             self._cleanup_unsub = None

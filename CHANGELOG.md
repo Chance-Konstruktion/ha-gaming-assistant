@@ -4,6 +4,51 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ## [Unreleased]
 
+## [260618] - 2026-06-18 — "Hardening, Pipeline Fixes & Cleanup"
+
+A repo-wide quality pass. Fixes real wiring bugs, removes dead code, moves
+blocking work off the event loop, adds linting + real entity tests, and
+corrects documentation drift. (Switched to date-based versioning: `YYMMDD`.)
+
+- **Fixed (pipeline):** the per-client status topic
+  `gaming_assistant/{id}/status` carries both plain-text capture-agent
+  presence (`online`/`offline`) and JSON YOLO-worker status. The handler now
+  tolerates both shapes — previously every capture-agent connect/disconnect
+  hit a JSON parser and logged a warning, and agent presence was never
+  recorded.
+- **Fixed (pipeline):** Game State persistence is now wired up. State is
+  lazily loaded from disk per game and saved on session end and shutdown, so
+  structured per-game state survives restarts. (`save()`/`load()` existed but
+  were never called.) All disk work runs in the executor.
+- **Fixed:** `async_set_model` now reuses the configured provider id
+  (e.g. `deepseek`, `gemini`) instead of the backend class, so switching
+  models no longer collapses a provider back onto the OpenAI preset or flips
+  `allow_images`.
+- **Added:** `gaming_assistant.send_yolo_command` service — sends `status`,
+  `restart`, `set_confidence`, or `set_max_fps` to external YOLO workers
+  (wires up the previously dead command channel).
+- **Performance:** moved blocking file I/O (`history.py`) and Pillow
+  decode/resize work (`image_processor.py`) off the Home Assistant event loop
+  into the executor.
+- **Fixed:** `manifest.json` now declares its `Pillow` dependency (used for
+  perceptual-hash dedup and image downscaling).
+- **Changed (workers):** every MQTT client now passes an explicit paho
+  `CallbackAPIVersion`, and capture agents derive a unique connection
+  client-id from `--client-id` to avoid broker reconnect storms.
+- **Removed:** dead constants (`CONF_SPOILER_SETTINGS`, `ATTR_LAST_TIP`,
+  `ATTR_GAMING_MODE`, `CONF_AGENT_MODE`, `OLLAMA_RETRY_DELAY`), a write-only
+  `_processing` flag, unused imports, and a no-op self-assignment.
+  `worker/legacy/*` is now clearly marked deprecated; orphaned dev mockups
+  (`Preview.html`, `tweaks-panel.jsx`) moved to `dev/`.
+- **Tests/CI:** added ruff linting to CI (which caught a real `NameError` in
+  the MQTT setup), added behavioral tests for the switch/binary_sensor/image
+  platforms (previously 0% coverage), and raised the coverage gate 45 → 50.
+- **Docs:** corrected the version label, a broken `_template.json` link, the
+  "26 packs included" claim (they are auto-downloaded, not bundled), and
+  game-count typos; removed a stale internal handoff doc.
+
+The two items below shipped in this release (previously under *Unreleased*):
+
 - **Added:** `worker/agent_executor.py` (GA-109) — the Agent Mode / Player 2
   executor. An optional worker that subscribes to
   `gaming_assistant/{client_id}/action`, validates each action against the

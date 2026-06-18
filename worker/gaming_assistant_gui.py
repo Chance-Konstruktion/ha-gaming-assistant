@@ -337,7 +337,11 @@ class GamingAssistantApp:
         paused = {"value": False}
 
         try:
-            client = mqtt.Client(client_id="gaming_assistant_capture", clean_session=True)
+            client = mqtt.Client(
+                mqtt.CallbackAPIVersion.VERSION1,
+                client_id="gaming_assistant_capture_gui",
+                clean_session=True,
+            )
             if s["username"]:
                 client.username_pw_set(s["username"], s["password"])
 

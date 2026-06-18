@@ -142,8 +142,11 @@ def build_mqtt_client(
     broker: str, port: int, username: str, password: str, client_id: str = ""
 ):
     """Create and connect the MQTT client with Last Will (LWT)."""
+    conn_id = (
+        f"ga_{client_id}" if client_id else "gaming_assistant_capture_bridge"
+    )
     client = mqtt.Client(
-        client_id="gaming_assistant_capture_bridge", clean_session=True
+        mqtt.CallbackAPIVersion.VERSION1, client_id=conn_id, clean_session=True
     )
 
     if username:
