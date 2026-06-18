@@ -69,7 +69,7 @@ loop that re-derives everything from scratch each time.
 |------|---------|------|-----|-------|
 | **1 — Reflex / Perception** | every frame | none (no LLM) | Measure the frame: scene-change magnitude, motion class. Emits *measured* signals. | `perception.py` (`PerceptionTier`) |
 | **2 — Tactics** | seconds | medium (vision LLM) | Produce the actual tip, consuming Tier 1 signals as input. | `image_processor.py` → `llm_backend.py` |
-| **3 — Strategy / Meta** | every few tips / session | low today (deterministic) | Distil a session-level **strategic focus** from game-state trends and feed it back down into Tier 2. Also: session recap. | `strategy.py` (`StrategyTier`), `session_tracker.py` (recap) |
+| **3 — Strategy / Meta** | every few tips / session | medium (rare LLM, deterministic fallback) | Distil a session-level **strategic focus** (LLM reflection over trends + recent tips) and feed it back down into Tier 2. Also: session recap. | `strategy.py` (`StrategyTier`), `session_tracker.py` (recap) |
 
 **Why Tier 1 exists.** Structured game state used to be produced *after*
 the LLM, by scraping the prose tip back out with regexes
@@ -122,11 +122,18 @@ frame ─► Tier 1 ─► should_escalate(significant | heartbeat)?
 than a dead-end recap:
 
 - After each Tier 2 tip the coordinator calls `record_tip(game, tip)`.
-  Every `STRATEGY_EVERY_N_TIPS` tips it recomputes a **strategic focus**
-  from the trends `GameStateManager.detect_trends()` already surfaces
-  (e.g. declining health → "prioritise survival and play defensively";
-  a stalled phase → "try a different approach"; sinking momentum →
-  "change tactics").
+  Every `STRATEGY_EVERY_N_TIPS` tips it recomputes a deterministic baseline
+  **strategic focus** from the trends `GameStateManager.detect_trends()`
+  already surfaces (e.g. declining health → "prioritise survival and play
+  defensively"; a stalled phase → "try a different approach"; sinking
+  momentum → "change tactics"), and signals that a richer reflection is
+  due.
+- When due, the coordinator schedules `async_reflect(game)` in the
+  **background** (so it never adds latency to the tip path). It asks the
+  configured text backend for a single strategic-focus sentence grounded
+  in the trends + recent tips, and upgrades the note. If the LLM is
+  unavailable or returns nothing it keeps the deterministic baseline —
+  Tier 3 degrades gracefully and never breaks the pipeline.
 - Before each Tier 2 call the coordinator reads `note(game)` and passes it
   as `strategy_note`, which `ImageProcessor.process` puts at the **top** of
   the prompt context (above the Tier 1 live signals and the rolling state

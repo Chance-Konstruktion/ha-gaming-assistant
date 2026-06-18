@@ -24,6 +24,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from .const import CONF_MODEL
+from .prompt_builder import PromptBuilder
+
 if TYPE_CHECKING:
     from .coordinator import GamingAssistantCoordinator
 
@@ -55,22 +58,95 @@ class StrategyTier:
 
     # -- update --------------------------------------------------------------
 
-    def record_tip(self, game: str, tip: str) -> None:
+    def record_tip(self, game: str, tip: str) -> bool:
         """Account for a new tactical tip and refresh strategy periodically.
 
         Called after each Tier 2 tip (so the game state is already updated
-        for this frame). Recomputes the note every ``STRATEGY_EVERY_N_TIPS``
-        tips; the refreshed note influences *future* frames.
+        for this frame). Every ``STRATEGY_EVERY_N_TIPS`` tips it recomputes
+        a deterministic baseline note immediately and returns ``True`` to
+        signal the caller that a richer LLM reflection is now due. The
+        refreshed note influences *future* frames.
         """
         if not game:
-            return
+            return False
         count = self._tips_since_update.get(game, 0) + 1
         if count < STRATEGY_EVERY_N_TIPS:
             self._tips_since_update[game] = count
-            return
+            return False
 
         self._tips_since_update[game] = 0
         self._refresh(game)
+        return True
+
+    async def async_reflect(self, game: str) -> str:
+        """Upgrade the strategic focus via an LLM reflection on the session.
+
+        Gathers the detected trends and recent tips, asks the configured
+        text backend for a single strategic-focus sentence, and stores it.
+        Falls back to the deterministic note (and never raises) if the LLM
+        is unavailable or returns nothing, so Tier 3 degrades gracefully.
+        """
+        if not game:
+            return ""
+
+        manager = getattr(self.coord, "game_state_manager", None)
+        trends = manager.detect_trends(game) if manager else []
+
+        tips: list[str] = []
+        history = getattr(self.coord, "history_manager", None)
+        if history is not None:
+            try:
+                entries = await history.get_recent(game, 8)
+                tips = [e["tip"] for e in entries if "tip" in e]
+            except Exception:  # noqa: BLE001 - reflection must never break
+                tips = []
+
+        note = ""
+        try:
+            compact = PromptBuilder.is_small_model(
+                self.coord.config.get(CONF_MODEL, "qwen2.5vl")
+            )
+            prompt = PromptBuilder.build_strategy(
+                game=game,
+                recent_tips=tips,
+                trends=trends,
+                language=getattr(self.coord, "_language", ""),
+                compact=compact,
+            )
+            raw = await self.coord.image_processor._call_ollama_text(prompt)
+            note = self._clean(raw)
+        except Exception as err:  # noqa: BLE001 - reflection must never break
+            _LOGGER.debug(
+                "Strategy reflection failed for %s: %s", game, err,
+                exc_info=True,
+            )
+
+        if not note:
+            # LLM unavailable or empty — keep the deterministic baseline.
+            note = self._synthesize_note(trends)
+
+        if note:
+            self._notes[game] = note
+            _LOGGER.info("Strategy focus for %s: %s", game, note)
+            self.coord._notify_update()
+        else:
+            self._notes.pop(game, None)
+        return note
+
+    @staticmethod
+    def _clean(raw: str) -> str:
+        """Normalise an LLM reflection into one short focus sentence."""
+        if not raw:
+            return ""
+        text = raw.strip()
+        for label in ("strategic focus:", "focus:"):
+            if text.lower().startswith(label):
+                text = text[len(label):].strip()
+        if text:
+            text = text.splitlines()[0].strip()
+        if len(text) > 200:
+            text = text[:197].rstrip() + "..."
+        return text
 
     def _refresh(self, game: str) -> None:
         """Recompute the strategic note from detected game-state trends."""

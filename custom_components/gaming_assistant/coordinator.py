@@ -910,8 +910,14 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                     self._session_tracker.track_tip(tip, self._current_game)
 
                     # Tier 3: refresh the session-level strategic focus
-                    # (game state is already updated for this frame).
-                    self._strategy.record_tip(self._current_game, tip)
+                    # (game state is already updated for this frame). When a
+                    # refresh is due, upgrade the deterministic baseline with
+                    # an LLM reflection in the background so it never adds
+                    # latency to the tip path.
+                    if self._strategy.record_tip(self._current_game, tip):
+                        self.hass.async_create_task(
+                            self._strategy.async_reflect(self._current_game)
+                        )
 
                     # Fire event for automations
                     self._fire_new_tip_event(tip, self._current_game, client_id)

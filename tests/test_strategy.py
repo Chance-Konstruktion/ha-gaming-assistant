@@ -6,10 +6,11 @@ focus, recomputed every few tips. Tests use a real GameStateManager and a
 minimal fake coordinator that just exposes ``game_state_manager``.
 """
 
+import asyncio
 import sys
 import unittest
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 _HA_MODULES = [
     "homeassistant",
@@ -128,6 +129,84 @@ class TestRecordTipFlow(unittest.TestCase):
         tier, _ = _make_tier()
         tier.record_tip("", "tip")  # must not raise
         self.assertEqual(tier.note(""), "")
+
+    def test_record_tip_signals_when_due(self):
+        strategy_mod.STRATEGY_EVERY_N_TIPS = 2
+        tier, _ = _make_tier()
+        self.assertFalse(tier.record_tip("Doom", "a"))  # 1 < 2
+        self.assertTrue(tier.record_tip("Doom", "b"))   # 2 >= 2 -> due
+
+
+def _run(coro):
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
+class _FakeHistory:
+    def __init__(self, tips):
+        self._tips = tips
+
+    async def get_recent(self, game, count):
+        return [{"tip": t} for t in self._tips]
+
+
+def _make_llm_tier(llm_text="Hold the high ground and conserve resources.",
+                   history_tips=("dodge", "heal")):
+    manager = GameStateManager()
+    image_processor = SimpleNamespace(
+        _call_ollama_text=AsyncMock(return_value=llm_text)
+    )
+    notified = []
+    coord = SimpleNamespace(
+        game_state_manager=manager,
+        history_manager=_FakeHistory(list(history_tips)),
+        image_processor=image_processor,
+        config={"model": "qwen2.5vl"},
+        _language="en",
+        _notify_update=lambda: notified.append(True),
+    )
+    return StrategyTier(coord), manager, image_processor, notified
+
+
+class TestLLMReflection(unittest.TestCase):
+    def test_reflection_sets_llm_note(self):
+        tier, manager, proc, notified = _make_llm_tier(
+            llm_text="Play aggressively and push the objective."
+        )
+        note = _run(tier.async_reflect("Doom"))
+        self.assertEqual(note, "Play aggressively and push the objective.")
+        self.assertEqual(tier.note("Doom"), note)
+        self.assertTrue(notified)  # _notify_update called
+        self.assertTrue(proc._call_ollama_text.await_count >= 1)
+
+    def test_reflection_strips_label_and_truncates(self):
+        tier, *_ = _make_llm_tier(
+            llm_text="Strategic focus: Keep your shield up.\nExtra line."
+        )
+        note = _run(tier.async_reflect("Doom"))
+        self.assertEqual(note, "Keep your shield up.")
+
+    def test_reflection_falls_back_to_deterministic_when_empty(self):
+        tier, manager, _, _ = _make_llm_tier(llm_text="")
+        for hp in (100, 80, 60):
+            manager.update("Doom", {"health": hp})
+        note = _run(tier.async_reflect("Doom"))
+        self.assertIn("survival", note.lower())  # deterministic fallback
+
+    def test_reflection_survives_backend_error(self):
+        tier, manager, proc, _ = _make_llm_tier()
+        proc._call_ollama_text = AsyncMock(side_effect=RuntimeError("no llm"))
+        for hp in (100, 80, 60):
+            manager.update("Doom", {"health": hp})
+        note = _run(tier.async_reflect("Doom"))  # must not raise
+        self.assertIn("survival", note.lower())  # fell back to deterministic
+
+    def test_reflection_empty_game_is_noop(self):
+        tier, *_ = _make_llm_tier()
+        self.assertEqual(_run(tier.async_reflect("")), "")
 
 
 if __name__ == "__main__":
