@@ -59,6 +59,7 @@ from .llm_backend import LLMBackend, create_backend
 from .camera_watcher import CameraWatcher
 from .client_registry import ClientRegistry
 from .mqtt_router import MqttRouter
+from .perception import PerceptionTier
 from .prompt_packs import PromptPackLoader
 from .session_tracker import SessionTracker
 from .spoiler import SpoilerManager
@@ -125,6 +126,11 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
         # MQTT subscription routing + connection state + YOLO worker status.
         self._mqtt_router = MqttRouter(self)
+
+        # Tier 1 — cheap per-frame perception (scene change, motion) that
+        # feeds measured signals into Tier 2 instead of scraping them back
+        # out of the LLM's prose afterwards.
+        self._perception = PerceptionTier(self)
 
         # Runtime metrics
         self._latency: float = 0.0
@@ -803,9 +809,23 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                     self._current_game = game
                     await self._ensure_state_loaded(game)
 
+                # Tier 1: measure the frame (scene change, motion) before the
+                # expensive Tier 2 LLM call, and hand the signals to it.
+                perception = await self._perception.observe(
+                    client_id, image_bytes, metadata
+                )
+                if perception.significant:
+                    _LOGGER.debug(
+                        "Significant scene change for %s (%.3f)",
+                        client_id, perception.scene_change,
+                    )
+
                 start = time.monotonic()
                 tip = await asyncio.wait_for(
-                    self._image_processor.process(image_bytes, client_id, metadata),
+                    self._image_processor.process(
+                        image_bytes, client_id, metadata,
+                        measured=perception.measured,
+                    ),
                     timeout=self._analysis_timeout + 5,
                 )
                 self._latency = round(time.monotonic() - start, 3)

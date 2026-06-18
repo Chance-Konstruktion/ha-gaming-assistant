@@ -249,9 +249,18 @@ class ImageProcessor:
         image_bytes: bytes,
         client_id: str,
         metadata: dict | None = None,
+        measured: dict | None = None,
     ) -> str:
-        """Run the full image processing pipeline. Returns the tip string."""
+        """Run the full image processing pipeline. Returns the tip string.
+
+        ``measured`` carries Tier 1 (perception) signals for this frame
+        (e.g. ``scene_change``, ``frame_motion``). They are shown to the
+        LLM as live input and merged into the single per-frame game-state
+        snapshot, so structured state is *measured* first rather than only
+        scraped back out of the model's prose.
+        """
         metadata = metadata or {}
+        measured = measured or {}
 
         # 1. Compute hashes. The perceptual hash decodes the image with PIL,
         # so run it in the executor to keep the event loop responsive.
@@ -301,6 +310,15 @@ class ImageProcessor:
                 game, compact=self._compact
             )
 
+        # 7c. Tier 1 live signals — measured this frame, shown to the LLM as
+        # input (prepended) instead of being inferred from its own output.
+        if measured:
+            signal_str = ", ".join(f"{k}: {v}" for k, v in measured.items())
+            live_line = f"Live signals: {signal_str}"
+            state_context = (
+                f"{live_line}\n{state_context}" if state_context else live_line
+            )
+
         # 8. Build prompt
         prompt = PromptBuilder.build(
             game=game,
@@ -333,11 +351,12 @@ class ImageProcessor:
         await self._history.add_entry(game, client_id, image_hash, tip)
         self._update_cache(game, tip, image_phash)
 
-        # 12. Extract and store game state observations
+        # 12. Store game state observations. Tip-scraped values are the weak
+        # layer; Tier 1 *measured* signals override them on any key collision
+        # (measured beats guessed), all merged into one snapshot per frame.
         if self._game_state and game:
-            observations = extract_observations_from_tip(
-                tip, game, prompt_pack
-            )
+            observations = extract_observations_from_tip(tip, game, prompt_pack)
+            observations.update(measured)
             if observations:
                 self._game_state.update(
                     game, observations, tip=tip, source=client_id

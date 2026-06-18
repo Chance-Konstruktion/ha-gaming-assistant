@@ -58,6 +58,42 @@ Windows, Linux, macOS, Android, Android TV, and Raspberry Pi / HDMI bridges.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## Tiered Cognition (perception → tactics → strategy)
+
+The reasoning stack is organised as **tiers** staggered by latency and
+cost. Cheap perception runs on every frame and decides when it is worth
+spending an expensive model call — instead of one flat fixed-interval LLM
+loop that re-derives everything from scratch each time.
+
+| Tier | Cadence | Cost | Job | Where |
+|------|---------|------|-----|-------|
+| **1 — Reflex / Perception** | every frame | none (no LLM) | Measure the frame: scene-change magnitude, motion class. Emits *measured* signals. | `perception.py` (`PerceptionTier`) |
+| **2 — Tactics** | seconds | medium (vision LLM) | Produce the actual tip, consuming Tier 1 signals as input. | `image_processor.py` → `llm_backend.py` |
+| **3 — Strategy / Meta** | per session | high (rare, big model) | Session recap; long-horizon patterns (planned: death-pattern analysis, goals feeding back down). | `session_tracker.py` (recap today) |
+
+**Why Tier 1 exists.** Structured game state used to be produced *after*
+the LLM, by scraping the prose tip back out with regexes
+(`game_state.extract_observations_from_tip`). That made perception
+downstream of, and dependent on, the model's wording. Tier 1 inverts the
+flow: it **measures first** and hands the measurements to Tier 2 as input.
+On a key collision the measured value wins over the scraped guess, and all
+signals for a frame merge into a *single* state snapshot.
+
+```
+frame ─► Tier 1 (perception.py)  ── measured signals ─►  Tier 2 (image_processor.py)
+            scene_change, motion        (prompt input)        vision LLM ─► tip
+                                                                   │
+                                                                   ▼
+                                                       GameStateManager (one snapshot/frame:
+                                                       measured signals override tip-scraped)
+```
+
+Tier 1 keeps a per-client perceptual-hash memory so scene change is
+computed per capture source. The first frame from a client is always
+treated as significant. `PerceptionResult.significant` is the escalation
+hint a future event-driven Tier 2 will use to fire on *change* rather than
+on a dumb timer.
+
 ## MQTT Topic Conventions
 
 | Direction | Topic | Payload |
