@@ -64,6 +64,7 @@ from .game_state import GameStateManager
 from .history import HistoryManager
 from .image_processor import ImageProcessor
 from .llm_backend import LLMBackend, create_backend
+from .camera_watcher import CameraWatcher
 from .prompt_packs import PromptPackLoader
 from .session_tracker import SessionTracker
 from .spoiler import SpoilerManager
@@ -130,8 +131,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         # Source type: auto, console, tabletop
         self._source_type: str = DEFAULT_SOURCE_TYPE
 
-        # Camera watchers: entity_id → {task, cancel_event, game_hint, client_type, interval}
-        self._camera_watchers: dict[str, dict[str, Any]] = {}
+        # Camera watchers: continuous capture from HA camera entities.
+        self._camera_watcher = CameraWatcher(self)
 
         # Registered workers: client_id → {name, type, platform, last_seen, ...}
         self._registered_workers: dict[str, dict[str, Any]] = {}
@@ -554,7 +555,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 return
         if self._active_client_id != client_id:
             return
-        if self._camera_watchers:
+        if self._camera_watcher.has_active:
             return
         self._gaming_mode = False
         if self._status != "error":
@@ -814,6 +815,12 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     def last_image_timestamp(self) -> str:
         return self._last_image_timestamp
 
+    def _record_last_image(self, client_id: str, image_bytes: bytes) -> None:
+        """Remember the most recent frame for the image entity / diagnostics."""
+        self._last_image_bytes = image_bytes
+        self._last_image_client_id = client_id
+        self._last_image_timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
+
     # -- MQTT setup with retry -----------------------------------------------
 
     async def async_fetch_available_models(self) -> list[str]:
@@ -890,9 +897,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             """Handle incoming image from a capture agent."""
             client_id = msg.topic.split("/")[1]
             _LOGGER.debug("Image received from client: %s", client_id)
-            self._last_image_bytes = msg.payload
-            self._last_image_client_id = client_id
-            self._last_image_timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
+            self._record_last_image(client_id, msg.payload)
             self._register_worker(client_id)
             self.hass.async_create_task(self._enqueue_image(client_id, msg.payload))
 
@@ -1236,19 +1241,12 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             },
         )
 
-    # -- Camera watcher ------------------------------------------------------
+    # -- Camera watcher (delegated to CameraWatcher) -------------------------
 
     @property
     def active_camera_watchers(self) -> dict[str, dict]:
         """Return info about all active camera watchers."""
-        return {
-            entity_id: {
-                "game_hint": info["game_hint"],
-                "client_type": info["client_type"],
-                "interval": info["interval"],
-            }
-            for entity_id, info in self._camera_watchers.items()
-        }
+        return self._camera_watcher.active_camera_watchers
 
     async def async_watch_camera(
         self,
@@ -1257,131 +1255,14 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         client_type: str = "console",
         interval: int = 0,
     ) -> None:
-        """Start continuous capture from a HA camera entity.
-
-        Uses the configured analysis interval if *interval* is 0.
-        """
-        if interval <= 0:
-            interval = self._analysis_interval
-
-        # Stop existing watcher for this entity if running
-        if entity_id in self._camera_watchers:
-            await self.async_stop_watch_camera(entity_id)
-
-        cancel_event = asyncio.Event()
-        task = self.hass.async_create_task(
-            self._camera_watch_loop(entity_id, game_hint, client_type, interval, cancel_event)
+        """Start continuous capture from a HA camera entity."""
+        await self._camera_watcher.async_watch(
+            entity_id, game_hint, client_type, interval
         )
-
-        self._camera_watchers[entity_id] = {
-            "task": task,
-            "cancel_event": cancel_event,
-            "game_hint": game_hint,
-            "client_type": client_type,
-            "interval": interval,
-        }
-        self._gaming_mode = True
-        _LOGGER.info(
-            "Camera watcher started: %s (game=%s, interval=%ds)",
-            entity_id, game_hint or "auto", interval,
-        )
-        self.async_set_updated_data(self._build_data())
 
     async def async_stop_watch_camera(self, entity_id: str = "") -> None:
         """Stop camera watcher(s). Empty entity_id stops all."""
-        targets = [entity_id] if entity_id else list(self._camera_watchers.keys())
-
-        for eid in targets:
-            watcher = self._camera_watchers.pop(eid, None)
-            if watcher:
-                watcher["cancel_event"].set()
-                watcher["task"].cancel()
-                _LOGGER.info("Camera watcher stopped: %s", eid)
-
-        if not self._camera_watchers:
-            self._gaming_mode = False
-
-        self.async_set_updated_data(self._build_data())
-
-    async def _camera_watch_loop(
-        self,
-        entity_id: str,
-        game_hint: str,
-        client_type: str,
-        interval: int,
-        cancel_event: asyncio.Event,
-    ) -> None:
-        """Periodically grab snapshots from a HA camera entity."""
-        from homeassistant.components.camera import async_get_image
-
-        consecutive_errors = 0
-        max_errors = 10
-
-        while not cancel_event.is_set():
-            try:
-                image = await async_get_image(self.hass, entity_id)
-                image_bytes = image.content
-                consecutive_errors = 0
-
-                # Use dynamic game hint: explicit param > persistent default
-                effective_hint = game_hint or self._default_game_hint
-
-                # Resolve client_type based on source_type setting:
-                # - "console": always treat as digital game on screen
-                # - "tabletop": always treat as physical game on table
-                # - "auto": use prompt pack match to decide
-                if self._source_type == "auto":
-                    effective_type = client_type
-                    if effective_type == "console" and effective_hint:
-                        pack = self._pack_loader.find_by_keyword(effective_hint)
-                        if not pack:
-                            effective_type = "tabletop"
-                else:
-                    effective_type = self._source_type
-
-                metadata = {
-                    "client_type": effective_type,
-                    "source": entity_id,
-                }
-                if effective_hint:
-                    metadata["window_title"] = effective_hint
-
-                # Use entity_id as client_id (sanitise dots → underscores)
-                client_id = entity_id.replace(".", "_")
-                self._client_metadata[client_id] = metadata
-
-                self._last_image_bytes = image_bytes
-                self._last_image_client_id = client_id
-                self._last_image_timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
-                await self._enqueue_image(client_id, image_bytes)
-
-            except asyncio.CancelledError:
-                return
-            except Exception as err:
-                consecutive_errors += 1
-                _LOGGER.warning(
-                    "Camera watcher %s error (%d/%d): %s",
-                    entity_id, consecutive_errors, max_errors, err,
-                )
-                if consecutive_errors >= max_errors:
-                    _LOGGER.error(
-                        "Camera watcher %s stopped after %d consecutive errors",
-                        entity_id, max_errors,
-                    )
-                    self._camera_watchers.pop(entity_id, None)
-                    if not self._camera_watchers:
-                        self._gaming_mode = False
-                    self.async_set_updated_data(self._build_data())
-                    return
-
-            # Wait for interval or cancellation (read current interval each time
-            # so changes via the number entity take effect immediately)
-            current_interval = self._analysis_interval
-            try:
-                await asyncio.wait_for(cancel_event.wait(), timeout=current_interval)
-                return  # cancel_event was set
-            except asyncio.TimeoutError:
-                pass  # interval elapsed, loop again
+        await self._camera_watcher.async_stop(entity_id)
 
     # -- Public methods for services -----------------------------------------
 
