@@ -145,6 +145,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         # attempt (None = never) + count of frames handled by Tier 1 only.
         self._last_tier2_ts: float | None = None
         self._frames_skipped: int = 0
+        # Tier 1 perception readout (last measured frame).
+        self._last_scene_change: float = 0.0
+        self._last_frame_motion: str = ""
         self._last_analysis: str = ""
         self._last_error_message: str = ""
         self._last_error_type: str = ""
@@ -716,6 +719,16 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         return self._frames_skipped
 
     @property
+    def scene_change(self) -> float:
+        """Tier 1 scene-change magnitude of the last measured frame (0..1)."""
+        return self._last_scene_change
+
+    @property
+    def frame_motion(self) -> str:
+        """Tier 1 motion class of the last measured frame."""
+        return self._last_frame_motion
+
+    @property
     def strategy_note(self) -> str:
         """Tier 3 strategic focus for the current game (empty if none)."""
         return self._strategy.note(self._current_game)
@@ -829,6 +842,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             perception = await self._perception.observe(
                 client_id, image_bytes, metadata
             )
+            self._last_scene_change = perception.scene_change
+            self._last_frame_motion = perception.measured.get("frame_motion", "")
 
             # Escalation gate: only spend a Tier 2 (LLM) call on a significant
             # change, or when the heartbeat has elapsed. Otherwise record the
@@ -1171,6 +1186,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "analysis_interval": self._analysis_interval,
             "analysis_timeout": self._analysis_timeout,
             "frames_skipped": self._frames_skipped,
+            "scene_change": self._last_scene_change,
+            "frame_motion": self._last_frame_motion,
             "strategy_note": self._strategy.note(self._current_game),
             "spoiler_level": self._spoiler.default_level,
             "registered_workers": self._client_registry.registered_workers,

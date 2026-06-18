@@ -35,6 +35,8 @@ async def async_setup_entry(
         GamingAssistantRegisteredWorkersSensor(coordinator),
         GamingAssistantSessionSummarySensor(coordinator),
         GamingAssistantAgentActionSensor(coordinator),
+        GamingAssistantPerceptionSensor(coordinator),
+        GamingAssistantStrategySensor(coordinator),
     ])
 
 
@@ -325,4 +327,67 @@ class GamingAssistantAgentActionSensor(CoordinatorEntity, SensorEntity):
             "actions_published": self._coordinator.agent_actions_published,
             "actions_failed": self._coordinator.agent_actions_failed,
             "allowed_buttons": self._coordinator.agent_allowed_buttons or "all",
+        }
+
+
+class GamingAssistantPerceptionSensor(CoordinatorEntity, SensorEntity):
+    """Tier 1 readout: scene-change magnitude of the last measured frame.
+
+    State is the 0..1 scene-change value; attributes carry the coarse motion
+    class and the count of frames the perception tier let skip the LLM, so
+    the event-driven savings are visible from Home Assistant.
+    """
+
+    _attr_name = "Gaming Assistant Scene Change"
+    _attr_unique_id = "gaming_assistant_scene_change"
+    _attr_icon = "mdi:motion-sensor"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def native_value(self) -> float:
+        return self._coordinator.scene_change
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {
+            "frame_motion": self._coordinator.frame_motion,
+            "frames_skipped": self._coordinator.frames_skipped,
+            "frames_processed": self._coordinator.frames_processed,
+        }
+
+
+class GamingAssistantStrategySensor(CoordinatorEntity, SensorEntity):
+    """Tier 3 readout: the current session-level strategic focus.
+
+    State is the strategic note fed back down into the tactical prompts
+    (``No focus yet`` when none); the full text and game are in attributes.
+    """
+
+    _attr_name = "Gaming Assistant Strategy"
+    _attr_unique_id = "gaming_assistant_strategy"
+    _attr_icon = "mdi:chess-queen"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def native_value(self) -> str:
+        note = self._coordinator.strategy_note
+        if not note:
+            return "No focus yet"
+        if len(note) > 250:
+            return note[:247] + "..."
+        return note
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {
+            "full_strategy": self._coordinator.strategy_note,
+            "game": self._coordinator.current_game,
         }

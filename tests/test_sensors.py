@@ -68,6 +68,8 @@ from custom_components.gaming_assistant.sensor import (
     GamingAssistantFramesProcessedSensor,
     GamingAssistantLastAnalysisSensor,
     GamingAssistantAgentActionSensor,
+    GamingAssistantPerceptionSensor,
+    GamingAssistantStrategySensor,
 )
 
 
@@ -172,6 +174,53 @@ class TestAgentActionSensor(unittest.TestCase):
             GamingAssistantAgentActionSensor._attr_unique_id,
             "gaming_assistant_agent_action",
         )
+
+
+class TestTierSensors(unittest.TestCase):
+    """Verify the Tier 1 perception and Tier 3 strategy readout sensors."""
+
+    def test_perception_sensor_value_and_attrs(self):
+        coord = MagicMock()
+        coord.scene_change = 0.42
+        coord.frame_motion = "high"
+        coord.frames_skipped = 7
+        coord.frames_processed = 30
+        sensor = GamingAssistantPerceptionSensor(coord)
+        self.assertEqual(sensor.native_value, 0.42)
+        attrs = sensor.extra_state_attributes
+        self.assertEqual(attrs["frame_motion"], "high")
+        self.assertEqual(attrs["frames_skipped"], 7)
+        self.assertEqual(attrs["frames_processed"], 30)
+        self.assertEqual(
+            GamingAssistantPerceptionSensor._attr_unique_id,
+            "gaming_assistant_scene_change",
+        )
+
+    def test_strategy_sensor_with_note(self):
+        coord = MagicMock()
+        coord.strategy_note = "Play defensively."
+        coord.current_game = "Doom"
+        sensor = GamingAssistantStrategySensor(coord)
+        self.assertEqual(sensor.native_value, "Play defensively.")
+        self.assertEqual(
+            sensor.extra_state_attributes["full_strategy"], "Play defensively."
+        )
+        self.assertEqual(sensor.extra_state_attributes["game"], "Doom")
+
+    def test_strategy_sensor_empty_is_placeholder(self):
+        coord = MagicMock()
+        coord.strategy_note = ""
+        coord.current_game = ""
+        sensor = GamingAssistantStrategySensor(coord)
+        self.assertEqual(sensor.native_value, "No focus yet")
+
+    def test_strategy_sensor_truncates_long_note(self):
+        coord = MagicMock()
+        coord.strategy_note = "x" * 300
+        coord.current_game = "Doom"
+        sensor = GamingAssistantStrategySensor(coord)
+        self.assertTrue(sensor.native_value.endswith("..."))
+        self.assertLessEqual(len(sensor.native_value), 250)
 
 
 if __name__ == "__main__":

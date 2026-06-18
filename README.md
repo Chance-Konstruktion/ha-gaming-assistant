@@ -568,6 +568,8 @@ data:
 | `sensor.gaming_assistant_registered_workers` | Auto-discovered workers |
 | `sensor.gaming_assistant_session_summary` | Last session summary |
 | `sensor.gaming_assistant_agent_action` | Agent Mode audit: last decision status (attrs: full action, published/failed counts, whitelist) |
+| `sensor.gaming_assistant_scene_change` | Tier 1 perception: last frame's scene-change magnitude (attrs: frame_motion, frames_skipped) |
+| `sensor.gaming_assistant_strategy` | Tier 3 strategic focus fed into tips (attrs: full_strategy, game) |
 | `binary_sensor.gaming_mode` | ON when a game is detected |
 | `image.gaming_assistant_last_frame` | Last received JPEG (debug) |
 | `conversation.gaming_assistant` | Voice control via HA Assist |
