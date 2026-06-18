@@ -20,6 +20,20 @@ All notable changes to the Gaming Assistant for Home Assistant.
 - **Added:** 15 tests — behavioural coverage of the governor and the audit
   sensor, plus a wiring contract test.
 
+### Test coverage
+
+- **Raised core test coverage from 52% to 74%** and the CI gate from 50 → 70.
+  New behavioural harnesses make the previously-untestable core real-testable:
+  - `test_coordinator_behavior.py` — instantiates a real coordinator against a
+    stubbed HA surface and exercises properties, setters, the worker/client
+    registry, YOLO ingestion, session tracking, state persistence, the
+    `_process_image` / `ask` pipelines, and the Agent Mode safety wiring
+    (`coordinator.py` 20% → 69%).
+  - `test_init_services.py` — drives `async_setup_entry`/`async_unload_entry`
+    and invokes the registered service handlers (`__init__.py` 5% → 59%).
+  - `test_image_processor_pipeline.py` — runs `process()`/`ask()` end-to-end
+    with real managers and a mocked backend (`image_processor.py` 41% → 74%).
+
 ## [260618] - 2026-06-18 — "Hardening, Pipeline Fixes & Cleanup"
 
 A repo-wide quality pass. Fixes real wiring bugs, removes dead code, moves
