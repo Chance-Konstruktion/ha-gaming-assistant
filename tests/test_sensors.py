@@ -67,6 +67,7 @@ from custom_components.gaming_assistant.sensor import (
     GamingAssistantErrorCountSensor,
     GamingAssistantFramesProcessedSensor,
     GamingAssistantLastAnalysisSensor,
+    GamingAssistantAgentActionSensor,
 )
 
 
@@ -124,6 +125,53 @@ class TestDiagnosticSensors(unittest.TestCase):
         for cls in (GamingAssistantLatencySensor, GamingAssistantErrorCountSensor,
                     GamingAssistantFramesProcessedSensor, GamingAssistantLastAnalysisSensor):
             self.assertIsNone(getattr(cls, "_attr_entity_category", None))
+
+
+class TestAgentActionSensor(unittest.TestCase):
+    """Verify the Agent Mode audit sensor surfaces governor state."""
+
+    def _coord(self, status="", action=None, published=0, failed=0,
+               mode=False, buttons=None):
+        coord = MagicMock()
+        coord.agent_last_action_status = status
+        coord.agent_last_action = action
+        coord.agent_last_action_timestamp = "2026-06-18T12:00:00"
+        coord.agent_actions_published = published
+        coord.agent_actions_failed = failed
+        coord.agent_mode = mode
+        coord.agent_allowed_buttons = buttons if buttons is not None else []
+        return coord
+
+    def test_idle_when_no_action(self):
+        sensor = GamingAssistantAgentActionSensor(self._coord(status=""))
+        self.assertEqual(sensor.native_value, "idle")
+
+    def test_reflects_status(self):
+        sensor = GamingAssistantAgentActionSensor(self._coord(status="published"))
+        self.assertEqual(sensor.native_value, "published")
+
+    def test_attributes(self):
+        sensor = GamingAssistantAgentActionSensor(self._coord(
+            status="published",
+            action={"action": "button", "button": "A"},
+            published=3, failed=1, mode=True, buttons=["A", "B"],
+        ))
+        attrs = sensor.extra_state_attributes
+        self.assertEqual(attrs["actions_published"], 3)
+        self.assertEqual(attrs["actions_failed"], 1)
+        self.assertTrue(attrs["agent_mode"])
+        self.assertEqual(attrs["allowed_buttons"], ["A", "B"])
+        self.assertEqual(attrs["last_action"], {"action": "button", "button": "A"})
+
+    def test_allowed_buttons_all_when_empty(self):
+        sensor = GamingAssistantAgentActionSensor(self._coord(buttons=[]))
+        self.assertEqual(sensor.extra_state_attributes["allowed_buttons"], "all")
+
+    def test_unique_id(self):
+        self.assertEqual(
+            GamingAssistantAgentActionSensor._attr_unique_id,
+            "gaming_assistant_agent_action",
+        )
 
 
 if __name__ == "__main__":

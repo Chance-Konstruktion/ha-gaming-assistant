@@ -115,11 +115,25 @@ All runtime metrics live on the coordinator and are surfaced as sensors:
   (NEW) – surfaced via the `Gaming Assistant Last Error` sensor.
 - `frames_processed`, `last_analysis`, `registered_workers`,
   `active_watchers`, `session_summary`.
+- `agent_last_action` / `agent_actions_published` / `agent_actions_failed`
+  – surfaced via the `Gaming Assistant Agent Action` sensor and the
+  `gaming_assistant_agent_action` event (one per decision).
 
 ## Safety Boundaries (Phase 5)
 
-- **Agent Mode is opt-in.** The integration never sends actions
-  unless the user explicitly enables the feature flag.
+Agent Mode is governed on both ends. On the Home Assistant side an
+`AgentActionGovernor` (`agent_governor.py`) is the safety gate:
+
+- **Opt-in.** The integration never sends actions unless the user
+  explicitly enables Agent Mode, which **resets to OFF on every restart**.
+- **Rate limited.** At most one action per `AGENT_ACTION_MIN_INTERVAL`
+  seconds, so the AI can never flood the executor with inputs.
+- **Dead-man switch.** After `AGENT_MAX_CONSECUTIVE_FAILURES` consecutive
+  action-generation failures (backend down, repeated timeouts), Agent Mode
+  **auto-disables** so a broken pipeline never keeps the AI "driving".
+- **Audited.** Every decision (`published` / `no_op` / `error` /
+  `auto_disabled`) updates the audit sensor and fires
+  `gaming_assistant_agent_action` for automations.
 - Actions travel as JSON on `gaming_assistant/{client_id}/action` and
   must pass `PromptBuilder.parse_action()` validation.
 - The worker maintains a **whitelist** of allowed buttons/axes. Any

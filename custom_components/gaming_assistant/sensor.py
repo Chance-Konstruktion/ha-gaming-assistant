@@ -34,6 +34,7 @@ async def async_setup_entry(
         GamingAssistantActiveWatchersSensor(coordinator),
         GamingAssistantRegisteredWorkersSensor(coordinator),
         GamingAssistantSessionSummarySensor(coordinator),
+        GamingAssistantAgentActionSensor(coordinator),
     ])
 
 
@@ -290,4 +291,38 @@ class GamingAssistantSessionSummarySensor(CoordinatorEntity, SensorEntity):
             "full_summary": self._coordinator.last_summary,
             "game": self._coordinator.last_summary_game,
             "timestamp": self._coordinator.last_summary_timestamp,
+        }
+
+
+class GamingAssistantAgentActionSensor(CoordinatorEntity, SensorEntity):
+    """Audit sensor for Agent Mode (Player 2) autonomous actions.
+
+    State is the last decision status (``idle`` / ``published`` / ``no_op`` /
+    ``error`` / ``auto_disabled``); attributes carry the full action, the
+    published/failed counters, and the active button whitelist so autonomous
+    play can be monitored and automated against from Home Assistant.
+    """
+
+    _attr_name = "Gaming Assistant Agent Action"
+    _attr_unique_id = "gaming_assistant_agent_action"
+    _attr_icon = "mdi:robot-outline"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def native_value(self) -> str:
+        return self._coordinator.agent_last_action_status or "idle"
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {
+            "agent_mode": self._coordinator.agent_mode,
+            "last_action": self._coordinator.agent_last_action,
+            "timestamp": self._coordinator.agent_last_action_timestamp,
+            "actions_published": self._coordinator.agent_actions_published,
+            "actions_failed": self._coordinator.agent_actions_failed,
+            "allowed_buttons": self._coordinator.agent_allowed_buttons or "all",
         }

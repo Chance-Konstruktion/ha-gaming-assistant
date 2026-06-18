@@ -528,7 +528,7 @@ data:
   allowed_buttons: "A, B, X, Y, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT"
 ```
 
-> **Safety:** Agent Mode is strictly opt-in and **resets to OFF on every Home Assistant restart** — the AI never controls inputs unless you deliberately turn it on. It runs a *second* inference per frame (in addition to the normal tip), so expect higher load, especially on local models. The executor still enforces its own whitelist and `--dry-run`, and `stop` on `gaming_assistant/command` is the emergency brake. Start with the executor in `--dry-run` to watch the action stream safely before going live.
+> **Safety:** Agent Mode is strictly opt-in and **resets to OFF on every Home Assistant restart** — the AI never controls inputs unless you deliberately turn it on. The HA-side governor adds two more rails: actions are **rate limited** (no input flooding) and Agent Mode **auto-disables after repeated failures** (dead-man switch), so a broken pipeline never keeps the AI "driving". Every decision is audited on `sensor.gaming_assistant_agent_action` and the `gaming_assistant_agent_action` event. It runs a *second* inference per frame (in addition to the normal tip), so expect higher load, especially on local models. The executor still enforces its own whitelist and `--dry-run`, and `stop` on `gaming_assistant/command` is the emergency brake. Start with the executor in `--dry-run` to watch the action stream safely before going live.
 
 </details>
 
@@ -567,6 +567,7 @@ data:
 | `sensor.gaming_assistant_active_watchers` | Active camera watchers |
 | `sensor.gaming_assistant_registered_workers` | Auto-discovered workers |
 | `sensor.gaming_assistant_session_summary` | Last session summary |
+| `sensor.gaming_assistant_agent_action` | Agent Mode audit: last decision status (attrs: full action, published/failed counts, whitelist) |
 | `binary_sensor.gaming_mode` | ON when a game is detected |
 | `image.gaming_assistant_last_frame` | Last received JPEG (debug) |
 | `conversation.gaming_assistant` | Voice control via HA Assist |

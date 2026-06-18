@@ -151,6 +151,19 @@ class TestAgentModeContracts(unittest.TestCase):
         self.assertIn("def set_agent_mode(", self.coord)
         self.assertIn("AGENT_VALID_BUTTONS", self.coord)
 
+    def test_safety_governor_wired(self):
+        # const declares the safety rails
+        self.assertIn("AGENT_ACTION_MIN_INTERVAL", self.const)
+        self.assertIn("AGENT_MAX_CONSECUTIVE_FAILURES", self.const)
+        self.assertIn("EVENT_AGENT_ACTION", self.const)
+        # coordinator uses the governor for rate limiting + auto-disable
+        self.assertIn("self._agent_governor", self.coord)
+        self.assertIn("rate_limited(", self.coord)
+        self.assertIn("record_error(", self.coord)
+        # auto-disable turns Agent Mode OFF and emits an audit event
+        self.assertIn("self.set_agent_mode(False)", self.coord)
+        self.assertIn("_fire_agent_action_event", self.coord)
+
     def test_service_registered(self):
         self.assertIn('"set_agent_mode"', self.init)
         self.assertIn("async def handle_set_agent_mode", self.init)
