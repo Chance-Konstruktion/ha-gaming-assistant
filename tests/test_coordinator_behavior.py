@@ -112,12 +112,14 @@ from custom_components.gaming_assistant.coordinator import (  # noqa: E402
     GamingAssistantCoordinator,
 )
 import custom_components.gaming_assistant.camera_watcher as camera_watcher  # noqa: E402
+from custom_components.gaming_assistant import chess_grounding as _cg  # noqa: E402
 from custom_components.gaming_assistant.const import (  # noqa: E402
     AGENT_MAX_CONSECUTIVE_FAILURES,
     EVENT_AGENT_ACTION,
     EVENT_NEW_TIP,
     EVENT_SESSION_ENDED,
     MQTT_AUDIO_TOPIC,
+    MQTT_BOARD_TOPIC,
     MQTT_DETECTIONS_TOPIC,
     MQTT_HUD_TOPIC,
     MQTT_IMAGE_TOPIC,
@@ -341,7 +343,7 @@ class TestMqttHandlers(unittest.TestCase):
         self.coord, self.hass = _make_coord()
         _MQTT.async_subscribe.reset_mock()
         _run(self.coord._subscribe_topics())
-        # subscribe_topics registers exactly 10 handlers in a fixed order;
+        # subscribe_topics registers exactly 11 handlers in a fixed order;
         # index them by the topic they were bound to.
         self.cb = {
             call.args[1]: call.args[2]
@@ -349,7 +351,7 @@ class TestMqttHandlers(unittest.TestCase):
         }
 
     def test_subscribes_to_all_topics(self):
-        self.assertEqual(len(self.cb), 10)
+        self.assertEqual(len(self.cb), 11)
 
     def test_tip_handler(self):
         self.cb[MQTT_TIP_TOPIC](_msg(MQTT_TIP_TOPIC, b"Use cover"))
@@ -449,6 +451,17 @@ class TestMqttHandlers(unittest.TestCase):
         # Invalid JSON must not raise out of the callback.
         self.cb[MQTT_AUDIO_TOPIC](_msg("gaming_assistant/rig1/audio", b"not-json"))
 
+    def test_board_handler_without_fen_is_noop(self):
+        # A board payload missing a FEN must not raise or schedule work.
+        self.cb[MQTT_BOARD_TOPIC](
+            _msg("gaming_assistant/cam1/board", b'{"note": "no fen here"}')
+        )
+        self.assertEqual(self.coord.chess_grounding, {})
+
+    def test_board_handler_ignores_garbage(self):
+        # Invalid JSON must not raise out of the callback.
+        self.cb[MQTT_BOARD_TOPIC](_msg("gaming_assistant/cam1/board", b"not-json"))
+
     def test_yolo_status_json_recorded(self):
         self.cb[MQTT_YOLO_STATUS_TOPIC](
             _msg(
@@ -457,6 +470,37 @@ class TestMqttHandlers(unittest.TestCase):
             )
         )
         self.assertEqual(self.coord.yolo_workers["yolo1"]["status"], "ready")
+
+
+# ---------------------------------------------------------------------------
+# Chess grounding (engine runs in HA — the clientless tabletop/camera case)
+# ---------------------------------------------------------------------------
+
+@unittest.skipUnless(_cg.is_available(), "python-chess not installed")
+class TestChessGrounding(unittest.TestCase):
+    _START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
+    def setUp(self):
+        self.coord, self.hass = _make_coord()
+
+    def test_process_board_feeds_state_and_sensor(self):
+        self.coord._current_game = "Chess"
+        result = _run(self.coord._process_board("cam1", self._START))
+        self.assertTrue(result["valid"])
+        self.assertIn("best_move", result)
+        # Exposed for the sensor.
+        self.assertEqual(self.coord.chess_grounding["client_id"], "cam1")
+        # Fed into the game state as measured Tier-1 signals.
+        current = self.coord.game_state_manager.get_current("Chess")
+        self.assertEqual(current.get("chess_side"), "white")
+        self.assertIn("chess_best_move", current)
+
+    def test_process_board_invalid_fen_records_error(self):
+        result = _run(self.coord._process_board("cam1", "not a fen"))
+        self.assertFalse(result["valid"])
+        self.assertIn("error", result)
+        # Nothing fed into game state for an invalid board.
+        self.assertIsNone(self.coord.game_state_manager.get_current("unknown"))
 
 
 # ---------------------------------------------------------------------------

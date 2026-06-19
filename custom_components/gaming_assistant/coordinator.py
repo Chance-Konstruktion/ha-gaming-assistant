@@ -61,6 +61,7 @@ from .llm_backend import LLMBackend, create_backend
 from .camera_watcher import CameraWatcher
 from .client_registry import ClientRegistry
 from .mqtt_router import MqttRouter
+from . import chess_grounding
 from .perception import PerceptionTier
 from .prompt_packs import PromptPackLoader
 from .session_tracker import SessionTracker
@@ -153,6 +154,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         # Tier 1 perception readout (last measured frame).
         self._last_scene_change: float = 0.0
         self._last_frame_motion: str = ""
+        # Chess grounding: last analysed board (per the current game/source).
+        self._chess_grounding: dict[str, Any] = {}
         self._last_analysis: str = ""
         self._last_error_message: str = ""
         self._last_error_type: str = ""
@@ -743,6 +746,11 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         return self._last_frame_motion
 
     @property
+    def chess_grounding(self) -> dict[str, Any]:
+        """Last grounded chess board (empty until a FEN is analysed)."""
+        return self._chess_grounding
+
+    @property
     def strategy_note(self) -> str:
         """Tier 3 strategic focus for the current game (empty if none)."""
         return self._strategy.note(self._current_game)
@@ -816,6 +824,43 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     def _handle_audio(self, client_id: str, data: dict[str, Any]) -> None:
         """Feed game-audio signals into the game state (delegated)."""
         self._mqtt_router.handle_audio(client_id, data)
+
+    # -- Chess grounding -----------------------------------------------------
+
+    async def _process_board(self, client_id: str, fen: str) -> dict[str, Any]:
+        """Ground a chess position (FEN) and feed the facts into the state.
+
+        The engine is pure-Python and episodic, so it runs *in* Home Assistant
+        (off the event loop in the executor). Its grounded facts — material,
+        threats, a suggested move — become Tier 1 measured signals, exactly
+        like HUD numbers or audio cues. Never raises; bad FEN is recorded as a
+        structured error.
+        """
+        result = await self.hass.async_add_executor_job(
+            chess_grounding.analyze_fen, fen
+        )
+        result["client_id"] = client_id
+        self._chess_grounding = result
+
+        measured = chess_grounding.measured_signals(result)
+        if measured:
+            game = self._current_game or "unknown"
+            self._game_state.update(game, measured, source=f"chess:{client_id}")
+        elif not result.get("available"):
+            _LOGGER.debug(
+                "Chess grounding unavailable (python-chess not installed)"
+            )
+        elif not result.get("valid"):
+            _LOGGER.debug(
+                "Chess board from %s invalid: %s",
+                client_id, result.get("error", "?"),
+            )
+        self._notify_update()
+        return result
+
+    def _handle_board(self, client_id: str, data: dict[str, Any]) -> None:
+        """Feed a board FEN into chess grounding (delegated to MqttRouter)."""
+        self._mqtt_router.handle_board(client_id, data)
 
     # -- Game-state persistence ----------------------------------------------
 
@@ -1217,6 +1262,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "frame_motion": self._last_frame_motion,
             "strategy_note": self._strategy.note(self._current_game),
             "strategy_reflection": self._strategy.reflection_enabled,
+            "chess_summary": self._chess_grounding.get("summary", ""),
+            "chess_best_move": self._chess_grounding.get("best_move", ""),
             "spoiler_level": self._spoiler.default_level,
             "registered_workers": self._client_registry.registered_workers,
             "clients": self._client_registry.clients,

@@ -42,6 +42,7 @@ _ALL_SERVICES = (
     "announce", "summarize_session", "configure",
     "set_game_hint", "list_game_packs", "set_source_type",
     "refresh_prompt_packs", "set_agent_mode", "send_yolo_command",
+    "analyze_board",
 )
 
 
@@ -405,6 +406,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     coord.set_source_type(source_type)
                     break
 
+        async def handle_analyze_board(call: ServiceCall) -> None:
+            """Ground a chess position given as FEN (engine runs in HA).
+
+            Useful for a board-vision worker, an automation, or manual testing
+            of the tabletop/camera scenario where there is no client at all.
+            """
+            fen = (call.data.get("fen") or "").strip()
+            if not fen:
+                _LOGGER.error("analyze_board requires a 'fen'")
+                return
+            client_id = call.data.get("client_id") or "manual"
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord._process_board(client_id, fen)
+                    break
+
         async def handle_set_agent_mode(call: ServiceCall) -> None:
             """Enable/disable Agent Mode (opt-in autonomous controller actions)."""
             enabled = bool(call.data.get("enabled", False))
@@ -536,6 +553,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "configure", handle_configure)
         hass.services.async_register(DOMAIN, "set_game_hint", handle_set_game_hint)
         hass.services.async_register(DOMAIN, "set_source_type", handle_set_source_type)
+        hass.services.async_register(DOMAIN, "analyze_board", handle_analyze_board)
         hass.services.async_register(DOMAIN, "set_agent_mode", handle_set_agent_mode)
         hass.services.async_register(DOMAIN, "list_game_packs", handle_list_game_packs)
         hass.services.async_register(

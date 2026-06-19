@@ -139,6 +139,22 @@ cards:
         attribute: frames_skipped
         icon: mdi:debug-step-over
 
+  # -- Chess grounding (runs in HA; for tabletop/camera play) ----------------
+  - type: markdown
+    content: |
+      ### Chess
+      {% set best = state_attr('sensor.gaming_assistant_chess', 'best_move') %}
+      {% set summary = state_attr('sensor.gaming_assistant_chess', 'summary') %}
+      {% if best %}
+      > **Suggested move:** {{ best }}
+      {% if summary %}
+
+      {{ summary }}
+      {% endif %}
+      {% else %}
+      _No board analysed yet. Call `gaming_assistant.analyze_board` with a FEN._
+      {% endif %}
+
   # -- Last Received Frame (Debug) -------------------------------------------
   - type: picture-entity
     entity: image.gaming_assistant_last_frame

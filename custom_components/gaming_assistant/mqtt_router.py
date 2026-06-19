@@ -22,6 +22,7 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
     MQTT_AUDIO_TOPIC,
+    MQTT_BOARD_TOPIC,
     MQTT_DETECTIONS_TOPIC,
     MQTT_HUD_TOPIC,
     MQTT_IMAGE_TOPIC,
@@ -215,6 +216,19 @@ class MqttRouter:
                 _LOGGER.warning("Invalid audio payload from %s: %s", client_id, err)
 
         @callback
+        def board_received(msg) -> None:
+            """Handle a board FEN for chess grounding (runs in HA)."""
+            client_id = msg.topic.split("/")[1]
+            try:
+                payload = msg.payload
+                if isinstance(payload, bytes):
+                    payload = payload.decode("utf-8")
+                data = json.loads(payload)
+                self.handle_board(client_id, data)
+            except (json.JSONDecodeError, UnicodeDecodeError) as err:
+                _LOGGER.warning("Invalid board payload from %s: %s", client_id, err)
+
+        @callback
         def client_status_received(msg) -> None:
             """Handle per-client status on ``gaming_assistant/{id}/status``.
 
@@ -281,6 +295,9 @@ class MqttRouter:
         unsub_audio = await mqtt.async_subscribe(
             hass, MQTT_AUDIO_TOPIC, audio_received, 0
         )
+        unsub_board = await mqtt.async_subscribe(
+            hass, MQTT_BOARD_TOPIC, board_received, 0
+        )
         unsub_client_status = await mqtt.async_subscribe(
             hass, MQTT_YOLO_STATUS_TOPIC, client_status_received, 0
         )
@@ -288,7 +305,7 @@ class MqttRouter:
         self._unsubscribe_callbacks = [
             unsub_tip, unsub_mode, unsub_status, unsub_image, unsub_meta,
             unsub_register, unsub_detections, unsub_hud, unsub_audio,
-            unsub_client_status,
+            unsub_board, unsub_client_status,
         ]
 
     # -- HUD (OCR) handling --------------------------------------------------
@@ -354,6 +371,24 @@ class MqttRouter:
         )
         _LOGGER.debug("Audio from %s: %s", client_id, measured)
         self.coord._notify_update()
+
+    # -- Chess board handling ------------------------------------------------
+
+    def handle_board(self, client_id: str, data: dict[str, Any]) -> None:
+        """Ground a board FEN with the in-HA chess engine.
+
+        The payload carries the board as FEN (e.g. published by a board-vision
+        worker, an automation, or the ``analyze_board`` service). The actual
+        analysis is episodic and pure-Python, so it runs inside HA — scheduled
+        off the event loop by the coordinator.
+        """
+        fen = data.get("fen") if isinstance(data, dict) else None
+        if not isinstance(fen, str) or not fen.strip():
+            _LOGGER.debug("Board payload from %s has no FEN", client_id)
+            return
+        self.coord.hass.async_create_task(
+            self.coord._process_board(client_id, fen)
+        )
 
     # -- YOLO detection handling ---------------------------------------------
 

@@ -37,6 +37,7 @@ async def async_setup_entry(
         GamingAssistantAgentActionSensor(coordinator),
         GamingAssistantPerceptionSensor(coordinator),
         GamingAssistantStrategySensor(coordinator),
+        GamingAssistantChessSensor(coordinator),
     ])
 
 
@@ -390,4 +391,50 @@ class GamingAssistantStrategySensor(CoordinatorEntity, SensorEntity):
         return {
             "full_strategy": self._coordinator.strategy_note,
             "game": self._coordinator.current_game,
+        }
+
+
+class GamingAssistantChessSensor(CoordinatorEntity, SensorEntity):
+    """Chess grounding readout: the suggested best move for the last board.
+
+    State is the suggested move in SAN (``No board yet`` when none); the
+    full grounded facts (material, eval, threats, flags) are in attributes.
+    The engine runs inside Home Assistant — no extra server.
+    """
+
+    _attr_name = "Gaming Assistant Chess"
+    _attr_unique_id = "gaming_assistant_chess"
+    _attr_icon = "mdi:chess-king"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def native_value(self) -> str:
+        grounding = self._coordinator.chess_grounding
+        if not grounding.get("valid"):
+            return "No board yet"
+        return grounding.get("best_move") or grounding.get("summary", "—")
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        g = self._coordinator.chess_grounding
+        return {
+            "available": g.get("available", False),
+            "valid": g.get("valid", False),
+            "summary": g.get("summary", ""),
+            "side_to_move": g.get("side_to_move"),
+            "best_move": g.get("best_move"),
+            "eval_white_cp": g.get("eval_white_cp"),
+            "material_cp": g.get("material_cp"),
+            "phase": g.get("phase"),
+            "legal_moves": g.get("legal_moves"),
+            "is_check": g.get("is_check"),
+            "is_checkmate": g.get("is_checkmate"),
+            "captures": g.get("captures"),
+            "checks": g.get("checks"),
+            "fen": g.get("fen"),
+            "error": g.get("error"),
         }
