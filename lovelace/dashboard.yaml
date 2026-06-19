@@ -50,6 +50,8 @@ cards:
         name: Auto Announce
       - entity: switch.gaming_assistant_auto_summary
         name: Auto Summary
+      - entity: switch.gaming_assistant_strategy_reflection
+        name: Strategy Reflection
 
   # -- Current tip -----------------------------------------------------------
   # Uses the full_tip attribute to avoid the 255-char HA state limit.

@@ -98,6 +98,12 @@ CONF_AUTO_SUMMARY = "auto_summary"
 DEFAULT_AUTO_SUMMARY = False
 SESSION_END_DELAY = 300  # 5 minutes of inactivity before session ends
 
+# Tier 3 strategy: whether to upgrade the deterministic focus with an LLM
+# reflection (extra text-LLM call every few tips). On by default; turn off
+# to save calls on small/local models (deterministic focus still applies).
+CONF_STRATEGY_REFLECTION = "strategy_reflection"
+DEFAULT_STRATEGY_REFLECTION = True
+
 # Image Processing
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB hard limit for base64-decoded images
 IMAGE_DEDUP_WINDOW_SECONDS = 60

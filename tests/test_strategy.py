@@ -209,5 +209,27 @@ class TestLLMReflection(unittest.TestCase):
         self.assertEqual(_run(tier.async_reflect("")), "")
 
 
+class TestReflectionToggle(unittest.TestCase):
+    def test_enabled_by_default(self):
+        tier, _ = _make_tier()
+        self.assertTrue(tier.reflection_enabled)
+
+    def test_constructor_flag_respected(self):
+        coord = SimpleNamespace(game_state_manager=GameStateManager())
+        tier = StrategyTier(coord, reflection_enabled=False)
+        self.assertFalse(tier.reflection_enabled)
+
+    def test_setter_toggles_and_notifies(self):
+        notified = []
+        coord = SimpleNamespace(
+            game_state_manager=GameStateManager(),
+            _notify_update=lambda: notified.append(True),
+        )
+        tier = StrategyTier(coord)
+        tier.set_reflection_enabled(False)
+        self.assertFalse(tier.reflection_enabled)
+        self.assertTrue(notified)
+
+
 if __name__ == "__main__":
     unittest.main()

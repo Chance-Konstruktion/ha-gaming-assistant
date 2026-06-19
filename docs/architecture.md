@@ -134,6 +134,11 @@ than a dead-end recap:
   in the trends + recent tips, and upgrades the note. If the LLM is
   unavailable or returns nothing it keeps the deterministic baseline —
   Tier 3 degrades gracefully and never breaks the pipeline.
+- The reflection is toggleable at runtime via
+  `switch.gaming_assistant_strategy_reflection` (config key
+  `strategy_reflection`, default on). When off, the focus still updates from
+  the deterministic trend analysis — only the extra periodic text-LLM call
+  is skipped, which is handy on small or rate-limited models.
 - Before each Tier 2 call the coordinator reads `note(game)` and passes it
   as `strategy_note`, which `ImageProcessor.process` puts at the **top** of
   the prompt context (above the Tier 1 live signals and the rolling state

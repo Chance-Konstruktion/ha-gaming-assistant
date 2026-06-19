@@ -43,12 +43,24 @@ MAX_DIRECTIVES = 2
 class StrategyTier:
     """Tier 3: distils a session-level strategic focus from game state."""
 
-    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+    def __init__(self, coordinator: GamingAssistantCoordinator,
+                 reflection_enabled: bool = True) -> None:
         self.coord = coordinator
         self._notes: dict[str, str] = {}
         self._tips_since_update: dict[str, int] = {}
+        self._reflection_enabled = reflection_enabled
 
     # -- accessors -----------------------------------------------------------
+
+    @property
+    def reflection_enabled(self) -> bool:
+        """Whether the LLM reflection upgrade is active (vs deterministic)."""
+        return self._reflection_enabled
+
+    def set_reflection_enabled(self, enabled: bool) -> None:
+        self._reflection_enabled = enabled
+        _LOGGER.info("Strategy LLM reflection set to: %s", enabled)
+        self.coord._notify_update()
 
     def note(self, game: str) -> str:
         """Return the current strategic focus for *game* (empty if none)."""

@@ -116,6 +116,7 @@ from custom_components.gaming_assistant.switch import (
     AgentModeSwitch,
     AutoAnnounceSwitch,
     AutoSummarySwitch,
+    StrategyReflectionSwitch,
 )
 from custom_components.gaming_assistant.image import GamingAssistantLastFrameImage
 
@@ -181,6 +182,19 @@ class TestSwitches(unittest.TestCase):
         _run(sw.async_turn_off())
         coord.set_agent_mode.assert_called_with(False)
         self.assertEqual(sw._attr_unique_id, "gaming_assistant_agent_mode")
+
+    def test_strategy_reflection_switch(self):
+        coord = MagicMock()
+        coord.strategy_reflection = True
+        sw = StrategyReflectionSwitch(coord)
+        self.assertTrue(sw.is_on)
+        _run(sw.async_turn_on())
+        coord.set_strategy_reflection.assert_called_with(True)
+        _run(sw.async_turn_off())
+        coord.set_strategy_reflection.assert_called_with(False)
+        self.assertEqual(
+            sw._attr_unique_id, "gaming_assistant_strategy_reflection"
+        )
 
 
 class TestLastFrameImage(unittest.TestCase):

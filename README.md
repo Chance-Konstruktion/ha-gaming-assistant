@@ -569,6 +569,7 @@ data:
 | `number.gaming_assistant_timeout` | Number | Analysis timeout (10–300 s) |
 | `switch.gaming_assistant_auto_announce` | Switch | Auto-announce tips via TTS |
 | `switch.gaming_assistant_auto_summary` | Switch | Auto-summarize on session end |
+| `switch.gaming_assistant_strategy_reflection` | Switch | Tier 3 LLM reflection (off = deterministic focus only, saves calls) |
 
 </details>
 
