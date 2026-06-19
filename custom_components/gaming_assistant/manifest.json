@@ -9,5 +9,5 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/Chance-Konstruktion/ha-gaming-assistant/issues",
   "requirements": ["aiohttp>=3.9.0", "Pillow>=10.0.0", "chess==1.10.0"],
-  "version": "260618"
+  "version": "260619"
 }

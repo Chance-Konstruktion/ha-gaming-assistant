@@ -4,6 +4,65 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ## [Unreleased]
 
+## [260619] - 2026-06-19 — "Tiered Cognition, Edge Perception & Chess"
+
+The assistant goes from a flat fixed-interval LLM loop to a **tiered cognition
+stack** with **edge perception workers**, an **in-HA chess engine**, and a
+**reliability layer** — while keeping Home Assistant runnable on modest
+hardware (no high-end server).
+
+### Tiered cognition (perception → tactics → strategy)
+
+- **Added — Tier 1 (perception, `perception.py`):** cheap per-frame measurement
+  (scene-change magnitude, motion class) with **event-driven escalation** — the
+  vision LLM (Tier 2) now runs only on a significant change or a heartbeat, not
+  every frame. Skipped frames still update measured state (`frames_skipped`).
+- **Added — Tier 3 (strategy, `strategy.py`):** a session-level **strategic
+  focus** distilled from game-state trends, fed back down into Tier 2 prompts.
+  Optional periodic **LLM reflection** upgrades the deterministic baseline, with
+  graceful fallback; toggleable at runtime via
+  `switch.gaming_assistant_strategy_reflection`.
+- **Changed:** perception now **measures first** and hands signals to the LLM;
+  on a key collision the measured value wins over tip-scraped guesses.
+- **Added:** diagnostic sensors (scene-change/motion/frames-skipped, strategy
+  focus) and dashboard cards.
+
+### Edge perception workers (heavy compute stays on the client)
+
+- **Added — HUD OCR worker (`worker/ocr_agent.py`):** reads HP/ammo/score from
+  configured screen regions and publishes them as **measured Tier-1 numbers**.
+- **Added — game-audio worker (`worker/audio_agent.py`):** runs **on the gaming
+  PC**, derives loudness / intensity / onsets (gunshots, explosions) with plain
+  DSP — no model, no GPU — and publishes only compact events. Raw audio never
+  reaches HA.
+
+### Chess grounding (engine runs *in* Home Assistant)
+
+- **Added — `chess_grounding.py`:** because board games are often played at a
+  table with just a camera and **no client**, the chess engine runs in HA.
+  Pure-Python `python-chess` (no Stockfish binary, no extra server) validates a
+  FEN and computes legal moves, material, threats and a suggested move (small
+  evaluator + shallow alpha-beta), episodically and off the event loop.
+- **Added:** `gaming_assistant/{id}/board` topic, `gaming_assistant.analyze_board`
+  service, and `sensor.gaming_assistant_chess`.
+
+### Reliability & workflow
+
+- **Added — output-quality gate (`tip_filter.py`):** rejects degenerate model
+  output (empty/refusals) and suppresses re-announcing a repeated tip, so the
+  coach doesn't surface garbage or talk over itself.
+- **Added — pipeline-health binary sensor** (`binary_sensor.gaming_assistant_healthy`,
+  PROBLEM device class): one-glance "is it working?" (MQTT up + LLM path not in a
+  sustained failure streak), with diagnostics in the attributes.
+
+### Tooling & cleanup
+
+- **Changed:** CI now also lints `worker/`, so the growing set of edge workers
+  can't silently rot.
+- **Changed:** the Windows GUI launcher now shares capture/game-detection with
+  `capture_agent.py` (single `KNOWN_GAMES` source of truth) and gains
+  Last-Will/Testament presence, matching the CLI agent.
+
 ### Agent Mode (Player 2) hardening
 
 - **Added:** `AgentActionGovernor` (`agent_governor.py`) — a pure, unit-tested
@@ -22,7 +81,7 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ### Test coverage
 
-- **Raised core test coverage from 52% to 74%** and the CI gate from 50 → 70.
+- **Raised core test coverage from 52% to 80%** and the CI gate from 50 → 70.
   New behavioural harnesses make the previously-untestable core real-testable:
   - `test_coordinator_behavior.py` — instantiates a real coordinator against a
     stubbed HA surface and exercises properties, setters, the worker/client
