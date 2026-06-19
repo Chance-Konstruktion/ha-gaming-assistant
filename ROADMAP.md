@@ -184,6 +184,7 @@ Detailliertes Diagramm: `docs/architecture.md`.
 | GA-LLM | Multi-LLM-Backend (Ollama / GPT / Gemini / DeepSeek / LM Studio / Groq) | ✅ v0.10 |
 | GA-YOL | YOLO-Worker für Object Detection (CUDA / NCNN / Hailo / TFLite) | ✅ v0.10 |
 | GA-OCR | HUD-OCR-Worker (`worker/ocr_agent.py`) – liest HP/Ammo/Score per OCR aus konfigurierten Regionen und speist sie als gemessene Tier-1-Signale ein | ✅ (unreleased) |
+| GA-AUD | Game-Audio-Worker (`worker/audio_agent.py`) – läuft **clientseitig auf dem Gaming-PC**, leitet Lautheit/Intensität/Onsets (Schüsse/Explosionen) lokal per DSP ab und schickt nur kompakte Tier-1-Signale; rohes Audio erreicht HA nie | ✅ (unreleased) |
 | GA-GST | Game-State-Engine + Trend Detection | ✅ v0.10 |
 
 ### Begleit-Apps & Test-Infrastruktur

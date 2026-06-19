@@ -67,7 +67,7 @@ loop that re-derives everything from scratch each time.
 
 | Tier | Cadence | Cost | Job | Where |
 |------|---------|------|-----|-------|
-| **1 — Reflex / Perception** | every frame | none (no LLM) | Measure the frame: scene-change magnitude, motion class. Optional external workers add measured signals: YOLO object detection and OCR'd HUD numbers (health/ammo/score). Emits *measured* signals. | `perception.py` (`PerceptionTier`); `worker/yolo_worker.py`, `worker/ocr_agent.py` |
+| **1 — Reflex / Perception** | every frame | none (no LLM) | Measure the frame: scene-change magnitude, motion class. Optional external workers add measured signals: YOLO object detection, OCR'd HUD numbers (health/ammo/score), and game-audio cues (loudness/intensity/onsets). Emits *measured* signals. | `perception.py` (`PerceptionTier`); `worker/yolo_worker.py`, `worker/ocr_agent.py`, `worker/audio_agent.py` |
 | **2 — Tactics** | seconds | medium (vision LLM) | Produce the actual tip, consuming Tier 1 signals as input. | `image_processor.py` → `llm_backend.py` |
 | **3 — Strategy / Meta** | every few tips / session | medium (rare LLM, deterministic fallback) | Distil a session-level **strategic focus** (LLM reflection over trends + recent tips) and feed it back down into Tier 2. Also: session recap. | `strategy.py` (`StrategyTier`), `session_tracker.py` (recap) |
 
@@ -91,6 +91,19 @@ frame ─► Tier 1 (perception.py)  ── measured signals ─►  Tier 2 (ima
 Tier 1 keeps a per-client perceptual-hash memory so scene change is
 computed per capture source. The first frame from a client is always
 treated as significant.
+
+**Heavy perception runs at the edge, never in HA.** The project is built to
+run Home Assistant on modest hardware (a Raspberry Pi / small NUC) without a
+high-end server. So every expensive perceptual signal is produced by an
+*external worker* — ideally co-located with the data on the gaming PC, which
+already has the compute — and only a compact JSON of measured signals
+travels over MQTT. HA merely *fuses* those signals into the game state. This
+holds for `worker/yolo_worker.py` (object detection), `worker/ocr_agent.py`
+(HUD OCR), and `worker/audio_agent.py` (game audio). The audio worker in
+particular *must* run on the gaming PC: the sound is produced there, so it is
+captured and analysed locally (plain RMS/onset DSP — no model, no GPU) and
+only loudness/intensity/onset events are published; raw audio never touches
+HA. Even the LLM is external (Ollama); HA orchestrates rather than crunches.
 
 **Event-driven escalation.** Tier 2 is no longer run on every frame.
 `coordinator._process_image` consults `PerceptionTier.should_escalate()`
@@ -156,6 +169,7 @@ than a dead-end recap:
 | In | `gaming_assistant/{client_id}/status`| `online` / `offline` (LWT) |
 | In | `gaming_assistant/{client_id}/detections` | YOLO detections (JSON, optional worker) |
 | In | `gaming_assistant/{client_id}/hud` | OCR'd HUD numbers (JSON, optional worker) |
+| In | `gaming_assistant/{client_id}/audio` | Game-audio signals (JSON, optional client-side worker) |
 | Out | `gaming_assistant/tip` | Latest tip (string) |
 | Out | `gaming_assistant/status` | `analyzing` / `idle` / `error` |
 | Experimental | `gaming_assistant/{client_id}/action` | Structured JSON action (Phase 5) |

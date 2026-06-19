@@ -813,6 +813,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         """Feed YOLO detections into the game state (delegated to MqttRouter)."""
         self._mqtt_router.handle_yolo_detections(client_id, data)
 
+    def _handle_audio(self, client_id: str, data: dict[str, Any]) -> None:
+        """Feed game-audio signals into the game state (delegated)."""
+        self._mqtt_router.handle_audio(client_id, data)
+
     # -- Game-state persistence ----------------------------------------------
 
     async def _ensure_state_loaded(self, game: str) -> None:

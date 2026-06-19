@@ -1,0 +1,14 @@
+# Requirements for the Game Audio Worker (worker/audio_agent.py)
+#
+# Runs on the gaming PC: captures the game's audio locally, derives a few
+# cheap signals (loudness / intensity / onsets) with plain DSP, and publishes
+# only tiny JSON results over MQTT. No model, no GPU.
+sounddevice>=0.4.6
+numpy>=1.26.0
+paho-mqtt>=2.1.0
+
+# Capturing *system* audio (the game output, not a microphone) is OS specific:
+#   * Windows: select a WASAPI loopback / "Stereo Mix" device, or a virtual
+#     audio cable. Run `python audio_agent.py --list-devices` to find it.
+#   * Linux (PulseAudio/PipeWire): select a `.monitor` source.
+#   * macOS: install a loopback driver (e.g. BlackHole) and select it.

@@ -117,6 +117,7 @@ from custom_components.gaming_assistant.const import (  # noqa: E402
     EVENT_AGENT_ACTION,
     EVENT_NEW_TIP,
     EVENT_SESSION_ENDED,
+    MQTT_AUDIO_TOPIC,
     MQTT_DETECTIONS_TOPIC,
     MQTT_HUD_TOPIC,
     MQTT_IMAGE_TOPIC,
@@ -340,7 +341,7 @@ class TestMqttHandlers(unittest.TestCase):
         self.coord, self.hass = _make_coord()
         _MQTT.async_subscribe.reset_mock()
         _run(self.coord._subscribe_topics())
-        # subscribe_topics registers exactly 9 handlers in a fixed order;
+        # subscribe_topics registers exactly 10 handlers in a fixed order;
         # index them by the topic they were bound to.
         self.cb = {
             call.args[1]: call.args[2]
@@ -348,7 +349,7 @@ class TestMqttHandlers(unittest.TestCase):
         }
 
     def test_subscribes_to_all_topics(self):
-        self.assertEqual(len(self.cb), 9)
+        self.assertEqual(len(self.cb), 10)
 
     def test_tip_handler(self):
         self.cb[MQTT_TIP_TOPIC](_msg(MQTT_TIP_TOPIC, b"Use cover"))
@@ -423,6 +424,30 @@ class TestMqttHandlers(unittest.TestCase):
     def test_hud_handler_ignores_garbage(self):
         # Invalid JSON must not raise out of the callback.
         self.cb[MQTT_HUD_TOPIC](_msg("gaming_assistant/rig1/hud", b"not-json"))
+
+    def test_audio_handler_feeds_measured_signals(self):
+        self.coord._current_game = "Doom"
+        self.cb[MQTT_AUDIO_TOPIC](
+            _msg(
+                "gaming_assistant/rig1/audio",
+                b'{"signals": {"audio_db": -22.5, "audio_intensity": "intense"},'
+                b' "event": "onset"}',
+            )
+        )
+        current = self.coord.game_state_manager.get_current("Doom")
+        self.assertEqual(current.get("audio_db"), -22.5)
+        self.assertEqual(current.get("audio_intensity"), "intense")
+
+    def test_audio_handler_ignores_empty(self):
+        self.coord._current_game = "Doom"
+        self.cb[MQTT_AUDIO_TOPIC](
+            _msg("gaming_assistant/rig1/audio", b'{"signals": {}}')
+        )
+        self.assertIsNone(self.coord.game_state_manager.get_current("Doom"))
+
+    def test_audio_handler_ignores_garbage(self):
+        # Invalid JSON must not raise out of the callback.
+        self.cb[MQTT_AUDIO_TOPIC](_msg("gaming_assistant/rig1/audio", b"not-json"))
 
     def test_yolo_status_json_recorded(self):
         self.cb[MQTT_YOLO_STATUS_TOPIC](
