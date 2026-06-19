@@ -32,6 +32,7 @@ from .const import (
     CONF_INTERVAL,
     CONF_MODEL,
     CONF_OLLAMA_HOST,
+    CONF_STRATEGY_REFLECTION,
     CONF_TIMEOUT,
     CONF_TTS_ENTITY,
     CONF_TTS_TARGET,
@@ -43,6 +44,7 @@ from .const import (
     DEFAULT_AUTO_ANNOUNCE,
     DEFAULT_AUTO_SUMMARY,
     DEFAULT_INTERVAL,
+    DEFAULT_STRATEGY_REFLECTION,
     DEFAULT_SPOILER_LEVEL,
     DEFAULT_TIMEOUT,
     DOMAIN,
@@ -135,7 +137,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
         # Tier 3 — slow session-level strategy that distils a focus from
         # game-state trends and feeds it back down into the Tier 2 prompt.
-        self._strategy = StrategyTier(self)
+        self._strategy = StrategyTier(
+            self,
+            config.get(CONF_STRATEGY_REFLECTION, DEFAULT_STRATEGY_REFLECTION),
+        )
 
         # Runtime metrics
         self._latency: float = 0.0
@@ -667,6 +672,15 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._session_tracker.set_auto_summary(enabled)
 
     @property
+    def strategy_reflection(self) -> bool:
+        """Whether Tier 3 upgrades its focus with an LLM reflection."""
+        return self._strategy.reflection_enabled
+
+    def set_strategy_reflection(self, enabled: bool) -> None:
+        """Toggle the Tier 3 LLM reflection (deterministic focus stays)."""
+        self._strategy.set_reflection_enabled(enabled)
+
+    @property
     def last_summary(self) -> str:
         return self._session_tracker.last_summary
 
@@ -911,10 +925,13 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
                     # Tier 3: refresh the session-level strategic focus
                     # (game state is already updated for this frame). When a
-                    # refresh is due, upgrade the deterministic baseline with
-                    # an LLM reflection in the background so it never adds
-                    # latency to the tip path.
-                    if self._strategy.record_tip(self._current_game, tip):
+                    # refresh is due, optionally upgrade the deterministic
+                    # baseline with an LLM reflection in the background (if
+                    # enabled) so it never adds latency to the tip path.
+                    if (
+                        self._strategy.record_tip(self._current_game, tip)
+                        and self._strategy.reflection_enabled
+                    ):
                         self.hass.async_create_task(
                             self._strategy.async_reflect(self._current_game)
                         )
@@ -1195,6 +1212,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "scene_change": self._last_scene_change,
             "frame_motion": self._last_frame_motion,
             "strategy_note": self._strategy.note(self._current_game),
+            "strategy_reflection": self._strategy.reflection_enabled,
             "spoiler_level": self._spoiler.default_level,
             "registered_workers": self._client_registry.registered_workers,
             "clients": self._client_registry.clients,

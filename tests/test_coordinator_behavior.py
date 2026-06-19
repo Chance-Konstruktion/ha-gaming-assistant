@@ -696,6 +696,38 @@ class TestTier2Escalation(unittest.TestCase):
         self.assertEqual(captured["note"], "Be aggressive.")
         self.assertEqual(self.coord.strategy_note, "Be aggressive.")
 
+    def _force_strategy_due(self):
+        """Patch STRATEGY_EVERY_N_TIPS in the module record_tip actually uses.
+
+        Re-importing the module by name can yield a different object than the
+        coordinator's instance (stub-reimport ordering across test files), so
+        reach the constant via the running function's own globals.
+        """
+        g = self.coord._strategy.record_tip.__globals__
+        orig = g["STRATEGY_EVERY_N_TIPS"]
+        g["STRATEGY_EVERY_N_TIPS"] = 1
+        return g, orig
+
+    def test_reflection_enabled_schedules_llm_call(self):
+        self.coord._strategy.async_reflect = MagicMock()
+        g, orig = self._force_strategy_due()
+        try:
+            _run(self.coord._process_image("rig1", b"frame-A"))
+        finally:
+            g["STRATEGY_EVERY_N_TIPS"] = orig
+        self.coord._strategy.async_reflect.assert_called_once()
+
+    def test_reflection_disabled_skips_llm_call(self):
+        self.coord.set_strategy_reflection(False)
+        self.coord._strategy.async_reflect = MagicMock()
+        g, orig = self._force_strategy_due()
+        try:
+            _run(self.coord._process_image("rig1", b"frame-A"))
+        finally:
+            g["STRATEGY_EVERY_N_TIPS"] = orig
+        # Deterministic baseline still applies, but no LLM reflection fires.
+        self.coord._strategy.async_reflect.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # Agent Mode safety wiring (behavioural)
