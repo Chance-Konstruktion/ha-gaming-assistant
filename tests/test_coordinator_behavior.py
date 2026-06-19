@@ -703,6 +703,56 @@ class TestAsyncLifecycle(unittest.TestCase):
         _run(self.coord._ensure_state_loaded("Doom"))
         self.assertIsNotNone(self.coord.game_state_manager.get_current("Doom"))
 
+    # -- output-quality gate -------------------------------------------------
+
+    def test_degenerate_tip_is_rejected(self):
+        self.coord._image_processor.process = AsyncMock(
+            return_value="I can't see the image."
+        )
+        self.coord._client_metadata["rig1"] = {"window_title": "Doom"}
+        _run(self.coord._process_image("rig1", b"frame"))
+        # Not surfaced and not announced; counted as rejected.
+        self.assertEqual(self.coord.tip, "Waiting for tips...")
+        self.assertFalse(self.hass.bus.fired(EVENT_NEW_TIP))
+        self.assertEqual(self.coord._tips_rejected, 1)
+        # A produced (if rejected) round-trip still clears the failure streak.
+        self.assertEqual(self.coord._llm_failure_streak, 0)
+
+    def test_repeat_tip_surfaced_but_not_reannounced(self):
+        self.coord._image_processor.process = AsyncMock(return_value="Use cover now.")
+        self.coord._client_metadata["rig1"] = {"window_title": "Doom"}
+        _run(self.coord._process_image("rig1", b"frame-A"))
+        self.assertEqual(len(self.hass.bus.fired(EVENT_NEW_TIP)), 1)
+        # Same tip again on a different frame → surfaced, but no re-announce
+        # (the new_tip event count stays at 1).
+        _run(self.coord._process_image("rig1", b"a-very-different-frame-B"))
+        self.assertEqual(self.coord.tip, "Use cover now.")
+        self.assertEqual(len(self.hass.bus.fired(EVENT_NEW_TIP)), 1)
+        self.assertEqual(self.coord._announces_suppressed, 1)
+
+    # -- pipeline health -----------------------------------------------------
+
+    def test_health_reflects_mqtt_and_failure_streak(self):
+        self.coord._mqtt_router._connected = True
+        self.coord._llm_failure_streak = 0
+        self.assertTrue(self.coord.pipeline_healthy)
+        # Sustained failures flip it unhealthy.
+        self.coord._llm_failure_streak = 3
+        self.assertFalse(self.coord.pipeline_healthy)
+        # MQTT down is also unhealthy.
+        self.coord._llm_failure_streak = 0
+        self.coord._mqtt_router._connected = False
+        self.assertFalse(self.coord.pipeline_healthy)
+
+    def test_record_error_grows_failure_streak(self):
+        self.assertEqual(self.coord._llm_failure_streak, 0)
+        self.coord._record_error(RuntimeError("boom"))
+        self.coord._record_error(RuntimeError("boom"))
+        self.assertEqual(self.coord._llm_failure_streak, 2)
+        detail = self.coord.health_detail
+        self.assertEqual(detail["llm_failure_streak"], 2)
+        self.assertEqual(detail["error_count"], 2)
+
 
 # ---------------------------------------------------------------------------
 # Tier 2 event-driven escalation gate

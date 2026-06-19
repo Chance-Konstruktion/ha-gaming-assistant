@@ -83,6 +83,7 @@ _ha_stubs["homeassistant.helpers.event"] = _event_mod
 
 _bs_mod = types.ModuleType("homeassistant.components.binary_sensor")
 _bs_mod.BinarySensorEntity = _FakeBinarySensorEntity
+_bs_mod.BinarySensorDeviceClass = types.SimpleNamespace(PROBLEM="problem")
 _ha_stubs["homeassistant.components.binary_sensor"] = _bs_mod
 
 _sw_mod = types.ModuleType("homeassistant.components.switch")
@@ -111,7 +112,10 @@ for _mod_key in list(sys.modules.keys()):
     ):
         del sys.modules[_mod_key]
 
-from custom_components.gaming_assistant.binary_sensor import GamingModeSensor
+from custom_components.gaming_assistant.binary_sensor import (
+    GamingAssistantHealthSensor,
+    GamingModeSensor,
+)
 from custom_components.gaming_assistant.switch import (
     AgentModeSwitch,
     AutoAnnounceSwitch,
@@ -148,6 +152,35 @@ class TestGamingModeBinarySensor(unittest.TestCase):
     def test_extra_state_attributes_expose_last_tip(self):
         entity = GamingModeSensor(self._coord(tip="Dodge left"))
         self.assertEqual(entity.extra_state_attributes["last_tip"], "Dodge left")
+
+
+class TestHealthBinarySensor(unittest.TestCase):
+    def _coord(self, healthy=True, detail=None):
+        coord = MagicMock()
+        coord.pipeline_healthy = healthy
+        coord.health_detail = detail or {"mqtt_connected": True}
+        return coord
+
+    def test_unique_id_and_problem_device_class(self):
+        self.assertEqual(
+            GamingAssistantHealthSensor._attr_unique_id, "gaming_assistant_healthy"
+        )
+        # PROBLEM device class so "on" means a problem exists.
+        self.assertEqual(GamingAssistantHealthSensor._attr_device_class, "problem")
+
+    def test_is_on_is_inverted_health(self):
+        # Healthy → no problem → off.
+        self.assertFalse(GamingAssistantHealthSensor(self._coord(healthy=True)).is_on)
+        # Unhealthy → problem → on.
+        self.assertTrue(GamingAssistantHealthSensor(self._coord(healthy=False)).is_on)
+
+    def test_attributes_pass_through_detail(self):
+        entity = GamingAssistantHealthSensor(
+            self._coord(detail={"llm_failure_streak": 4, "mqtt_connected": False})
+        )
+        attrs = entity.extra_state_attributes
+        self.assertEqual(attrs["llm_failure_streak"], 4)
+        self.assertFalse(attrs["mqtt_connected"])
 
 
 class TestSwitches(unittest.TestCase):

@@ -106,6 +106,11 @@ SESSION_END_DELAY = 300  # 5 minutes of inactivity before session ends
 CONF_STRATEGY_REFLECTION = "strategy_reflection"
 DEFAULT_STRATEGY_REFLECTION = True
 
+# Pipeline health: the assistant is considered unhealthy once the LLM analysis
+# path has failed this many times in a row (reset on the next success). Surfaced
+# via the Gaming Assistant Healthy binary sensor.
+HEALTH_MAX_FAILURE_STREAK = 3
+
 # Image Processing
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB hard limit for base64-decoded images
 IMAGE_DEDUP_WINDOW_SECONDS = 60
