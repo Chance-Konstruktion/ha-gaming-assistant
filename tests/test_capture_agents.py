@@ -52,6 +52,42 @@ class TestPCAgentDetection(unittest.TestCase):
         from worker.capture_agent import KNOWN_GAMES
         self.assertTrue(len(KNOWN_GAMES) > 0)
 
+    def test_known_games_includes_gui_superset(self):
+        """capture_agent is the single source of truth: the games the GUI
+        used to carry on its own must all live here so nothing was lost in
+        the dedup."""
+        from worker.capture_agent import KNOWN_GAMES
+        for game in ("Zelda", "God of War", "Red Dead", "Total War"):
+            self.assertIn(game, KNOWN_GAMES)
+
+
+class TestGUIReusesCaptureAgent(unittest.TestCase):
+    """The Windows GUI must import capture/detection from capture_agent
+    instead of duplicating them (checked statically so we don't need tkinter
+    or a display)."""
+
+    def _gui_source(self) -> str:
+        from pathlib import Path
+        gui = (
+            Path(__file__).resolve().parent.parent
+            / "worker" / "gaming_assistant_gui.py"
+        )
+        return gui.read_text(encoding="utf-8")
+
+    def test_imports_helpers_from_capture_agent(self):
+        src = self._gui_source()
+        self.assertIn("from capture_agent import", src)
+
+    def test_does_not_redefine_helpers(self):
+        src = self._gui_source()
+        self.assertNotIn("def capture_screen", src)
+        self.assertNotIn("def detect_active_game", src)
+        self.assertNotIn("KNOWN_GAMES = [", src)
+
+    def test_sets_last_will(self):
+        src = self._gui_source()
+        self.assertIn("will_set", src)
+
     @patch("worker.capture_agent._detect_window_title_x11")
     @patch("worker.capture_agent._detect_window_title_windows")
     def test_detect_window_title_returns_tuple(self, mock_win, mock_x11):

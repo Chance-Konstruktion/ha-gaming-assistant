@@ -60,12 +60,19 @@ TOPIC_CMD = "gaming_assistant/command"
 
 # ---------------------------------------------------------------------------
 # Known games for window title detection (extend as needed)
+#
+# This is the single source of truth for PC game detection — the Windows GUI
+# launcher (gaming_assistant_gui.py) imports this list and the helpers below
+# instead of keeping its own copy, so the two never drift apart.
 # ---------------------------------------------------------------------------
 KNOWN_GAMES = [
     "Wolfenstein", "Doom", "Cyberpunk", "Elden Ring",
     "Dark Souls", "Minecraft", "Counter-Strike", "Valorant",
     "Overwatch", "Baldur's Gate", "Starfield", "The Witcher",
     "Hogwarts Legacy", "Diablo", "Path of Exile", "Fortnite",
+    "Zelda", "God of War", "Horizon", "Resident Evil",
+    "Final Fantasy", "Assassin's Creed", "Red Dead",
+    "Civilization", "Age of Empires", "Total War",
 ]
 
 

@@ -30,7 +30,7 @@ jobs:
         run: find . -name '*.py' -not -path './.git/*' -exec python -m py_compile {} +
 
       - name: Lint (ruff)
-        run: ruff check custom_components/gaming_assistant tests
+        run: ruff check custom_components/gaming_assistant tests worker
 
       - name: Run tests + coverage
         run: |
