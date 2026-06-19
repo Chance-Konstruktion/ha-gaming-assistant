@@ -362,6 +362,28 @@ set_source_type:
             - "console"
             - "tabletop"
 
+analyze_board:
+  name: Analyze Chess Board
+  description: >
+    Ground a chess position given as FEN. The engine runs inside Home
+    Assistant (no extra server), so it works even in the tabletop/camera
+    scenario where there is no client. Returns the suggested move, material
+    balance, threats and game-state flags via the Chess sensor.
+  fields:
+    fen:
+      name: FEN
+      description: Board position in Forsyth-Edwards Notation
+      required: true
+      example: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+      selector:
+        text:
+    client_id:
+      name: Client ID
+      description: Optional source label (defaults to "manual")
+      required: false
+      selector:
+        text:
+
 list_game_packs:
   name: List Game Packs
   description: >

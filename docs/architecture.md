@@ -67,7 +67,7 @@ loop that re-derives everything from scratch each time.
 
 | Tier | Cadence | Cost | Job | Where |
 |------|---------|------|-----|-------|
-| **1 — Reflex / Perception** | every frame | none (no LLM) | Measure the frame: scene-change magnitude, motion class. Optional external workers add measured signals: YOLO object detection and OCR'd HUD numbers (health/ammo/score). Emits *measured* signals. | `perception.py` (`PerceptionTier`); `worker/yolo_worker.py`, `worker/ocr_agent.py` |
+| **1 — Reflex / Perception** | every frame | none (no LLM) | Measure the frame: scene-change magnitude, motion class. Optional external workers add measured signals: YOLO object detection, OCR'd HUD numbers (health/ammo/score), and game-audio cues (loudness/intensity/onsets). Emits *measured* signals. | `perception.py` (`PerceptionTier`); `worker/yolo_worker.py`, `worker/ocr_agent.py`, `worker/audio_agent.py` |
 | **2 — Tactics** | seconds | medium (vision LLM) | Produce the actual tip, consuming Tier 1 signals as input. | `image_processor.py` → `llm_backend.py` |
 | **3 — Strategy / Meta** | every few tips / session | medium (rare LLM, deterministic fallback) | Distil a session-level **strategic focus** (LLM reflection over trends + recent tips) and feed it back down into Tier 2. Also: session recap. | `strategy.py` (`StrategyTier`), `session_tracker.py` (recap) |
 
@@ -91,6 +91,44 @@ frame ─► Tier 1 (perception.py)  ── measured signals ─►  Tier 2 (ima
 Tier 1 keeps a per-client perceptual-hash memory so scene change is
 computed per capture source. The first frame from a client is always
 treated as significant.
+
+**Heavy perception runs at the edge, never in HA.** The project is built to
+run Home Assistant on modest hardware (a Raspberry Pi / small NUC) without a
+high-end server. So every expensive perceptual signal is produced by an
+*external worker* — ideally co-located with the data on the gaming PC, which
+already has the compute — and only a compact JSON of measured signals
+travels over MQTT. HA merely *fuses* those signals into the game state. This
+holds for `worker/yolo_worker.py` (object detection), `worker/ocr_agent.py`
+(HUD OCR), and `worker/audio_agent.py` (game audio). The audio worker in
+particular *must* run on the gaming PC: the sound is produced there, so it is
+captured and analysed locally (plain RMS/onset DSP — no model, no GPU) and
+only loudness/intensity/onset events are published; raw audio never touches
+HA. Even the LLM is external (Ollama); HA orchestrates rather than crunches.
+
+**The deliberate exception: chess grounding runs *in* HA.** Continuous
+perception (audio/vision/YOLO) needs a client — there is nothing to capture a
+PC game's audio or run an object detector but the gaming machine itself. But a
+physical board game is often played *at a table with just a camera and no
+client at all*. The reasoning for that case therefore cannot live on a client
+— it must live where the only always-present brain is: Home Assistant. This is
+viable because chess reasoning is **episodic and symbolic**, not continuous
+and heavy: `chess_grounding.py` uses `python-chess` (pure-Python, pip-installed
+via the manifest — no Stockfish binary, no extra server) to validate a FEN and
+compute legal moves, material, threats and a suggested move from a small
+built-in evaluator + shallow alpha-beta. It runs only on a board change, off
+the event loop, in well under the "GA needs a bit more than a Pi 4" budget.
+Its grounded facts become Tier 1 measured signals just like HUD or audio.
+
+```
+board FEN (cam/worker/automation/service) ─► chess_grounding.analyze_fen() [in HA]
+        gaming_assistant/{id}/board                 │ legal moves, material,
+        or gaming_assistant.analyze_board service    │ threats, best move
+                                                     ▼
+                              GameStateManager (chess_* measured signals)
+                                                     │
+                                                     ▼  sensor.gaming_assistant_chess
+                                              Tier 2 prompt / Tier 3 strategy
+```
 
 **Event-driven escalation.** Tier 2 is no longer run on every frame.
 `coordinator._process_image` consults `PerceptionTier.should_escalate()`
@@ -156,6 +194,8 @@ than a dead-end recap:
 | In | `gaming_assistant/{client_id}/status`| `online` / `offline` (LWT) |
 | In | `gaming_assistant/{client_id}/detections` | YOLO detections (JSON, optional worker) |
 | In | `gaming_assistant/{client_id}/hud` | OCR'd HUD numbers (JSON, optional worker) |
+| In | `gaming_assistant/{client_id}/audio` | Game-audio signals (JSON, optional client-side worker) |
+| In | `gaming_assistant/{client_id}/board` | Board position as FEN for chess grounding (JSON) |
 | Out | `gaming_assistant/tip` | Latest tip (string) |
 | Out | `gaming_assistant/status` | `analyzing` / `idle` / `error` |
 | Experimental | `gaming_assistant/{client_id}/action` | Structured JSON action (Phase 5) |

@@ -490,6 +490,48 @@ Prefer a config file? Use `--regions-file regions.json` with `{"health": [0.04, 
 
 </details>
 
+<details>
+<summary><b>Game audio worker</b> — loudness, intensity & onsets (gunshots/explosions)</summary>
+
+`worker/audio_agent.py` is an optional worker that **runs on the gaming PC** and listens to the game's own audio. It derives a few cheap signals locally — loudness (dB), an intensity class (`quiet`/`moderate`/`intense`), and sudden **onsets** like gunshots, explosions or stingers — and publishes only those as compact JSON. They land in the Game State Engine as **measured** Tier-1 signals.
+
+This is deliberately client-side: Home Assistant is meant to run on modest hardware (a Pi/NUC) **without** a high-end server, so the audio is captured and analysed on the PC where it's produced (plain RMS/onset DSP — no model, no GPU) and **only the results** travel over MQTT. Raw audio never touches HA.
+
+```bash
+pip install -r worker/requirements-audio.txt   # sounddevice + numpy + paho-mqtt
+
+# Find your loopback / "Stereo Mix" / .monitor device:
+python worker/audio_agent.py --list-devices
+
+# Capture the game's audio and stream signals to HA:
+python worker/audio_agent.py \
+  --broker 192.168.1.10 \
+  --client-id gaming-pc \
+  --device 7
+```
+
+To analyse the game's *output* (not a microphone) you need a loopback source: a WASAPI loopback / "Stereo Mix" device or virtual cable on Windows, a `.monitor` source on PulseAudio/PipeWire, or a loopback driver (e.g. BlackHole) on macOS. Set `--client-id` to match your capture agent so the signals join the right game state.
+
+</details>
+
+<details>
+<summary><b>Chess grounding</b> — real chess facts, computed inside Home Assistant</summary>
+
+For physical board games you often have **just a camera on a table and no client at all** — nothing to offload computation to. So the chess engine runs **inside Home Assistant**. It's feasible because chess reasoning is *episodic and symbolic* (not a continuous heavy stream): it uses [`python-chess`](https://pypi.org/project/chess/) — a pure-Python dependency installed automatically via the manifest, **no Stockfish binary and no extra server** — to validate a position and compute **legal moves, material balance, threats (captures/checks), and a suggested move** from a small built-in evaluator + shallow search. This turns the *opponent*/*analyst* modes from guessing into real chess.
+
+Feed it a board as FEN and read the result on `sensor.gaming_assistant_chess`:
+
+```yaml
+# Manually / from an automation / from a future board-vision worker:
+service: gaming_assistant.analyze_board
+data:
+  fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+```
+
+or publish to MQTT `gaming_assistant/{client_id}/board` with `{"fen": "..."}`. The grounded facts (`chess_best_move`, `chess_material_cp`, `chess_eval_cp`, `chess_phase`, …) flow into the game state, every tip, and the Tier 3 strategy. The engine is intentionally modest — its job is to *ground* the LLM in correct, legal chess, not to be Stockfish.
+
+</details>
+
 ---
 
 ## 🕹️ Agent Mode / Player 2 *(experimental)*

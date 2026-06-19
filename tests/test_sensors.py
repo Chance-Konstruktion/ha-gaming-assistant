@@ -70,6 +70,7 @@ from custom_components.gaming_assistant.sensor import (
     GamingAssistantAgentActionSensor,
     GamingAssistantPerceptionSensor,
     GamingAssistantStrategySensor,
+    GamingAssistantChessSensor,
 )
 
 
@@ -221,6 +222,40 @@ class TestTierSensors(unittest.TestCase):
         sensor = GamingAssistantStrategySensor(coord)
         self.assertTrue(sensor.native_value.endswith("..."))
         self.assertLessEqual(len(sensor.native_value), 250)
+
+    def test_chess_sensor_placeholder_when_no_board(self):
+        coord = MagicMock()
+        coord.chess_grounding = {}
+        sensor = GamingAssistantChessSensor(coord)
+        self.assertEqual(sensor.native_value, "No board yet")
+        self.assertEqual(
+            GamingAssistantChessSensor._attr_unique_id, "gaming_assistant_chess"
+        )
+
+    def test_chess_sensor_shows_best_move_and_attrs(self):
+        coord = MagicMock()
+        coord.chess_grounding = {
+            "available": True,
+            "valid": True,
+            "best_move": "e4",
+            "summary": "white to move, best e4",
+            "side_to_move": "white",
+            "eval_white_cp": 30,
+            "material_cp": 0,
+            "phase": "opening",
+            "legal_moves": 20,
+            "is_check": False,
+            "is_checkmate": False,
+            "captures": [],
+            "checks": [],
+            "fen": "startpos",
+        }
+        sensor = GamingAssistantChessSensor(coord)
+        self.assertEqual(sensor.native_value, "e4")
+        attrs = sensor.extra_state_attributes
+        self.assertEqual(attrs["side_to_move"], "white")
+        self.assertEqual(attrs["eval_white_cp"], 30)
+        self.assertEqual(attrs["phase"], "opening")
 
 
 if __name__ == "__main__":

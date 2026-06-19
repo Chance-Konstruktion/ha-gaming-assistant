@@ -9,22 +9,21 @@ Can be frozen into a single .exe with PyInstaller:
 """
 
 import configparser
-import hashlib
 import json
 import logging
-import os
 import platform
 import sys
 import threading
 import time
 import tkinter as tk
-from io import BytesIO
 from pathlib import Path
 from tkinter import messagebox, scrolledtext
 
 import paho.mqtt.client as mqtt
-from mss import mss
-from PIL import Image
+
+# Capture + game detection live in capture_agent.py (the single source of
+# truth); import them here so the GUI never drifts from the CLI agent.
+from capture_agent import capture_screen, detect_active_game, detect_window_title
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -51,19 +50,6 @@ logging.basicConfig(
     ],
 )
 log = logging.getLogger("gaming_assistant")
-
-# ---------------------------------------------------------------------------
-# Known games
-# ---------------------------------------------------------------------------
-KNOWN_GAMES = [
-    "Wolfenstein", "Doom", "Cyberpunk", "Elden Ring",
-    "Dark Souls", "Minecraft", "Counter-Strike", "Valorant",
-    "Overwatch", "Baldur's Gate", "Starfield", "The Witcher",
-    "Hogwarts Legacy", "Diablo", "Path of Exile", "Fortnite",
-    "Zelda", "God of War", "Horizon", "Resident Evil",
-    "Final Fantasy", "Assassin's Creed", "Red Dead",
-    "Civilization", "Age of Empires", "Total War",
-]
 
 TOPIC_CMD = "gaming_assistant/command"
 
@@ -104,42 +90,6 @@ def save_config(settings: dict) -> None:
     config["gaming_assistant"] = settings
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         config.write(f)
-
-
-# ---------------------------------------------------------------------------
-# Screenshot + game detection (same as capture_agent.py)
-# ---------------------------------------------------------------------------
-def capture_screen(monitor_index: int, resize: tuple, quality: int) -> tuple:
-    with mss() as sct:
-        monitors = sct.monitors
-        if monitor_index >= len(monitors):
-            monitor_index = 1
-        shot = sct.grab(monitors[monitor_index])
-        img = Image.frombytes("RGB", shot.size, shot.rgb)
-
-    img = img.resize(resize, Image.LANCZOS)
-    buffer = BytesIO()
-    img.save(buffer, format="JPEG", quality=quality)
-    jpeg_bytes = buffer.getvalue()
-    frame_hash = hashlib.md5(jpeg_bytes).hexdigest()
-    return jpeg_bytes, frame_hash
-
-
-def detect_window_title() -> tuple:
-    try:
-        import win32gui
-        title = win32gui.GetWindowText(win32gui.GetForegroundWindow())
-        return title, "win32gui"
-    except Exception:
-        return "", "none"
-
-
-def detect_active_game(window_title: str) -> str:
-    title_lower = window_title.lower()
-    for game in KNOWN_GAMES:
-        if game.lower() in title_lower:
-            return game
-    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -345,10 +295,17 @@ class GamingAssistantApp:
             if s["username"]:
                 client.username_pw_set(s["username"], s["password"])
 
+            # Last Will (LWT): broker marks us offline if we drop unexpectedly,
+            # matching capture_agent.py so HA presence works the same way.
+            status_topic = f"gaming_assistant/{client_id}/status"
+            client.will_set(status_topic, payload="offline", qos=1, retain=True)
+
             def on_connect(c, ud, flags, rc):
                 if rc == 0:
                     self._log(f"MQTT verbunden mit {broker}:{port}")
                     c.subscribe(TOPIC_CMD)
+                    # Publish online presence (clears the retained LWT).
+                    c.publish(status_topic, "online", qos=1, retain=True)
                 else:
                     self._log(f"MQTT Fehler (rc={rc})")
 
