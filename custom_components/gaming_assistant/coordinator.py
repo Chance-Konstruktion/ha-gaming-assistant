@@ -50,6 +50,7 @@ from .const import (
     DOMAIN,
     EVENT_AGENT_ACTION,
     EVENT_NEW_TIP,
+    HEALTH_MAX_FAILURE_STREAK,
     MQTT_ACTION_TOPIC,
     MQTT_YOLO_COMMAND_TOPIC,
 )
@@ -62,6 +63,7 @@ from .camera_watcher import CameraWatcher
 from .client_registry import ClientRegistry
 from .mqtt_router import MqttRouter
 from . import chess_grounding
+from . import tip_filter
 from .perception import PerceptionTier
 from .prompt_packs import PromptPackLoader
 from .session_tracker import SessionTracker
@@ -146,6 +148,11 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         # Runtime metrics
         self._latency: float = 0.0
         self._error_count: int = 0
+        # Consecutive LLM analysis failures (reset on success) — feeds the
+        # pipeline-health binary sensor. Plus output-quality-gate counters.
+        self._llm_failure_streak: int = 0
+        self._tips_rejected: int = 0
+        self._announces_suppressed: int = 0
         self._frames_processed: int = 0
         # Tier 2 escalation: monotonic timestamp of the last LLM analysis
         # attempt (None = never) + count of frames handled by Tier 1 only.
@@ -751,6 +758,34 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         return self._chess_grounding
 
     @property
+    def pipeline_healthy(self) -> bool:
+        """Whether the core pipeline is operational.
+
+        Healthy = MQTT subscriptions are up and the LLM analysis path is not
+        in a sustained failure streak. It reflects infrastructure health, not
+        whether you are actively gaming (an idle scene is still healthy).
+        """
+        return (
+            self.mqtt_connected
+            and self._llm_failure_streak < HEALTH_MAX_FAILURE_STREAK
+        )
+
+    @property
+    def health_detail(self) -> dict[str, Any]:
+        """Diagnostics behind the health verdict (binary-sensor attributes)."""
+        return {
+            "mqtt_connected": self.mqtt_connected,
+            "llm_failure_streak": self._llm_failure_streak,
+            "error_count": self._error_count,
+            "last_error_message": self._last_error_message,
+            "last_error_timestamp": self._last_error_timestamp,
+            "last_analysis": self._last_analysis,
+            "frames_processed": self._frames_processed,
+            "tips_rejected": self._tips_rejected,
+            "announces_suppressed": self._announces_suppressed,
+        }
+
+    @property
     def strategy_note(self) -> str:
         """Tier 3 strategic focus for the current game (empty if none)."""
         return self._strategy.note(self._current_game)
@@ -774,6 +809,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     def _record_error(self, err: BaseException) -> None:
         """Record an error for the diagnostics sensors."""
         self._error_count += 1
+        self._llm_failure_streak += 1
         self._last_error_message = str(err) or err.__class__.__name__
         self._last_error_type = err.__class__.__name__
         self._last_error_timestamp = time.strftime(
@@ -952,7 +988,16 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 )
                 self._latency = round(time.monotonic() - start, 3)
 
+                # A produced tip counts as a successful round-trip, even if the
+                # output gate later suppresses it — the backend is healthy.
                 if tip:
+                    self._llm_failure_streak = 0
+
+                # Output-quality gate: reject degenerate output (empty,
+                # refusals) and avoid re-announcing a repeat of the last tip.
+                verdict = tip_filter.evaluate_tip(tip or "", self._tip)
+
+                if tip and verdict != "reject":
                     self._tip = tip
                     self._tip_count += 1
                     self._frames_processed += 1
@@ -985,12 +1030,20 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                             self._strategy.async_reflect(self._current_game)
                         )
 
-                    # Fire event for automations
-                    self._fire_new_tip_event(tip, self._current_game, client_id)
-
-                    # Auto-announce via TTS if enabled
-                    if self._auto_announce and self._tts_entity:
-                        self.hass.async_create_task(self.async_announce(tip))
+                    # A repeat of the last tip is surfaced on the sensor but
+                    # not re-announced, so the coach doesn't talk over itself
+                    # or re-fire automations for the same situation.
+                    if verdict == "accept":
+                        # Fire event for automations
+                        self._fire_new_tip_event(
+                            tip, self._current_game, client_id
+                        )
+                        # Auto-announce via TTS if enabled
+                        if self._auto_announce and self._tts_entity:
+                            self.hass.async_create_task(self.async_announce(tip))
+                    else:  # repeat
+                        self._announces_suppressed += 1
+                        _LOGGER.debug("Repeat tip suppressed from announce")
 
                     # Agent Mode: also produce + publish a controller action.
                     if self._agent_mode:
@@ -998,6 +1051,12 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                             client_id, image_bytes, self._current_game
                         )
                 else:
+                    # Either no tip, or the gate rejected degenerate output.
+                    if tip and verdict == "reject":
+                        self._tips_rejected += 1
+                        _LOGGER.debug(
+                            "Degenerate tip rejected: %s", (tip or "")[:60]
+                        )
                     self._frames_processed += 1
                     self._status = "idle"
 
