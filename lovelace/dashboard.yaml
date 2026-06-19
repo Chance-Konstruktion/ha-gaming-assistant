@@ -107,6 +107,36 @@ cards:
       _No session summary yet._
       {% endif %}
 
+  # -- Tiered Cognition ------------------------------------------------------
+  - type: markdown
+    content: |
+      ### Strategic Focus
+      {% set note = state_attr('sensor.gaming_assistant_strategy', 'full_strategy') or states('sensor.gaming_assistant_strategy') %}
+      {% if note and note != 'No focus yet' %}
+      > {{ note }}
+      {% else %}
+      _No strategic focus yet._
+      {% endif %}
+
+  - type: horizontal-stack
+    cards:
+      - type: entity
+        entity: sensor.gaming_assistant_scene_change
+        name: Scene Change
+        icon: mdi:motion-sensor
+
+      - type: entity
+        entity: sensor.gaming_assistant_scene_change
+        name: Motion
+        attribute: frame_motion
+        icon: mdi:run-fast
+
+      - type: entity
+        entity: sensor.gaming_assistant_scene_change
+        name: Frames Skipped
+        attribute: frames_skipped
+        icon: mdi:debug-step-over
+
   # -- Last Received Frame (Debug) -------------------------------------------
   - type: picture-entity
     entity: image.gaming_assistant_last_frame

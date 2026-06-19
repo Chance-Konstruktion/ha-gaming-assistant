@@ -96,6 +96,40 @@ class TestProcessPipeline(unittest.TestCase):
         self.assertIsNotNone(current)
         self.assertEqual(current.get("health"), 40)
 
+    def test_measured_signals_merged_into_game_state(self):
+        # Tier 1 measured signals are passed in and must land in the single
+        # per-frame snapshot alongside the tip-scraped observations.
+        proc = _make_processor("Your health is 40.")
+        _run(proc.process(
+            b"frame-m", "rig1", {"window_title": "Doom"},
+            measured={"scene_change": 0.42, "frame_motion": "high"},
+        ))
+        current = proc._game_state.get_current("Doom")
+        self.assertEqual(current.get("scene_change"), 0.42)
+        self.assertEqual(current.get("frame_motion"), "high")
+        # tip-scraped value still present in the same snapshot
+        self.assertEqual(current.get("health"), 40)
+
+    def test_measured_signals_override_scraped(self):
+        # On a key collision, the *measured* value wins over the guessed one.
+        proc = _make_processor("Your score is 10.")
+        _run(proc.process(
+            b"frame-o", "rig1", {"window_title": "Doom"},
+            measured={"score": 999},
+        ))
+        current = proc._game_state.get_current("Doom")
+        self.assertEqual(current.get("score"), 999)
+
+    def test_strategy_note_injected_into_prompt(self):
+        # Tier 3 feedback: the strategic focus must reach the LLM prompt.
+        proc = _make_processor("ok")
+        _run(proc.process(
+            b"frame-s", "rig1", {"window_title": "Doom"},
+            strategy_note="Play defensively.",
+        ))
+        prompt = proc._backend.generate.call_args[0][0]
+        self.assertIn("Strategic focus: Play defensively.", prompt)
+
 
 class TestAskPipeline(unittest.TestCase):
     def test_ask_with_image(self):

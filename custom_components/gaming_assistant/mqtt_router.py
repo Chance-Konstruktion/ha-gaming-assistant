@@ -22,6 +22,7 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
     MQTT_DETECTIONS_TOPIC,
+    MQTT_HUD_TOPIC,
     MQTT_IMAGE_TOPIC,
     MQTT_META_TOPIC,
     MQTT_MODE_TOPIC,
@@ -187,6 +188,19 @@ class MqttRouter:
                 _LOGGER.warning("Invalid detections from %s: %s", client_id, err)
 
         @callback
+        def hud_received(msg) -> None:
+            """Handle OCR'd HUD numbers from the OCR worker (Tier 1)."""
+            client_id = msg.topic.split("/")[1]
+            try:
+                payload = msg.payload
+                if isinstance(payload, bytes):
+                    payload = payload.decode("utf-8")
+                data = json.loads(payload)
+                self.handle_hud(client_id, data)
+            except (json.JSONDecodeError, UnicodeDecodeError) as err:
+                _LOGGER.warning("Invalid HUD payload from %s: %s", client_id, err)
+
+        @callback
         def client_status_received(msg) -> None:
             """Handle per-client status on ``gaming_assistant/{id}/status``.
 
@@ -247,14 +261,47 @@ class MqttRouter:
         unsub_detections = await mqtt.async_subscribe(
             hass, MQTT_DETECTIONS_TOPIC, detections_received, 0
         )
+        unsub_hud = await mqtt.async_subscribe(
+            hass, MQTT_HUD_TOPIC, hud_received, 0
+        )
         unsub_client_status = await mqtt.async_subscribe(
             hass, MQTT_YOLO_STATUS_TOPIC, client_status_received, 0
         )
 
         self._unsubscribe_callbacks = [
             unsub_tip, unsub_mode, unsub_status, unsub_image, unsub_meta,
-            unsub_register, unsub_detections, unsub_client_status,
+            unsub_register, unsub_detections, unsub_hud, unsub_client_status,
         ]
+
+    # -- HUD (OCR) handling --------------------------------------------------
+
+    def handle_hud(self, client_id: str, data: dict[str, Any]) -> None:
+        """Feed OCR'd HUD numbers into the game state as measured signals.
+
+        The OCR worker reads numeric HUD fields (health, ammo, score, …)
+        straight off the frame and publishes them as JSON. These are Tier 1
+        *measured* observations — far more reliable than scraping the same
+        numbers out of the LLM's prose — so they go directly into the game
+        state for the current game.
+        """
+        fields = data.get("fields")
+        if not isinstance(fields, dict):
+            fields = data
+        # Keep only real numbers (bool is an int subclass — exclude it).
+        measured = {
+            str(k): v
+            for k, v in fields.items()
+            if isinstance(v, (int, float)) and not isinstance(v, bool)
+        }
+        if not measured:
+            return
+
+        game = self.coord.current_game or "unknown"
+        self.coord.game_state_manager.update(
+            game, measured, source=f"ocr:{client_id}"
+        )
+        _LOGGER.debug("HUD from %s: %s", client_id, measured)
+        self.coord._notify_update()
 
     # -- YOLO detection handling ---------------------------------------------
 

@@ -83,8 +83,8 @@ Tracks structured state across frames (health declining, phase changes, momentum
 **⚡ Pluggable backends**
 Ollama · LM Studio · GPT-4o · Gemini · DeepSeek · Groq. Vision or text-only. Raspberry Pi friendly.
 
-**🟢 Optional YOLO worker**
-Real-time object detection on CUDA / NCNN / Hailo-8L / TFLite, feeding the Game State Engine.
+**🟢 Optional YOLO + OCR workers**
+Real-time object detection (CUDA / NCNN / Hailo-8L / TFLite) and HUD number OCR (health/ammo/score) — both feed *measured* values straight into the Game State Engine.
 
 </td>
 </tr>
@@ -469,6 +469,27 @@ python worker/capture_agent_android.py \
 
 </details>
 
+<details>
+<summary><b>HUD OCR worker</b> — read health/ammo/score straight off the screen</summary>
+
+`worker/ocr_agent.py` is an optional external worker that subscribes to your game frames, runs OCR on **configured HUD regions**, and publishes the numbers to Home Assistant. These land in the Game State Engine as **measured** values (Tier 1) — far more reliable than letting the LLM guess them from the picture.
+
+Regions are given as fractions of the frame (`x,y,w,h` in `0..1`), so they're resolution-independent:
+
+```bash
+pip install -r worker/requirements-ocr.txt   # opencv + numpy + pytesseract
+# Tesseract engine: apt install tesseract-ocr  (or brew install tesseract)
+
+python worker/ocr_agent.py \
+  --broker 192.168.1.10 \
+  --regions "health:0.04,0.90,0.10,0.05;ammo:0.86,0.90,0.10,0.05" \
+  --max-fps 1
+```
+
+Prefer a config file? Use `--regions-file regions.json` with `{"health": [0.04, 0.90, 0.10, 0.05], ...}`. Use `--engine easyocr` for a pure-pip alternative to Tesseract. The numbers show up on `sensor.gaming_assistant_scene_change`'s game state and flow into every tip and the Tier 3 strategy.
+
+</details>
+
 ---
 
 ## 🕹️ Agent Mode / Player 2 *(experimental)*
@@ -568,6 +589,8 @@ data:
 | `sensor.gaming_assistant_registered_workers` | Auto-discovered workers |
 | `sensor.gaming_assistant_session_summary` | Last session summary |
 | `sensor.gaming_assistant_agent_action` | Agent Mode audit: last decision status (attrs: full action, published/failed counts, whitelist) |
+| `sensor.gaming_assistant_scene_change` | Tier 1 perception: last frame's scene-change magnitude (attrs: frame_motion, frames_skipped) |
+| `sensor.gaming_assistant_strategy` | Tier 3 strategic focus fed into tips (attrs: full_strategy, game) |
 | `binary_sensor.gaming_mode` | ON when a game is detected |
 | `image.gaming_assistant_last_frame` | Last received JPEG (debug) |
 | `conversation.gaming_assistant` | Voice control via HA Assist |

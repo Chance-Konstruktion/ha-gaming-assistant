@@ -11,6 +11,7 @@ coordinator and exercise its logic for real.
 import asyncio
 import sys
 import tempfile
+import time
 import types
 import unittest
 from types import SimpleNamespace
@@ -117,6 +118,7 @@ from custom_components.gaming_assistant.const import (  # noqa: E402
     EVENT_NEW_TIP,
     EVENT_SESSION_ENDED,
     MQTT_DETECTIONS_TOPIC,
+    MQTT_HUD_TOPIC,
     MQTT_IMAGE_TOPIC,
     MQTT_META_TOPIC,
     MQTT_MODE_TOPIC,
@@ -338,7 +340,7 @@ class TestMqttHandlers(unittest.TestCase):
         self.coord, self.hass = _make_coord()
         _MQTT.async_subscribe.reset_mock()
         _run(self.coord._subscribe_topics())
-        # subscribe_topics registers exactly 8 handlers in a fixed order;
+        # subscribe_topics registers exactly 9 handlers in a fixed order;
         # index them by the topic they were bound to.
         self.cb = {
             call.args[1]: call.args[2]
@@ -346,7 +348,7 @@ class TestMqttHandlers(unittest.TestCase):
         }
 
     def test_subscribes_to_all_topics(self):
-        self.assertEqual(len(self.cb), 8)
+        self.assertEqual(len(self.cb), 9)
 
     def test_tip_handler(self):
         self.cb[MQTT_TIP_TOPIC](_msg(MQTT_TIP_TOPIC, b"Use cover"))
@@ -397,6 +399,30 @@ class TestMqttHandlers(unittest.TestCase):
         )
         current = self.coord.game_state_manager.get_current("Doom")
         self.assertEqual(current.get("yolo_top_object"), "enemy")
+
+    def test_hud_handler_feeds_measured_numbers(self):
+        self.coord._current_game = "Doom"
+        self.cb[MQTT_HUD_TOPIC](
+            _msg(
+                "gaming_assistant/rig1/hud",
+                b'{"fields": {"health": 80, "ammo": 24}, "ocr_ms": 5}',
+            )
+        )
+        current = self.coord.game_state_manager.get_current("Doom")
+        self.assertEqual(current.get("health"), 80)
+        self.assertEqual(current.get("ammo"), 24)
+
+    def test_hud_handler_ignores_non_numeric(self):
+        self.coord._current_game = "Doom"
+        self.cb[MQTT_HUD_TOPIC](
+            _msg("gaming_assistant/rig1/hud", b'{"fields": {"label": "x"}}')
+        )
+        # Non-numeric fields produce no snapshot.
+        self.assertIsNone(self.coord.game_state_manager.get_current("Doom"))
+
+    def test_hud_handler_ignores_garbage(self):
+        # Invalid JSON must not raise out of the callback.
+        self.cb[MQTT_HUD_TOPIC](_msg("gaming_assistant/rig1/hud", b"not-json"))
 
     def test_yolo_status_json_recorded(self):
         self.cb[MQTT_YOLO_STATUS_TOPIC](
@@ -607,6 +633,68 @@ class TestAsyncLifecycle(unittest.TestCase):
         self.coord.game_state_manager._states.pop("Doom", None)
         _run(self.coord._ensure_state_loaded("Doom"))
         self.assertIsNotNone(self.coord.game_state_manager.get_current("Doom"))
+
+
+# ---------------------------------------------------------------------------
+# Tier 2 event-driven escalation gate
+# ---------------------------------------------------------------------------
+
+class TestTier2Escalation(unittest.TestCase):
+    def setUp(self):
+        self.coord, self.hass = _make_coord()
+        self.coord._image_processor.process = AsyncMock(return_value="Tip.")
+        self.coord._client_metadata["rig1"] = {"window_title": "Doom"}
+
+    def test_first_frame_escalates(self):
+        # First frame for a client is always significant -> Tier 2 runs.
+        _run(self.coord._process_image("rig1", b"frame-A"))
+        self.assertEqual(self.coord._image_processor.process.await_count, 1)
+        self.assertEqual(self.coord.frames_skipped, 0)
+
+    def test_static_frame_is_skipped(self):
+        _run(self.coord._process_image("rig1", b"same-frame"))
+        # Identical frame within the heartbeat -> no LLM call, counted skipped.
+        _run(self.coord._process_image("rig1", b"same-frame"))
+        self.assertEqual(self.coord._image_processor.process.await_count, 1)
+        self.assertEqual(self.coord.frames_skipped, 1)
+        self.assertEqual(self.coord.status, "idle")
+
+    def test_skipped_frame_records_measured_state(self):
+        _run(self.coord._process_image("rig1", b"same-frame"))
+        _run(self.coord._process_image("rig1", b"same-frame"))
+        current = self.coord.game_state_manager.get_current("Doom")
+        self.assertIsNotNone(current)
+        self.assertEqual(current.get("frame_motion"), "static")
+
+    def test_heartbeat_forces_analysis_on_static_frame(self):
+        _run(self.coord._process_image("rig1", b"same-frame"))
+        # Pretend the last Tier 2 analysis was long ago; an identical frame
+        # must still escalate via the heartbeat instead of being skipped.
+        # Use a delta from *now* (monotonic's absolute value is unspecified
+        # and can be < the heartbeat on a freshly booted CI runner).
+        self.coord._last_tier2_ts = time.monotonic() - 10_000
+        _run(self.coord._process_image("rig1", b"same-frame"))
+        self.assertEqual(self.coord._image_processor.process.await_count, 2)
+
+    def test_changed_frame_escalates(self):
+        _run(self.coord._process_image("rig1", b"frame-A"))
+        _run(self.coord._process_image("rig1", b"a-very-different-frame-B"))
+        self.assertEqual(self.coord._image_processor.process.await_count, 2)
+
+    def test_strategy_note_fed_into_tier2(self):
+        # Tier 3 note must flow back down into the Tier 2 processor call.
+        self.coord._strategy._notes["Doom"] = "Be aggressive."
+        captured = {}
+
+        async def fake_process(image_bytes, client_id, metadata,
+                               measured=None, strategy_note=""):
+            captured["note"] = strategy_note
+            return "tip"
+
+        self.coord._image_processor.process = fake_process
+        _run(self.coord._process_image("rig1", b"frame-A"))
+        self.assertEqual(captured["note"], "Be aggressive.")
+        self.assertEqual(self.coord.strategy_note, "Be aggressive.")
 
 
 # ---------------------------------------------------------------------------

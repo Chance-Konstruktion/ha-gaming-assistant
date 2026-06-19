@@ -58,6 +58,90 @@ Windows, Linux, macOS, Android, Android TV, and Raspberry Pi / HDMI bridges.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## Tiered Cognition (perception → tactics → strategy)
+
+The reasoning stack is organised as **tiers** staggered by latency and
+cost. Cheap perception runs on every frame and decides when it is worth
+spending an expensive model call — instead of one flat fixed-interval LLM
+loop that re-derives everything from scratch each time.
+
+| Tier | Cadence | Cost | Job | Where |
+|------|---------|------|-----|-------|
+| **1 — Reflex / Perception** | every frame | none (no LLM) | Measure the frame: scene-change magnitude, motion class. Optional external workers add measured signals: YOLO object detection and OCR'd HUD numbers (health/ammo/score). Emits *measured* signals. | `perception.py` (`PerceptionTier`); `worker/yolo_worker.py`, `worker/ocr_agent.py` |
+| **2 — Tactics** | seconds | medium (vision LLM) | Produce the actual tip, consuming Tier 1 signals as input. | `image_processor.py` → `llm_backend.py` |
+| **3 — Strategy / Meta** | every few tips / session | medium (rare LLM, deterministic fallback) | Distil a session-level **strategic focus** (LLM reflection over trends + recent tips) and feed it back down into Tier 2. Also: session recap. | `strategy.py` (`StrategyTier`), `session_tracker.py` (recap) |
+
+**Why Tier 1 exists.** Structured game state used to be produced *after*
+the LLM, by scraping the prose tip back out with regexes
+(`game_state.extract_observations_from_tip`). That made perception
+downstream of, and dependent on, the model's wording. Tier 1 inverts the
+flow: it **measures first** and hands the measurements to Tier 2 as input.
+On a key collision the measured value wins over the scraped guess, and all
+signals for a frame merge into a *single* state snapshot.
+
+```
+frame ─► Tier 1 (perception.py)  ── measured signals ─►  Tier 2 (image_processor.py)
+            scene_change, motion        (prompt input)        vision LLM ─► tip
+                                                                   │
+                                                                   ▼
+                                                       GameStateManager (one snapshot/frame:
+                                                       measured signals override tip-scraped)
+```
+
+Tier 1 keeps a per-client perceptual-hash memory so scene change is
+computed per capture source. The first frame from a client is always
+treated as significant.
+
+**Event-driven escalation.** Tier 2 is no longer run on every frame.
+`coordinator._process_image` consults `PerceptionTier.should_escalate()`
+and spends an LLM call only when:
+
+- the frame is a **significant** change (`scene_change ≥ SCENE_CHANGE_SIGNIFICANT`
+  or it is the first frame for the client), or
+- the **heartbeat** has elapsed (`TIER2_HEARTBEAT_SECONDS`) since the last
+  analysis, so a paused or slowly-changing scene still gets a refreshed tip
+  instead of going silent.
+
+Frames that don't escalate are handled by Tier 1 only: their measured
+signals are still written to the game state (keeping trends flowing), the
+status returns to `idle`, and no LLM call is made. The count of such
+frames is exposed as `frames_skipped` for diagnostics.
+
+```
+frame ─► Tier 1 ─► should_escalate(significant | heartbeat)?
+                       │ no  ──► record measured state, idle, frames_skipped++
+                       │ yes ──► Tier 2 (LLM) ─► tip + merged snapshot
+                                     ▲                    │
+                          strategy_note (fed back down)   ▼
+                                     └────────  Tier 3: record_tip ─► refresh focus
+```
+
+### Tier 3 feedback loop
+
+`StrategyTier` (`strategy.py`) makes the strategy a *live* input rather
+than a dead-end recap:
+
+- After each Tier 2 tip the coordinator calls `record_tip(game, tip)`.
+  Every `STRATEGY_EVERY_N_TIPS` tips it recomputes a deterministic baseline
+  **strategic focus** from the trends `GameStateManager.detect_trends()`
+  already surfaces (e.g. declining health → "prioritise survival and play
+  defensively"; a stalled phase → "try a different approach"; sinking
+  momentum → "change tactics"), and signals that a richer reflection is
+  due.
+- When due, the coordinator schedules `async_reflect(game)` in the
+  **background** (so it never adds latency to the tip path). It asks the
+  configured text backend for a single strategic-focus sentence grounded
+  in the trends + recent tips, and upgrades the note. If the LLM is
+  unavailable or returns nothing it keeps the deterministic baseline —
+  Tier 3 degrades gracefully and never breaks the pipeline.
+- Before each Tier 2 call the coordinator reads `note(game)` and passes it
+  as `strategy_note`, which `ImageProcessor.process` puts at the **top** of
+  the prompt context (above the Tier 1 live signals and the rolling state
+  block). So tactical tips reason under the session's higher-level frame.
+- The current focus is exposed as `strategy_note` for diagnostics. The
+  deterministic synthesiser can later be swapped for an LLM "reflection"
+  behind the same interface and injection point.
+
 ## MQTT Topic Conventions
 
 | Direction | Topic | Payload |
@@ -65,6 +149,8 @@ Windows, Linux, macOS, Android, Android TV, and Raspberry Pi / HDMI bridges.
 | In | `gaming_assistant/{client_id}/image` | JPEG bytes |
 | In | `gaming_assistant/{client_id}/meta`  | JSON (game hint, resolution, …) |
 | In | `gaming_assistant/{client_id}/status`| `online` / `offline` (LWT) |
+| In | `gaming_assistant/{client_id}/detections` | YOLO detections (JSON, optional worker) |
+| In | `gaming_assistant/{client_id}/hud` | OCR'd HUD numbers (JSON, optional worker) |
 | Out | `gaming_assistant/tip` | Latest tip (string) |
 | Out | `gaming_assistant/status` | `analyzing` / `idle` / `error` |
 | Experimental | `gaming_assistant/{client_id}/action` | Structured JSON action (Phase 5) |

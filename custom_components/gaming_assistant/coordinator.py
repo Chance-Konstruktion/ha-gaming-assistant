@@ -59,9 +59,11 @@ from .llm_backend import LLMBackend, create_backend
 from .camera_watcher import CameraWatcher
 from .client_registry import ClientRegistry
 from .mqtt_router import MqttRouter
+from .perception import PerceptionTier
 from .prompt_packs import PromptPackLoader
 from .session_tracker import SessionTracker
 from .spoiler import SpoilerManager
+from .strategy import StrategyTier
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -126,10 +128,26 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         # MQTT subscription routing + connection state + YOLO worker status.
         self._mqtt_router = MqttRouter(self)
 
+        # Tier 1 — cheap per-frame perception (scene change, motion) that
+        # feeds measured signals into Tier 2 instead of scraping them back
+        # out of the LLM's prose afterwards.
+        self._perception = PerceptionTier(self)
+
+        # Tier 3 — slow session-level strategy that distils a focus from
+        # game-state trends and feeds it back down into the Tier 2 prompt.
+        self._strategy = StrategyTier(self)
+
         # Runtime metrics
         self._latency: float = 0.0
         self._error_count: int = 0
         self._frames_processed: int = 0
+        # Tier 2 escalation: monotonic timestamp of the last LLM analysis
+        # attempt (None = never) + count of frames handled by Tier 1 only.
+        self._last_tier2_ts: float | None = None
+        self._frames_skipped: int = 0
+        # Tier 1 perception readout (last measured frame).
+        self._last_scene_change: float = 0.0
+        self._last_frame_motion: str = ""
         self._last_analysis: str = ""
         self._last_error_message: str = ""
         self._last_error_type: str = ""
@@ -696,6 +714,26 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         return self._frames_processed
 
     @property
+    def frames_skipped(self) -> int:
+        """Frames handled by Tier 1 only (no LLM call)."""
+        return self._frames_skipped
+
+    @property
+    def scene_change(self) -> float:
+        """Tier 1 scene-change magnitude of the last measured frame (0..1)."""
+        return self._last_scene_change
+
+    @property
+    def frame_motion(self) -> str:
+        """Tier 1 motion class of the last measured frame."""
+        return self._last_frame_motion
+
+    @property
+    def strategy_note(self) -> str:
+        """Tier 3 strategic focus for the current game (empty if none)."""
+        return self._strategy.note(self._current_game)
+
+    @property
     def last_analysis(self) -> str:
         return self._last_analysis
 
@@ -787,25 +825,66 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     async def _process_image(self, client_id: str, image_bytes: bytes) -> None:
         """Run the image processing pipeline for a received image."""
         async with self._process_lock:
-            self._status = "analyzing"
             self._current_client_id = client_id
             self._client_registry.set_active(client_id)
             self._gaming_mode = True
             self._touch_client(client_id, self._client_metadata.get(client_id, {}))
+
+            metadata = self._client_metadata.get(client_id, {})
+            metadata["assistant_mode"] = self._assistant_mode
+
+            game = metadata.get("window_title", "")
+            if game:
+                self._current_game = game
+                await self._ensure_state_loaded(game)
+
+            # Tier 1: cheaply measure the frame (scene change, motion).
+            perception = await self._perception.observe(
+                client_id, image_bytes, metadata
+            )
+            self._last_scene_change = perception.scene_change
+            self._last_frame_motion = perception.measured.get("frame_motion", "")
+
+            # Escalation gate: only spend a Tier 2 (LLM) call on a significant
+            # change, or when the heartbeat has elapsed. Otherwise record the
+            # measured signals and skip the expensive analysis entirely.
+            now = time.monotonic()
+            idle = (
+                float("inf")
+                if self._last_tier2_ts is None
+                else now - self._last_tier2_ts
+            )
+            if not self._perception.should_escalate(perception, idle):
+                self._frames_skipped += 1
+                if game and perception.measured:
+                    self._game_state.update(
+                        game, perception.measured,
+                        source=f"perception:{client_id}",
+                    )
+                self._status = "idle"
+                _LOGGER.debug(
+                    "Tier 2 skipped for %s (scene_change=%.3f, idle=%.0fs)",
+                    client_id, perception.scene_change, idle,
+                )
+                self.async_set_updated_data(self._build_data())
+                return
+
+            # Tier 2 escalation — run the LLM analysis.
+            self._last_tier2_ts = now
+            self._status = "analyzing"
             self.async_set_updated_data(self._build_data())
 
             try:
-                metadata = self._client_metadata.get(client_id, {})
-                metadata["assistant_mode"] = self._assistant_mode
-
-                game = metadata.get("window_title", "")
-                if game:
-                    self._current_game = game
-                    await self._ensure_state_loaded(game)
-
                 start = time.monotonic()
+                # Tier 3 feedback: inject the current strategic focus so the
+                # tactical tip reasons under the session's higher-level frame.
+                strategy_note = self._strategy.note(game)
                 tip = await asyncio.wait_for(
-                    self._image_processor.process(image_bytes, client_id, metadata),
+                    self._image_processor.process(
+                        image_bytes, client_id, metadata,
+                        measured=perception.measured,
+                        strategy_note=strategy_note,
+                    ),
                     timeout=self._analysis_timeout + 5,
                 )
                 self._latency = round(time.monotonic() - start, 3)
@@ -829,6 +908,16 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
                     # Track tip for session summary
                     self._session_tracker.track_tip(tip, self._current_game)
+
+                    # Tier 3: refresh the session-level strategic focus
+                    # (game state is already updated for this frame). When a
+                    # refresh is due, upgrade the deterministic baseline with
+                    # an LLM reflection in the background so it never adds
+                    # latency to the tip path.
+                    if self._strategy.record_tip(self._current_game, tip):
+                        self.hass.async_create_task(
+                            self._strategy.async_reflect(self._current_game)
+                        )
 
                     # Fire event for automations
                     self._fire_new_tip_event(tip, self._current_game, client_id)
@@ -1102,6 +1191,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "assistant_mode": self._assistant_mode,
             "analysis_interval": self._analysis_interval,
             "analysis_timeout": self._analysis_timeout,
+            "frames_skipped": self._frames_skipped,
+            "scene_change": self._last_scene_change,
+            "frame_motion": self._last_frame_motion,
+            "strategy_note": self._strategy.note(self._current_game),
             "spoiler_level": self._spoiler.default_level,
             "registered_workers": self._client_registry.registered_workers,
             "clients": self._client_registry.clients,

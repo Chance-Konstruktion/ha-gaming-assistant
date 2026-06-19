@@ -1,0 +1,15 @@
+# Requirements for the HUD OCR Worker (worker/ocr_agent.py)
+opencv-python>=4.9.0
+numpy>=1.26.0
+paho-mqtt>=2.1.0
+
+# --- OCR engine (install ONE) ---
+
+# Default: Tesseract (lightweight). Needs the system 'tesseract' binary:
+#   Debian/Ubuntu/RPi:  sudo apt install tesseract-ocr
+#   macOS (Homebrew):   brew install tesseract
+#   Windows:            https://github.com/UB-Mannheim/tesseract/wiki
+pytesseract>=0.3.10
+
+# Alternative: EasyOCR (pure-pip, heavier, downloads a model on first run):
+# pip install easyocr
