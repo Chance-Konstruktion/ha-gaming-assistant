@@ -3,7 +3,7 @@
 # Runs on the gaming PC: captures the game's audio locally, derives a few
 # cheap signals (loudness / intensity / onsets) with plain DSP, and publishes
 # only tiny JSON results over MQTT. No model, no GPU.
-sounddevice>=0.4.6
+sounddevice>=0.5.5
 numpy>=2.4.6
 paho-mqtt>=2.1.0
 
