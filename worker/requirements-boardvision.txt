@@ -1,0 +1,9 @@
+# Requirements for the Board-Vision Worker (worker/board_vision.py)
+#
+# Runs on a client: turns a camera view of a physical chess board into a FEN
+# by perspective-warping the board and tracking moves with python-chess, then
+# publishes the FEN to HA (which does the actual chess reasoning).
+opencv-python>=4.9.0
+numpy>=1.26.0
+paho-mqtt>=2.1.0
+chess>=1.10.0

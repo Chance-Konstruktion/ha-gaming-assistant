@@ -532,6 +532,25 @@ or publish to MQTT `gaming_assistant/{client_id}/board` with `{"fen": "..."}`. T
 
 </details>
 
+<details>
+<summary><b>Board-vision worker</b> — a camera turns a *physical* board into FEN</summary>
+
+`worker/board_vision.py` is the **source** for the chess engine in the camera-on-a-table case: it watches frames, perspective-warps the board from four configured corners, reads each square's **occupancy + piece colour**, and recovers the move by **tracking** — starting from a known position, the single legal move whose result matches the new board is unambiguous (captures, castling, en passant included), so it never has to visually classify piece *types*. It maintains the game with `python-chess` and publishes the FEN to `gaming_assistant/{client_id}/board`, which the in-HA engine already consumes.
+
+```bash
+pip install -r worker/requirements-boardvision.txt   # opencv + numpy + paho + chess
+
+# Corners are fractions of the frame, clockwise from top-left as the camera sees it:
+python worker/board_vision.py \
+  --broker 192.168.1.10 \
+  --client-id chess-cam \
+  --corners "0.12,0.08;0.88,0.10;0.90,0.92;0.10,0.90"
+```
+
+Point any capture agent (e.g. `capture_agent_ipcam.py` for an IP webcam) at the board so frames flow on `gaming_assistant/{id}/image`; the worker reads those. It assumes the game **starts from the standard position** and that each move is seen as a stable frame. The pixel layer is a **calibratable best-effort** — tune `--occupancy-std` / `--dark-below` for your board and lighting (robust auto corner-detection / a small classifier are future work). The reliable, fully-tested part is the geometry + move-inference; reset the tracker any time with an MQTT command `{"command": "reset"}` on `gaming_assistant/board/command`.
+
+</details>
+
 ---
 
 ## 🕹️ Agent Mode / Player 2 *(experimental)*
