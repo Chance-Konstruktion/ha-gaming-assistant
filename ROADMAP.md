@@ -5,7 +5,7 @@ Statusangaben werden bei jeder Release aktualisiert; abgehakte Tasks
 bleiben als Beleg im Dokument stehen, damit nachvollziehbar ist, was
 ausgeliefert wurde.
 
-**Aktueller Stand:** 260618.
+**Aktueller Stand:** 260619.
 Detaillierte Versionshistorie: `CHANGELOG.md`.
 
 Statusmarker:
@@ -35,7 +35,7 @@ Game-spezifischer Prompt-Logik.
 
 ---
 
-## 2) Architektur (Stand 260618)
+## 2) Architektur (Stand 260619)
 
 ```text
 Capture Source (PC / Android / Android TV / IP Webcam / HDMI-Bridge)
@@ -253,7 +253,7 @@ Empfohlener Workflow je Task:
 ### Geplante neue Dateien
 - `worker/agent_executor.py` (vgamepad Executor — GA-109) ✅ implementiert
 - `worker/requirements-player2.txt` enthält jetzt `vgamepad` + `paho-mqtt`
-- `docs/agent_mode.md` (Sicherheitsleitplanken-Doku — GA-AUD)
+- `docs/agent_mode.md` (Sicherheitsleitplanken-Doku — GA-AUD) ✅ vorhanden
 
 ### Häufig zu ändernde Dateien
 - `custom_components/gaming_assistant/coordinator.py`

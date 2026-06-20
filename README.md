@@ -68,8 +68,8 @@ Chess, Poker, Catan, UNO via webcam. Consoles via HDMI capture or IP webcam. No 
 **🎙 HA Assist conversation agent**
 "Wechsel modus auf gegner." "How do I beat this boss?" Both work.
 
-**📦 26+ community prompt packs**
-Elden Ring, BG3, CS2, Zelda, Hearthstone, MTG Arena, FIFA, Civ VI, Rocket League… auto-downloaded from a sibling repo on first start (cached locally) and hot-reloaded on demand.
+**📦 150+ community prompt packs**
+~50 games × base / cheats / secrets / completion flavors — Elden Ring, BG3, CS2, Zelda, Hearthstone, MTG Arena, FIFA, Civ VI, Rocket League… auto-downloaded from a sibling repo on first start (cached locally) and hot-reloaded on demand.
 
 </td>
 <td width="50%" valign="top">
