@@ -42,7 +42,13 @@ er_mod = types.ModuleType("homeassistant.helpers.entity_registry")
 device_registry_mod = types.ModuleType("homeassistant.helpers.device_registry")
 update_coordinator_mod = types.ModuleType("homeassistant.helpers.update_coordinator")
 event_mod = types.ModuleType("homeassistant.helpers.event")
+selector_mod = types.ModuleType("homeassistant.helpers.selector")
 exceptions_mod = types.ModuleType("homeassistant.exceptions")
+
+# Minimal selector stub: TextSelector(...) used as a schema field value.
+selector_mod.TextSelector = lambda *a, **k: str
+selector_mod.TextSelectorConfig = lambda *a, **k: None
+selector_mod.TextSelectorType = types.SimpleNamespace(PASSWORD="password")
 
 
 class _ConfigFlow:
@@ -67,6 +73,7 @@ core_mod.HomeAssistant = object
 core_mod.ServiceCall = object
 core_mod.callback = lambda fn: fn
 helpers_mod.entity_registry = er_mod
+helpers_mod.selector = selector_mod
 device_registry_mod.DeviceInfo = object
 update_coordinator_mod.DataUpdateCoordinator = object
 event_mod.async_track_time_interval = MagicMock()
@@ -90,6 +97,7 @@ sys.modules["homeassistant.helpers.entity_registry"] = er_mod
 sys.modules["homeassistant.helpers.device_registry"] = device_registry_mod
 sys.modules["homeassistant.helpers.update_coordinator"] = update_coordinator_mod
 sys.modules["homeassistant.helpers.event"] = event_mod
+sys.modules["homeassistant.helpers.selector"] = selector_mod
 
 from custom_components.gaming_assistant.config_flow import (
     FALLBACK_MODELS,
