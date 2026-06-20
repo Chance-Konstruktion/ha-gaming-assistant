@@ -130,6 +130,19 @@ board FEN (cam/worker/automation/service) ─► chess_grounding.analyze_fen() [
                                               Tier 2 prompt / Tier 3 strategy
 ```
 
+**The FEN source — board-vision worker (`worker/board_vision.py`).** The
+camera-and-no-client case is fed by an edge worker that perspective-warps the
+board from four configured corners, reads per-square **occupancy + piece
+colour**, and recovers the actual move by **tracking**: starting from a known
+position, the single legal move whose resulting occupancy/colour matches the
+new grid is unambiguous (captures, castling and en passant included), so it
+never needs to visually classify piece *types*. It maintains the game with
+`python-chess` and publishes the resulting FEN to `gaming_assistant/{id}/board`.
+Consistent with the split, the heavy vision stays on the client; HA only does
+the symbolic reasoning. (The pixel layer — corner-warp + square classification
+— is a calibratable best-effort; robust auto corner-detection / a small
+classifier are future work.)
+
 **Event-driven escalation.** Tier 2 is no longer run on every frame.
 `coordinator._process_image` consults `PerceptionTier.should_escalate()`
 and spends an LLM call only when:

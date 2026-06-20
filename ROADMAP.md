@@ -185,7 +185,8 @@ Detailliertes Diagramm: `docs/architecture.md`.
 | GA-YOL | YOLO-Worker für Object Detection (CUDA / NCNN / Hailo / TFLite) | ✅ v0.10 |
 | GA-OCR | HUD-OCR-Worker (`worker/ocr_agent.py`) – liest HP/Ammo/Score per OCR aus konfigurierten Regionen und speist sie als gemessene Tier-1-Signale ein | ✅ (unreleased) |
 | GA-AUD | Game-Audio-Worker (`worker/audio_agent.py`) – läuft **clientseitig auf dem Gaming-PC**, leitet Lautheit/Intensität/Onsets (Schüsse/Explosionen) lokal per DSP ab und schickt nur kompakte Tier-1-Signale; rohes Audio erreicht HA nie | ✅ (unreleased) |
-| GA-CHS | Schach-Grounding (`chess_grounding.py`) – läuft **in HA** (pure-Python `python-chess`, kein Zusatzserver/kein Stockfish), da Brettspiele am Tisch oft nur mit Cam und **ohne Client** laufen; validiert FEN, rechnet legale Züge/Material/Drohungen + besten Zug und speist alles als Tier-1-Signale ein | ✅ (unreleased) |
+| GA-CHS | Schach-Grounding (`chess_grounding.py`) – läuft **in HA** (pure-Python `python-chess`, kein Zusatzserver/kein Stockfish), da Brettspiele am Tisch oft nur mit Cam und **ohne Client** laufen; validiert FEN, rechnet legale Züge/Material/Drohungen + besten Zug und speist alles als Tier-1-Signale ein | ✅ v260619 |
+| GA-BVW | Board-Vision-Worker (`worker/board_vision.py`) – Client-seitig: entzerrt das physische Brett aus 4 Eckpunkten, misst Belegung+Figurenfarbe und leitet den Zug per **Tracking** ab (keine Figuren-Typ-Klassifikation nötig) → publiziert FEN an `…/board`. Pixel-Schicht ist kalibrierbarer Best-Effort; Kern (Geometrie + Zug-Inferenz) voll getestet | ✅ (unreleased) |
 | GA-GST | Game-State-Engine + Trend Detection | ✅ v0.10 |
 
 ### Begleit-Apps & Test-Infrastruktur
