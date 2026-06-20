@@ -188,6 +188,37 @@ class TestPromptPackLoader(unittest.TestCase):
             result = loader.get("override_test")
             self.assertEqual(result["name"], "Cached Version")
 
+    def test_non_utf8_pack_is_skipped_not_fatal(self):
+        """A mis-encoded (Latin-1) pack must be skipped, not abort the load.
+
+        Regression: ``UnicodeDecodeError`` is a ``ValueError``, not an
+        ``OSError``/``JSONDecodeError``, so a single Latin-1 file in the cache
+        used to raise straight through ``load_all`` and kill every pack.
+        """
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_dir = Path(tmpdir)
+            # Valid UTF-8 pack that must still load despite the bad neighbour.
+            good = {
+                "id": "good_game",
+                "name": "Good Game",
+                "keywords": ["good"],
+                "system_prompt": "You are a coach.",
+            }
+            (cache_dir / "good_game.json").write_text(
+                json.dumps(good), encoding="utf-8"
+            )
+            # Latin-1 encoded German pack: 0xDC ('Ü') is not valid UTF-8.
+            (cache_dir / "bad_encoding.json").write_bytes(
+                '{"id": "bad", "name": "FÜR", "keywords": ["x"], '
+                '"system_prompt": "Drücke X."}'.encode("latin-1")
+            )
+            loader = self._make_loader(cache_dir=cache_dir)
+            # Must not raise.
+            loader.load_all()
+            self.assertIsNotNone(loader.get("good_game"))
+            self.assertIn("bad_encoding.json", loader.invalid_packs)
+
 
 class TestPackValidation(unittest.TestCase):
     """Test the explicit validate_pack function against fixture files."""

@@ -139,7 +139,11 @@ class PromptPackLoader:
         """Parse + validate a single pack file. Returns dict or None."""
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError) as err:
+        except (UnicodeDecodeError, json.JSONDecodeError, OSError) as err:
+            # UnicodeDecodeError (a non-UTF-8 pack, e.g. Latin-1) is a ValueError,
+            # not an OSError — without it here a single mis-encoded file in the
+            # cache would raise straight through load_all() and abort the entire
+            # pack load instead of just skipping the bad file.
             _LOGGER.warning("Failed to load prompt pack %s: %s", path.name, err)
             self._invalid_packs[path.name] = [f"parse error: {err}"]
             return None
