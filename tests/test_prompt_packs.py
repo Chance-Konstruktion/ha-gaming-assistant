@@ -277,6 +277,22 @@ class TestPackValidation(unittest.TestCase):
                 self.assertNotEqual(pack.get("name"), "Bad ID")
             self.assertIn("invalid_bad_id.json", loader.invalid_packs)
 
+    def test_optional_field_issue_loads_with_warning(self):
+        # A pack with valid required fields but a bad OPTIONAL field (version)
+        # must still load — recorded as an advisory, not dropped.
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_dir = Path(tmpdir)
+            (cache_dir / "x.json").write_text(json.dumps({
+                "id": "x", "name": "X", "keywords": ["x"],
+                "system_prompt": "coach", "version": "2026-04-14",
+            }), encoding="utf-8")
+            loader = self._mod.PromptPackLoader(cache_dir=cache_dir)
+            loader.load_all()
+            self.assertIn("x", loader._packs)
+            self.assertNotIn("x.json", loader.invalid_packs)
+            self.assertIn("x.json", loader.pack_warnings)
+
     def test_manifest_available(self):
         loader = self._mod.PromptPackLoader()
         manifest = loader.manifest

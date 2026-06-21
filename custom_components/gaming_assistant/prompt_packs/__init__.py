@@ -116,6 +116,36 @@ def validate_pack(data: dict) -> list[str]:
     return errors
 
 
+def required_field_errors(data: dict) -> list[str]:
+    """The subset of validation issues that make a pack *unusable*.
+
+    A pack with valid required fields (id, name, keywords, system_prompt) is
+    always loadable. Problems with optional fields (version, spoiler_defaults,
+    constraints, examples) are advisory — they must never drop the whole pack,
+    or one stray field silently removes a perfectly good pack from the library.
+    """
+    if not isinstance(data, dict):
+        return ["pack must be a JSON object"]
+
+    errors: list[str] = []
+    for field in ("id", "name", "keywords", "system_prompt"):
+        if field not in data:
+            errors.append(f"missing required field '{field}'")
+
+    pack_id = data.get("id")
+    if isinstance(pack_id, str) and not _ID_PATTERN.match(pack_id):
+        errors.append(f"'id' must match {_ID_PATTERN.pattern}, got '{pack_id}'")
+
+    keywords = data.get("keywords")
+    if keywords is not None:
+        if not isinstance(keywords, list) or not keywords:
+            errors.append("'keywords' must be a non-empty array of strings")
+        elif any(not isinstance(k, str) or not k for k in keywords):
+            errors.append("all entries of 'keywords' must be non-empty strings")
+
+    return errors
+
+
 class PromptPackLoader:
     """Loads and caches prompt packs from JSON files."""
 
@@ -124,6 +154,7 @@ class PromptPackLoader:
         self._loaded = False
         self._cache_dir = cache_dir
         self._invalid_packs: dict[str, list[str]] = {}
+        self._pack_warnings: dict[str, list[str]] = {}
         self._manifest: dict | None = None
 
     @property
@@ -144,6 +175,11 @@ class PromptPackLoader:
         """Map of filename -> list of validation errors for packs that failed."""
         return dict(self._invalid_packs)
 
+    @property
+    def pack_warnings(self) -> dict[str, list[str]]:
+        """Map of filename -> advisory issues for packs that loaded anyway."""
+        return dict(self._pack_warnings)
+
     def _try_load_pack(self, path: Path) -> dict | None:
         """Parse + validate a single pack file. Returns dict or None."""
         try:
@@ -158,12 +194,21 @@ class PromptPackLoader:
             return None
 
         errors = validate_pack(data)
-        if errors:
+        fatal = required_field_errors(data)
+        if fatal:
             _LOGGER.warning(
-                "Prompt pack %s is invalid: %s", path.name, "; ".join(errors)
+                "Prompt pack %s is invalid (skipped): %s",
+                path.name, "; ".join(fatal),
             )
-            self._invalid_packs[path.name] = errors
+            self._invalid_packs[path.name] = errors or fatal
             return None
+        if errors:
+            # Optional-field issues only — load the pack but record the advisory.
+            _LOGGER.warning(
+                "Prompt pack %s loaded with advisory issues: %s",
+                path.name, "; ".join(errors),
+            )
+            self._pack_warnings[path.name] = errors
         return data
 
     def _load_from_dir(self, directory: Path) -> int:
@@ -240,6 +285,7 @@ class PromptPackLoader:
         """Force reload all packs (e.g. after downloading new ones)."""
         self._packs.clear()
         self._invalid_packs.clear()
+        self._pack_warnings.clear()
         self._loaded = False
         return self.load_all()
 
