@@ -589,7 +589,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not remaining:
             for service in _ALL_SERVICES:
                 hass.services.async_remove(DOMAIN, service)
-            hass.components.frontend.async_remove_panel("gaming-assistant")
+            # Import directly rather than via the deprecated hass.components
+            # accessor (removed in HA 2025.3).
+            from homeassistant.components.frontend import async_remove_panel
+
+            async_remove_panel(hass, "gaming-assistant")
             hass.data[DOMAIN].pop("panel_registered", None)
 
     return unload_ok
