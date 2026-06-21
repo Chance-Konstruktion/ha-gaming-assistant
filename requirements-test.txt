@@ -1,0 +1,21 @@
+# Test / CI dependencies for the Home Assistant Gaming Assistant integration.
+#
+# Installing this complete set is what makes the suite run with ZERO skips: the
+# capture-bridge, OCR, audio, chess-grounding and agent-executor tests all
+# execute for real instead of being silently skipped on a missing optional
+# dependency. CI runs with STRICT_NO_SKIP=1 (see conftest.py) so that a skip —
+# i.e. a dependency having gone missing — fails the build instead of quietly
+# shrinking coverage.
+
+# Worker / capture runtime deps exercised by the tests (mss, Pillow,
+# paho-mqtt, requests). Kept as the single source of truth via -r.
+-r worker/requirements-capture.txt
+
+aiohttp>=3.9.0
+chess==1.10.0
+numpy>=1.26          # un-skips the HDMI-bridge grab_frame() test (np.ndarray frames)
+
+# Test tooling
+pytest
+pytest-cov
+ruff
