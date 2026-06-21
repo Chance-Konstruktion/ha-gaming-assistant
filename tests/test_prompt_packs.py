@@ -3,6 +3,10 @@
 import importlib
 import json
 import unittest
+import io
+import zipfile
+import tempfile
+import hashlib
 from pathlib import Path
 
 
@@ -291,6 +295,79 @@ class TestDownloadConfig(unittest.TestCase):
     def test_download_function_exists(self):
         mod = _import_prompt_packs()
         self.assertTrue(callable(mod.download_prompt_packs))
+
+    def test_pin_ref_constant_drives_url(self):
+        mod = _import_prompt_packs()
+        self.assertTrue(hasattr(mod, "PROMPTS_REPO_REF"))
+        # The download URL is built from the pinnable ref.
+        self.assertIn(mod.PROMPTS_REPO_REF + ".zip", mod.PROMPTS_REPO_URL)
+
+
+def _make_repo_zip(files: dict[str, bytes]) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        for name, content in files.items():
+            zf.writestr(name, content)
+    return buf.getvalue()
+
+
+class TestRemotePackVerification(unittest.TestCase):
+    """Checksum verification of downloaded packs (extract_prompt_packs)."""
+
+    def setUp(self):
+        self.mod = _import_prompt_packs()
+        self.tmp = Path(tempfile.mkdtemp())
+
+    def _pack(self, pid: str) -> bytes:
+        return json.dumps({
+            "id": pid, "name": pid, "keywords": [pid],
+            "system_prompt": "x", "language": "de",
+        }).encode("utf-8")
+
+    def test_verified_written_tampered_and_unlisted_skipped(self):
+        good = self._pack("good")
+        tampered = self._pack("tampered")
+        unlisted = self._pack("unlisted")
+        manifest = {
+            "algorithm": "sha256",
+            "packs": {
+                "base/good.json": hashlib.sha256(good).hexdigest(),
+                # Hash of different bytes -> the shipped file must be rejected.
+                "base/tampered.json": hashlib.sha256(b"original").hexdigest(),
+            },
+        }
+        zip_bytes = _make_repo_zip({
+            "repo-main/checksums.json": json.dumps(manifest).encode("utf-8"),
+            "repo-main/packs/base/good.json": good,
+            "repo-main/packs/base/tampered.json": tampered,
+            "repo-main/packs/base/unlisted.json": unlisted,
+        })
+        written = self.mod.extract_prompt_packs(zip_bytes, self.tmp)
+        self.assertEqual(written, 1)
+        self.assertTrue((self.tmp / "base" / "good.json").exists())
+        self.assertFalse((self.tmp / "base" / "tampered.json").exists())
+        self.assertFalse((self.tmp / "base" / "unlisted.json").exists())
+
+    def test_missing_manifest_writes_unverified(self):
+        good = self._pack("good")
+        zip_bytes = _make_repo_zip({"repo-main/packs/base/good.json": good})
+        written = self.mod.extract_prompt_packs(zip_bytes, self.tmp)
+        self.assertEqual(written, 1)
+        self.assertTrue((self.tmp / "base" / "good.json").exists())
+
+    def test_template_and_non_json_ignored(self):
+        good = self._pack("good")
+        manifest = {"algorithm": "sha256",
+                    "packs": {"base/good.json": hashlib.sha256(good).hexdigest()}}
+        zip_bytes = _make_repo_zip({
+            "repo-main/checksums.json": json.dumps(manifest).encode("utf-8"),
+            "repo-main/packs/base/good.json": good,
+            "repo-main/packs/_template.json": self._pack("tmpl"),
+            "repo-main/README.md": b"# readme",
+        })
+        written = self.mod.extract_prompt_packs(zip_bytes, self.tmp)
+        self.assertEqual(written, 1)
+        self.assertFalse((self.tmp / "_template.json").exists())
 
 
 if __name__ == "__main__":

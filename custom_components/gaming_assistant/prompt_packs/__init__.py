@@ -4,6 +4,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import hashlib
 import re
 import zipfile
 from pathlib import Path
@@ -15,10 +16,18 @@ _LOGGER = logging.getLogger(__name__)
 _BUNDLED_DIR = Path(__file__).parent
 _MANIFEST_FILE = _BUNDLED_DIR / "pack_manifest.json"
 
+# Git ref the packs are fetched from. A branch, tag, or commit SHA — pin to a
+# release tag (e.g. "v2026.06") for reproducible, auditable updates instead of
+# tracking a moving branch.
+PROMPTS_REPO_REF = "main"
 PROMPTS_REPO_URL = (
     "https://github.com/Chance-Konstruktion/"
-    "ha-gaming-assistant-prompts/archive/refs/heads/main.zip"
+    f"ha-gaming-assistant-prompts/archive/{PROMPTS_REPO_REF}.zip"
 )
+
+# Repo-root manifest mapping each downloadable pack to its SHA-256, used to
+# verify downloads before they are written to the cache.
+_REMOTE_MANIFEST_NAME = "checksums.json"
 
 _SPOILER_LEVELS = {"none", "low", "medium", "high"}
 _ASSISTANT_MODES = {"coach", "coplay", "opponent", "analyst"}
@@ -235,6 +244,90 @@ class PromptPackLoader:
         return self.load_all()
 
 
+def _read_remote_manifest(zf: zipfile.ZipFile) -> dict[str, str] | None:
+    """Return the {relative_pack_path: sha256} map from the repo's checksum
+    manifest (repo-root ``checksums.json``), or ``None`` if it is absent or
+    malformed.
+    """
+    for info in zf.infolist():
+        if info.is_dir():
+            continue
+        parts = info.filename.split("/")
+        # The manifest sits at the repo root: "<repo-folder>/checksums.json".
+        if len(parts) == 2 and parts[1] == _REMOTE_MANIFEST_NAME:
+            try:
+                data = json.loads(zf.read(info.filename))
+            except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
+                return None
+            packs = data.get("packs") if isinstance(data, dict) else None
+            return packs if isinstance(packs, dict) else None
+    return None
+
+
+def extract_prompt_packs(zip_bytes: bytes, cache_dir: Path) -> int:
+    """Extract and checksum-verify packs from a downloaded repo zip.
+
+    When the repo ships a ``checksums.json`` manifest, every pack is verified
+    against its SHA-256 before being written: packs missing from the manifest or
+    whose hash does not match are skipped (so a tampered or corrupted download
+    cannot replace a good pack). If no manifest is present (older prompts repo),
+    packs are written unverified with a warning. Returns the number of packs
+    written to the cache.
+    """
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    count = 0
+    rejected = 0
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+        manifest = _read_remote_manifest(zf)
+        if manifest is None:
+            _LOGGER.warning(
+                "No %s in download — writing packs unverified", _REMOTE_MANIFEST_NAME
+            )
+        for info in zf.infolist():
+            if info.is_dir() or not info.filename.endswith(".json"):
+                continue
+            # Files are in: ha-gaming-assistant-prompts-<ref>/packs/...
+            parts = info.filename.split("/")
+            try:
+                packs_idx = parts.index("packs")
+            except ValueError:
+                continue
+            # Relative path after packs/, e.g. "base/elden_ring.json"
+            rel_parts = parts[packs_idx + 1:]
+            if not rel_parts or rel_parts[-1].startswith("_"):
+                continue
+            rel_path = Path(*rel_parts)
+            rel_key = rel_path.as_posix()
+            raw = zf.read(info.filename)
+
+            if manifest is not None:
+                expected = manifest.get(rel_key)
+                if expected is None:
+                    _LOGGER.warning("Skipping %s: not in %s", rel_key, _REMOTE_MANIFEST_NAME)
+                    rejected += 1
+                    continue
+                actual = hashlib.sha256(raw).hexdigest()
+                if actual != expected:
+                    _LOGGER.warning(
+                        "Skipping %s: checksum mismatch (expected %s…, got %s…)",
+                        rel_key, expected[:12], actual[:12],
+                    )
+                    rejected += 1
+                    continue
+
+            target = cache_dir / rel_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(raw)
+            count += 1
+
+    if rejected:
+        _LOGGER.warning(
+            "Rejected %d unverified/altered pack(s) during download", rejected
+        )
+    _LOGGER.info("Extracted %d prompt packs to %s", count, cache_dir)
+    return count
+
+
 async def download_prompt_packs(cache_dir: Path) -> bool:
     """Download latest prompt packs from GitHub to cache directory.
 
@@ -254,32 +347,7 @@ async def download_prompt_packs(cache_dir: Path) -> bool:
                     return False
                 data = await resp.read()
 
-        # Extract JSON files from the packs/ directory in the zip,
-        # preserving subdirectory structure (base/, cheats/, secrets/, completion/)
-        zip_buf = io.BytesIO(data)
-        count = 0
-        with zipfile.ZipFile(zip_buf) as zf:
-            for info in zf.infolist():
-                if info.is_dir() or not info.filename.endswith(".json"):
-                    continue
-                # Files are in: ha-gaming-assistant-prompts-main/packs/...
-                parts = info.filename.split("/")
-                try:
-                    packs_idx = parts.index("packs")
-                except ValueError:
-                    continue
-                # Relative path after packs/, e.g. "base/elden_ring.json"
-                rel_parts = parts[packs_idx + 1:]
-                if not rel_parts or rel_parts[-1].startswith("_"):
-                    continue
-                rel_path = Path(*rel_parts)
-                target = cache_dir / rel_path
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(zf.read(info.filename))
-                count += 1
-
-        _LOGGER.info("Downloaded %d prompt packs to %s", count, cache_dir)
-        return count > 0
+        return extract_prompt_packs(data, cache_dir) > 0
 
     except (aiohttp.ClientError, zipfile.BadZipFile, OSError) as err:
         _LOGGER.error("Failed to download prompt packs: %s", err)
