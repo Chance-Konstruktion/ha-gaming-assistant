@@ -89,14 +89,18 @@ class GamingAssistantStatusSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
+        # A pure-push DataUpdateCoordinator leaves `.data` as None until the
+        # first MQTT update arrives, and entities are read (initial state write)
+        # before that — so guard against None rather than assuming a dict.
+        data = self._coordinator.data or {}
         return {
             "assistant_mode": self._coordinator.assistant_mode,
             "default_game_hint": self._coordinator.default_game_hint,
             "available_game_packs": self._coordinator.available_game_packs,
-            "available_models": self._coordinator.data.get("available_models", []),
+            "available_models": data.get("available_models", []),
             "active_model": self._coordinator.active_model,
-            "active_client_id": self._coordinator.data.get("active_client_id", ""),
-            "clients": self._coordinator.data.get("clients", {}),
+            "active_client_id": data.get("active_client_id", ""),
+            "clients": data.get("clients", {}),
         }
 
 
