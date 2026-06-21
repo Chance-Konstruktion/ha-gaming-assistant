@@ -120,6 +120,11 @@ class TestAgentModeContracts(unittest.TestCase):
         base = Path("custom_components/gaming_assistant")
         cls.const = (base / "const.py").read_text(encoding="utf-8")
         cls.coord = (base / "coordinator.py").read_text(encoding="utf-8")
+        cls.pipeline = (base / "pipeline.py").read_text(encoding="utf-8")
+        # The per-frame analysis + Agent Mode action publishing lives in the
+        # AnalysisPipeline collaborator; the coordinator wires it up. Assert the
+        # safety contract across the whole coordinator layer (both files).
+        cls.coord_layer = cls.coord + "\n" + cls.pipeline
         cls.init = (base / "__init__.py").read_text(encoding="utf-8")
         cls.switch = (base / "switch.py").read_text(encoding="utf-8")
         cls.services = (base / "services.yaml").read_text(encoding="utf-8")
@@ -139,13 +144,13 @@ class TestAgentModeContracts(unittest.TestCase):
         self.assertIn("MQTT_ACTION_TOPIC.format(client_id=client_id)", self.coord)
 
     def test_process_image_gates_on_agent_mode(self):
-        self.assertIn("if self._agent_mode:", self.coord)
-        self.assertIn("await self._maybe_publish_agent_action(", self.coord)
+        self.assertIn("if coord._agent_mode:", self.pipeline)
+        self.assertIn("await self._maybe_publish_agent_action(", self.pipeline)
 
     def test_action_path_is_isolated(self):
         # The action generation must be wrapped so it can never break analysis.
-        self.assertIn("async def _maybe_publish_agent_action", self.coord)
-        self.assertIn("Agent action generation failed", self.coord)
+        self.assertIn("async def _maybe_publish_agent_action", self.coord_layer)
+        self.assertIn("Agent action generation failed", self.coord_layer)
 
     def test_setter_enforces_button_whitelist(self):
         self.assertIn("def set_agent_mode(", self.coord)
@@ -156,13 +161,14 @@ class TestAgentModeContracts(unittest.TestCase):
         self.assertIn("AGENT_ACTION_MIN_INTERVAL", self.const)
         self.assertIn("AGENT_MAX_CONSECUTIVE_FAILURES", self.const)
         self.assertIn("EVENT_AGENT_ACTION", self.const)
-        # coordinator uses the governor for rate limiting + auto-disable
+        # coordinator owns the governor; the pipeline uses it for rate limiting
+        # + auto-disable
         self.assertIn("self._agent_governor", self.coord)
-        self.assertIn("rate_limited(", self.coord)
-        self.assertIn("record_error(", self.coord)
+        self.assertIn("rate_limited(", self.coord_layer)
+        self.assertIn("record_error(", self.coord_layer)
         # auto-disable turns Agent Mode OFF and emits an audit event
-        self.assertIn("self.set_agent_mode(False)", self.coord)
-        self.assertIn("_fire_agent_action_event", self.coord)
+        self.assertIn("set_agent_mode(False)", self.coord_layer)
+        self.assertIn("_fire_agent_action_event", self.coord_layer)
 
     def test_service_registered(self):
         self.assertIn('"set_agent_mode"', self.init)
