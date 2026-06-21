@@ -1,0 +1,24 @@
+# Dependencies for the real-Home-Assistant load smoketest
+# (tests/test_setup_smoketest.py).
+#
+# This is a deliberately separate, heavyweight set from requirements-test.txt.
+# The normal unit suite stubs Home Assistant away; this smoketest boots a real
+# HA core and must therefore install it (via pytest-homeassistant-custom-
+# component) plus the runtime deps of the integration's manifest dependencies
+# (`frontend`, `conversation`) so the config entry can fully set up. Pinned for
+# reproducibility; bump together when targeting a newer Home Assistant.
+
+pytest-homeassistant-custom-component==0.13.195  # brings Home Assistant 2024.12.5
+
+# Integration manifest requirement (not auto-installed under enable_custom_integrations).
+chess==1.10.0
+
+# Runtime deps pulled in when HA sets up the `frontend` and `conversation`
+# dependencies, pinned to what Home Assistant 2024.12.5 expects.
+home-assistant-frontend==20241127.8
+hassil==3.8.1
+home-assistant-intents==2026.6.1
+pymicro-vad==2.0.1
+pyspeex-noise==2.0.1
+mutagen==1.47.0
+ha-ffmpeg==3.2.2

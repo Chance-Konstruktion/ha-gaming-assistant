@@ -48,7 +48,6 @@ from .const import (
     DEFAULT_SPOILER_LEVEL,
     DEFAULT_TIMEOUT,
     DOMAIN,
-    EVENT_AGENT_ACTION,
     EVENT_NEW_TIP,
     HEALTH_MAX_FAILURE_STREAK,
     MQTT_ACTION_TOPIC,
@@ -63,8 +62,8 @@ from .camera_watcher import CameraWatcher
 from .client_registry import ClientRegistry
 from .mqtt_router import MqttRouter
 from . import chess_grounding
-from . import tip_filter
 from .perception import PerceptionTier
+from .pipeline import AnalysisPipeline
 from .prompt_packs import PromptPackLoader
 from .session_tracker import SessionTracker
 from .spoiler import SpoilerManager
@@ -96,9 +95,6 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._recent_tips: list[dict] = []
         self._tip_count: int = 0
         self._client_metadata: dict[str, dict] = {}
-        self._process_lock = asyncio.Lock()
-        self._image_queue: asyncio.Queue[tuple[str, bytes]] = asyncio.Queue(maxsize=3)
-        self._image_worker_task: asyncio.Task | None = None
         self._last_image_bytes: bytes | None = None
         self._last_image_client_id: str = ""
         self._last_image_timestamp: str = ""
@@ -132,6 +128,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
         # MQTT subscription routing + connection state + YOLO worker status.
         self._mqtt_router = MqttRouter(self)
+
+        # Analysis pipeline — bounded image queue + sequential worker, the
+        # per-frame Tier 1→2→3 orchestration, and Agent Mode action publishing.
+        self._pipeline = AnalysisPipeline(self)
 
         # Tier 1 — cheap per-frame perception (scene change, motion) that
         # feeds measured signals into Tier 2 instead of scraping them back
@@ -375,12 +375,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         if self._status != "error":
             self._status = "idle"
         self._client_registry.cancel_timers()
-        while not self._image_queue.empty():
-            try:
-                self._image_queue.get_nowait()
-                self._image_queue.task_done()
-            except asyncio.QueueEmpty:
-                break
+        self._pipeline.drain_queue()
         self.async_set_updated_data(self._build_data())
 
     async def async_clear_history(self, game: str | None = None) -> None:
@@ -513,40 +508,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         """Update per-client runtime state (delegated to ClientRegistry)."""
         self._client_registry.touch_client(client_id, metadata)
 
-    def _ensure_image_worker(self) -> None:
-        """Ensure the image queue worker is running."""
-        if self._image_worker_task and not self._image_worker_task.done():
-            return
-        self._image_worker_task = self.hass.async_create_task(self._image_worker_loop())
-
     async def _enqueue_image(self, client_id: str, image_bytes: bytes) -> None:
-        """Enqueue image with bounded backpressure (drop oldest when full)."""
-        self._ensure_image_worker()
-        if self._image_queue.full():
-            try:
-                dropped_client, _ = self._image_queue.get_nowait()
-                self._image_queue.task_done()
-                _LOGGER.debug("Image queue full. Dropped oldest frame from %s", dropped_client)
-            except asyncio.QueueEmpty:
-                pass
-        await self._image_queue.put((client_id, image_bytes))
-
-    async def _image_worker_loop(self) -> None:
-        """Sequentially process images from queue."""
-        while True:
-            client_id, image_bytes = await self._image_queue.get()
-            _LOGGER.debug(
-                "Image worker: processing %s (queue=%d/%d)",
-                client_id, self._image_queue.qsize(), self._image_queue.maxsize,
-            )
-            try:
-                await self._process_image(client_id, image_bytes)
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                _LOGGER.debug("Image worker: item failed, continuing", exc_info=True)
-            finally:
-                self._image_queue.task_done()
+        """Enqueue a frame for analysis (delegated to AnalysisPipeline)."""
+        await self._pipeline._enqueue_image(client_id, image_bytes)
 
     # -- TTS / Announce properties ---------------------------------------------
 
@@ -922,231 +886,14 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     # -- Image processing pipeline -------------------------------------------
 
     async def _process_image(self, client_id: str, image_bytes: bytes) -> None:
-        """Run the image processing pipeline for a received image."""
-        async with self._process_lock:
-            self._current_client_id = client_id
-            self._client_registry.set_active(client_id)
-            self._gaming_mode = True
-            self._touch_client(client_id, self._client_metadata.get(client_id, {}))
-
-            metadata = self._client_metadata.get(client_id, {})
-            metadata["assistant_mode"] = self._assistant_mode
-
-            game = metadata.get("window_title", "")
-            if game:
-                self._current_game = game
-                await self._ensure_state_loaded(game)
-
-            # Tier 1: cheaply measure the frame (scene change, motion).
-            perception = await self._perception.observe(
-                client_id, image_bytes, metadata
-            )
-            self._last_scene_change = perception.scene_change
-            self._last_frame_motion = perception.measured.get("frame_motion", "")
-
-            # Escalation gate: only spend a Tier 2 (LLM) call on a significant
-            # change, or when the heartbeat has elapsed. Otherwise record the
-            # measured signals and skip the expensive analysis entirely.
-            now = time.monotonic()
-            idle = (
-                float("inf")
-                if self._last_tier2_ts is None
-                else now - self._last_tier2_ts
-            )
-            if not self._perception.should_escalate(perception, idle):
-                self._frames_skipped += 1
-                if game and perception.measured:
-                    self._game_state.update(
-                        game, perception.measured,
-                        source=f"perception:{client_id}",
-                    )
-                self._status = "idle"
-                _LOGGER.debug(
-                    "Tier 2 skipped for %s (scene_change=%.3f, idle=%.0fs)",
-                    client_id, perception.scene_change, idle,
-                )
-                self.async_set_updated_data(self._build_data())
-                return
-
-            # Tier 2 escalation — run the LLM analysis.
-            self._last_tier2_ts = now
-            self._status = "analyzing"
-            self.async_set_updated_data(self._build_data())
-
-            try:
-                start = time.monotonic()
-                # Tier 3 feedback: inject the current strategic focus so the
-                # tactical tip reasons under the session's higher-level frame.
-                strategy_note = self._strategy.note(game)
-                tip = await asyncio.wait_for(
-                    self._image_processor.process(
-                        image_bytes, client_id, metadata,
-                        measured=perception.measured,
-                        strategy_note=strategy_note,
-                    ),
-                    timeout=self._analysis_timeout + 5,
-                )
-                self._latency = round(time.monotonic() - start, 3)
-
-                # A produced tip counts as a successful round-trip, even if the
-                # output gate later suppresses it — the backend is healthy.
-                if tip:
-                    self._llm_failure_streak = 0
-
-                # Output-quality gate: reject degenerate output (empty,
-                # refusals) and avoid re-announcing a repeat of the last tip.
-                verdict = tip_filter.evaluate_tip(tip or "", self._tip)
-
-                if tip and verdict != "reject":
-                    self._tip = tip
-                    self._tip_count += 1
-                    self._frames_processed += 1
-                    self._last_analysis = (
-                        time.strftime("%Y-%m-%dT%H:%M:%S")
-                    )
-                    self._recent_tips.append({
-                        "tip": tip,
-                        "game": self._current_game,
-                        "client_id": client_id,
-                    })
-                    if len(self._recent_tips) > 5:
-                        self._recent_tips = self._recent_tips[-5:]
-                    self._status = "idle"
-                    _LOGGER.info("New tip generated: %s", tip[:80])
-
-                    # Track tip for session summary
-                    self._session_tracker.track_tip(tip, self._current_game)
-
-                    # Tier 3: refresh the session-level strategic focus
-                    # (game state is already updated for this frame). When a
-                    # refresh is due, optionally upgrade the deterministic
-                    # baseline with an LLM reflection in the background (if
-                    # enabled) so it never adds latency to the tip path.
-                    if (
-                        self._strategy.record_tip(self._current_game, tip)
-                        and self._strategy.reflection_enabled
-                    ):
-                        self.hass.async_create_task(
-                            self._strategy.async_reflect(self._current_game)
-                        )
-
-                    # A repeat of the last tip is surfaced on the sensor but
-                    # not re-announced, so the coach doesn't talk over itself
-                    # or re-fire automations for the same situation.
-                    if verdict == "accept":
-                        # Fire event for automations
-                        self._fire_new_tip_event(
-                            tip, self._current_game, client_id
-                        )
-                        # Auto-announce via TTS if enabled
-                        if self._auto_announce and self._tts_entity:
-                            self.hass.async_create_task(self.async_announce(tip))
-                    else:  # repeat
-                        self._announces_suppressed += 1
-                        _LOGGER.debug("Repeat tip suppressed from announce")
-
-                    # Agent Mode: also produce + publish a controller action.
-                    if self._agent_mode:
-                        await self._maybe_publish_agent_action(
-                            client_id, image_bytes, self._current_game
-                        )
-                else:
-                    # Either no tip, or the gate rejected degenerate output.
-                    if tip and verdict == "reject":
-                        self._tips_rejected += 1
-                        _LOGGER.debug(
-                            "Degenerate tip rejected: %s", (tip or "")[:60]
-                        )
-                    self._frames_processed += 1
-                    self._status = "idle"
-
-            except (TimeoutError, asyncio.TimeoutError) as err:
-                _LOGGER.warning(
-                    "Image processing timed out after %ds for client %s",
-                    self._analysis_timeout + 5, client_id
-                )
-                self._record_error(
-                    err
-                    if str(err)
-                    else TimeoutError(
-                        f"timeout after {self._analysis_timeout + 5}s"
-                    )
-                )
-                self._status = "error"
-            except (OSError, json.JSONDecodeError, ValueError) as err:
-                _LOGGER.error("Image processing failed: %s", err)
-                self._record_error(err)
-                self._status = "error"
-            finally:
-                self.async_set_updated_data(self._build_data())
+        """Run the per-frame analysis pipeline (delegated to AnalysisPipeline)."""
+        await self._pipeline._process_image(client_id, image_bytes)
 
     async def _maybe_publish_agent_action(
         self, client_id: str, image_bytes: bytes, game: str
     ) -> None:
-        """Generate one controller action from the frame and publish it.
-
-        Safety-governed: actions are rate limited, repeated failures
-        auto-disable Agent Mode (dead-man switch), and every decision is
-        recorded for audit. Fully isolated: any failure here must never
-        disrupt the tip pipeline.
-        """
-        now = time.monotonic()
-        if self._agent_governor.rate_limited(now):
-            _LOGGER.debug(
-                "Agent action rate-limited (<%.1fs), skipping",
-                AGENT_ACTION_MIN_INTERVAL,
-            )
-            return
-
-        ts = time.strftime("%Y-%m-%dT%H:%M:%S")
-        try:
-            action = await asyncio.wait_for(
-                self._image_processor.generate_action(
-                    image_bytes,
-                    game,
-                    allowed_buttons=self._agent_allowed_buttons or None,
-                ),
-                timeout=self._analysis_timeout + 5,
-            )
-        except Exception as err:  # noqa: BLE001 - never break analysis on action errors
-            _LOGGER.warning("Agent action generation failed: %s", err)
-            if self._agent_governor.record_error(ts):
-                _LOGGER.error(
-                    "Agent Mode auto-disabled after %d consecutive failures",
-                    self._agent_governor.max_consecutive_failures,
-                )
-                self.set_agent_mode(False)
-                self._fire_agent_action_event(client_id, game, "auto_disabled", None)
-            else:
-                self._fire_agent_action_event(client_id, game, "error", None)
-            self.async_set_updated_data(self._build_data())
-            return
-
-        if not action:
-            self._agent_governor.record_no_op(ts)
-            self.async_set_updated_data(self._build_data())
-            return
-
-        await self.async_publish_action(client_id, action)
-        self._agent_governor.record_published(action, now, ts)
-        self._fire_agent_action_event(client_id, game, "published", action)
-        self.async_set_updated_data(self._build_data())
-
-    def _fire_agent_action_event(
-        self, client_id: str, game: str, status: str, action: dict | None
-    ) -> None:
-        """Fire an event for each Agent Mode decision (audit / automations)."""
-        self.hass.bus.async_fire(
-            EVENT_AGENT_ACTION,
-            {
-                "client_id": client_id,
-                "game": game,
-                "status": status,
-                "action": action,
-                "published": self._agent_governor.published,
-                "failed": self._agent_governor.failed,
-            },
-        )
+        """Produce + publish one Agent Mode action (delegated to AnalysisPipeline)."""
+        await self._pipeline._maybe_publish_agent_action(client_id, image_bytes, game)
 
     # -- Camera watcher (delegated to CameraWatcher) -------------------------
 
@@ -1277,13 +1024,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             self._cleanup_unsub = None
         self._session_tracker.cancel_timer()
         self._client_registry.cancel_timers()
-        if self._image_worker_task and not self._image_worker_task.done():
-            self._image_worker_task.cancel()
-            try:
-                await self._image_worker_task
-            except asyncio.CancelledError:
-                pass
-            self._image_worker_task = None
+        await self._pipeline.cancel_worker()
         await self.async_stop_watch_camera()  # stops all
         self.async_unsubscribe()
         # Close LLM backend HTTP session
