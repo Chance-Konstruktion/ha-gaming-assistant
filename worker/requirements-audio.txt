@@ -4,7 +4,7 @@
 # cheap signals (loudness / intensity / onsets) with plain DSP, and publishes
 # only tiny JSON results over MQTT. No model, no GPU.
 sounddevice>=0.5.5
-numpy>=2.4.6
+numpy>=2.5.0
 paho-mqtt>=2.1.0
 
 # Capturing *system* audio (the game output, not a microphone) is OS specific:
