@@ -1,5 +1,5 @@
 # Requirements for the HUD OCR Worker (worker/ocr_agent.py)
-opencv-python>=4.13.0.92
+opencv-python>=5.0.0.93
 numpy>=2.5.0
 paho-mqtt>=2.1.0
 
