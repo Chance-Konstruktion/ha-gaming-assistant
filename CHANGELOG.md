@@ -4,6 +4,18 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Blocking disk I/O off the event loop** (#123): spoiler profiles and prompt
+  packs are no longer read from disk inside the coordinator's `__init__` (which
+  runs on the HA event loop) — setup now loads both in the executor before
+  entities are created. Prompt-pack reloads after a background download and
+  spoiler profile writes (services + default-level select) also run in the
+  executor. `SpoilerManager.set_level` gained a `persist` flag so callers on
+  the loop can defer the file write.
+- **`strings.json`**: added the missing `entity.switch.auto_summary.name` key
+  (was already present in all translation files).
+
 ## [260619] - 2026-06-19 — "Tiered Cognition, Edge Perception & Chess"
 
 The assistant goes from a flat fixed-interval LLM loop to a **tiered cognition
