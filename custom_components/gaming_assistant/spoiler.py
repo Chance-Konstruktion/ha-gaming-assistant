@@ -90,9 +90,17 @@ class SpoilerManager:
         return self._game_settings
 
     def set_level(
-        self, category: str, level: str, game: str | None = None
+        self,
+        category: str,
+        level: str,
+        game: str | None = None,
+        persist: bool = True,
     ) -> None:
-        """Set spoiler level for a category (globally or per game)."""
+        """Set spoiler level for a category (globally or per game).
+
+        With ``persist=False`` the change stays in memory only — the caller
+        is responsible for scheduling :meth:`save` off the event loop.
+        """
         if level not in SPOILER_LEVELS:
             _LOGGER.warning("Invalid spoiler level '%s', ignoring", level)
             return
@@ -113,7 +121,8 @@ class SpoilerManager:
             for cat in targets:
                 self._global_settings[cat] = level
 
-        self.save()
+        if persist:
+            self.save()
 
     def set_game_profile(self, game: str, level: str) -> None:
         """Set all categories for a game profile with one level."""

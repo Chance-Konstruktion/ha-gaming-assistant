@@ -54,6 +54,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator._config_entry_id = entry.entry_id
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
+    # Load spoiler profiles + prompt packs from disk before entities read them
+    # (executor-backed — file I/O is not allowed on the event loop).
+    await coordinator.async_load_stored_data()
+
     # Forward setup to platforms so entities are available immediately
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -97,7 +101,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         try:
             if await download_prompt_packs(packs_cache):
-                coordinator.pack_loader.reload()
+                await hass.async_add_executor_job(coordinator.pack_loader.reload)
                 _LOGGER.info("Prompt packs updated from GitHub")
         except Exception:  # noqa: BLE001
             _LOGGER.debug("Could not update prompt packs, using cached/bundled")
@@ -269,7 +273,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
             for coord in hass.data[DOMAIN].values():
                 if isinstance(coord, GamingAssistantCoordinator):
-                    coord.spoiler_manager.set_level(category, level, game)
+                    await hass.async_add_executor_job(
+                        coord.spoiler_manager.set_level, category, level, game
+                    )
                     _LOGGER.info(
                         "Spoiler level set: %s=%s (game=%s)",
                         category, level, game or "global",
@@ -289,10 +295,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             for coord in hass.data[DOMAIN].values():
                 if isinstance(coord, GamingAssistantCoordinator):
                     if clear:
-                        coord.spoiler_manager.clear_game_profile(game)
+                        await hass.async_add_executor_job(
+                            coord.spoiler_manager.clear_game_profile, game
+                        )
                         _LOGGER.info("Spoiler profile cleared for game: %s", game)
                     else:
-                        coord.spoiler_manager.set_game_profile(game, level)
+                        await hass.async_add_executor_job(
+                            coord.spoiler_manager.set_game_profile, game, level
+                        )
                         _LOGGER.info("Spoiler profile set for game: %s=%s", game, level)
                     break
 

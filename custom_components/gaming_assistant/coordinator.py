@@ -175,12 +175,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         )
         default_spoiler = config.get(CONF_DEFAULT_SPOILER, DEFAULT_SPOILER_LEVEL)
         self._spoiler.initialize(default_spoiler)
-        self._spoiler.load()
         self._packs_cache_dir = Path(
             hass.config.config_dir
         ) / "gaming_assistant" / "prompt_packs"
         self._pack_loader = PromptPackLoader(cache_dir=self._packs_cache_dir)
-        self._pack_loader.load_all()
         self._game_state = GameStateManager(hass.config.config_dir)
         # Games whose persisted state has already been loaded from disk
         # (lazy load-once tracking so we don't hit the filesystem per frame).
@@ -228,6 +226,22 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             game_state_manager=self._game_state,
             llm_backend=self._llm_backend,
         )
+
+    async def async_load_stored_data(self) -> None:
+        """Load spoiler profiles and prompt packs from disk, off the event loop.
+
+        Must run once during setup, before entities read pack/spoiler state —
+        both loads hit the filesystem, which is not allowed on the loop.
+        """
+        await self.hass.async_add_executor_job(self._load_stored_data_sync)
+
+    def _load_stored_data_sync(self) -> None:
+        self._spoiler.load()
+        self._pack_loader.load_all()
+
+    async def _async_save_spoiler(self) -> None:
+        """Persist spoiler profiles in the executor (disk write)."""
+        await self.hass.async_add_executor_job(self._spoiler.save)
 
     # -- language resolution --------------------------------------------------
 
@@ -441,7 +455,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         if level not in SPOILER_LEVELS:
             _LOGGER.warning("Unknown spoiler level '%s'", level)
             return
-        self._spoiler.set_level("all", level)
+        self._spoiler.set_level("all", level, persist=False)
+        self.hass.async_create_task(self._async_save_spoiler())
         _LOGGER.info("Default spoiler level set to: %s", level)
         self.async_set_updated_data(self._build_data())
 
