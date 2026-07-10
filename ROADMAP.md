@@ -189,6 +189,19 @@ Detailliertes Diagramm: `docs/architecture.md`.
 | GA-BVW | Board-Vision-Worker (`worker/board_vision.py`) – Client-seitig: entzerrt das physische Brett aus 4 Eckpunkten, misst Belegung+Figurenfarbe und leitet den Zug per **Tracking** ab (keine Figuren-Typ-Klassifikation nötig) → publiziert FEN an `…/board`. Pixel-Schicht ist kalibrierbarer Best-Effort; Kern (Geometrie + Zug-Inferenz) voll getestet | ✅ (unreleased) |
 | GA-GST | Game-State-Engine + Trend Detection | ✅ v0.10 |
 
+### Phase 8 — Remote Device Control (RustDesk)
+
+Zusätzlicher, optionaler Steuerungskanal neben dem bestehenden Agent Mode (`vgamepad`). Ziel: geräteunabhängige Fernsteuerung (PC, macOS, Android) ohne eigene Client-App pro Plattform, z. B. für Player-2-Assist und Pause-Trigger auf dem Smartphone. Ersetzt **nicht** die bestehenden ADB-Capture-Agents oder den Gamepad-Executor — läuft parallel dazu.
+
+Wichtige Einschränkung (siehe `docs/rustdesk_control.md`): RustDesk hat keine scriptbare Input-API. Automatisierbar ist nur der Verbindungsauf-/-abbau der Session, nicht die Eingaben selbst.
+
+| Task | Beschreibung | Status |
+|------|--------------|--------|
+| GA-118 | Architektur-Doku RustDesk-Steuerungskanal (`docs/rustdesk_control.md`) | ✅ |
+| GA-119 | `worker/rustdesk_controller.py` — Wrapper um RustDesk-CLI (Session auf-/abbauen, ID/Passwort-Handling, kein Code-Import → MIT-Lizenz unberührt) | ⬜ |
+| GA-120 | HA-Service `gaming_assistant.open_remote_session` (Zielgerät, optionaler Auto-Trigger bei Pause/Coplay) | ⬜ |
+| GA-121 | Optionaler Companion-Listener pro Zielgerät für scriptbare Pause-Aktionen (MQTT → lokale Medientaste/Shortcut), ergänzt RustDesk um automatisierbare Kommandos | ⬜ |
+
 ### Begleit-Apps & Test-Infrastruktur
 
 | Task | Beschreibung | Status |
