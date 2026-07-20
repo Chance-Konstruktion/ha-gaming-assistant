@@ -227,6 +227,13 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             llm_backend=self._llm_backend,
         )
 
+        # Seed an initial snapshot so `.data` is never None. This coordinator is
+        # pure-push (no polling) and platforms are forwarded before the first
+        # MQTT update, so entities read their initial state before any
+        # `async_set_updated_data` call. Without a seed, `.data.get(...)` in the
+        # entities raises AttributeError on 'NoneType' during add_to_platform.
+        self.data = self._build_data()
+
     async def async_load_stored_data(self) -> None:
         """Load spoiler profiles and prompt packs from disk, off the event loop.
 
