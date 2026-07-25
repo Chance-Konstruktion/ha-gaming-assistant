@@ -6,9 +6,14 @@ target-version = "py311"
 line-length = 100
 
 [tool.ruff.lint]
-# Ruff's default rule set (pyflakes F + a curated pycodestyle subset).
-# This catches undefined names, unused imports, and other real bugs
-# without the noise of opinionated style rules.
+# Selected explicitly rather than inheriting ruff's default set: the default
+# moves between ruff releases, which silently changes what CI enforces. These
+# are the rules we want — pyflakes (undefined names, unused imports) plus the
+# pycodestyle subset that catches real bugs — without the noise of opinionated
+# style rules.
+#   E4  imports        E7  statements        E9  runtime/IO errors
+#   F   pyflakes       E402 module-level import not at top of file
+select = ["E4", "E7", "E9", "F", "E402"]
 
 [tool.ruff.lint.per-file-ignores]
 # The test suite intentionally injects stub HA modules into sys.modules
