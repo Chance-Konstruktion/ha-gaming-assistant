@@ -18,4 +18,8 @@ numpy>=1.26          # un-skips the HDMI-bridge grab_frame() test (np.ndarray fr
 # Test tooling
 pytest
 pytest-cov
-ruff
+# Pinned on purpose: ruff's *default* rule set changes between releases, so an
+# unpinned ruff turns every unrelated PR red the day upstream enables a new
+# rule. The rules we actually want are selected explicitly in pyproject.toml;
+# bump this pin deliberately, not by accident.
+ruff==0.15.8
