@@ -32,7 +32,10 @@ from custom_components.gaming_assistant.history import HistoryManager
 
 def _run(coro):
     """Helper to run async code in tests."""
-    return asyncio.get_event_loop().run_until_complete(coro)
+    # asyncio.run statt get_event_loop(): letzteres holt ab Python 3.12
+    # keine Schleife mehr, wenn keine laeuft, und wirft ab 3.14 einen
+    # RuntimeError -- alle elf Tests dieser Datei brachen daran ab.
+    return asyncio.run(coro)
 
 
 class TestHistoryJSONL(unittest.TestCase):

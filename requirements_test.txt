@@ -1,0 +1,12 @@
+# Abhaengigkeiten der Testsuite.
+#
+# Die CI-Vorlage installiert diese Datei, wenn es sie gibt -- sonst faellt
+# sie auf eine Standardliste ohne aiohttp/Pillow/numpy zurueck, und die
+# Sammelphase bricht ab, bevor ein Test gelaufen ist.
+pytest
+pytest-asyncio
+aiohttp>=3.9.0
+Pillow>=10.0.0
+numpy
+paho-mqtt>=2.1.0
+requests
