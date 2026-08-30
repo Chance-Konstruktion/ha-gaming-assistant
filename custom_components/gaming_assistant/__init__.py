@@ -97,7 +97,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         try:
             if await download_prompt_packs(packs_cache):
                 coordinator.pack_loader.reload()
-                _LOGGER.info("Prompt packs updated from GitHub")
+                _LOGGER.info("Prompt packs updated from GitLab")
         except Exception:  # noqa: BLE001
             _LOGGER.debug("Could not update prompt packs, using cached/bundled")
 
@@ -425,7 +425,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     break
 
         async def handle_refresh_prompt_packs(call: ServiceCall) -> None:
-            """Re-download prompt packs from GitHub and hot-reload them."""
+            """Re-download prompt packs from GitLab and hot-reload them."""
             packs_cache = (
                 Path(hass.config.config_dir) / "gaming_assistant" / "prompt_packs"
             )

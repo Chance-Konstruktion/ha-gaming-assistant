@@ -101,7 +101,7 @@ Detailliertes Diagramm: `docs/architecture.md`.
 
 ### Prompt Packs — ✅
 - Externe Community-Repo:
-  [`Chance-Konstruktion/ha-gaming-assistant-prompts`](https://github.com/Chance-Konstruktion/ha-gaming-assistant-prompts).
+  [`chance-konstruktion/ha-gaming-assistant-prompts`](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant-prompts).
 - Auto-Download beim HA-Start, Cache hat Vorrang vor gebündelten
   Packs.
 - Manifest + Schema-Validator (`pack_manifest.json`, v0.13).
