@@ -1,0 +1,401 @@
+analyze:
+  name: Analyze Screenshot
+  description: Triggers an immediate screenshot analysis on the worker.
+
+start:
+  name: Start Worker
+  description: Sends a start command to the Gaming Assistant worker.
+
+stop:
+  name: Stop Worker
+  description: Sends a stop command to the Gaming Assistant worker.
+
+process_image:
+  name: Process Image
+  description: Manually trigger image analysis (for testing/automation).
+  fields:
+    image_path:
+      name: Image Path
+      description: Path to a JPEG/PNG image file
+      required: false
+      selector:
+        text:
+    image_base64:
+      name: Image Base64
+      description: Base64-encoded image data
+      required: false
+      selector:
+        text:
+    game_hint:
+      name: Game Hint
+      description: Optional game name hint
+      required: false
+      selector:
+        text:
+    client_type:
+      name: Client Type
+      description: Client type (pc, android, console)
+      required: false
+      default: "pc"
+      selector:
+        select:
+          options:
+            - "pc"
+            - "android"
+            - "android_tv"
+            - "console"
+            - "tabletop"
+
+ask:
+  name: Ask Question
+  description: Ask a direct question to the gaming assistant, optionally with an image for context.
+  fields:
+    question:
+      name: Question
+      description: The question to ask
+      required: true
+      selector:
+        text:
+    image_path:
+      name: Image Path
+      description: Optional path to a screenshot for context
+      required: false
+      selector:
+        text:
+    image_base64:
+      name: Image Base64
+      description: Optional base64-encoded image for context
+      required: false
+      selector:
+        text:
+    game_hint:
+      name: Game Hint
+      description: Optional game name hint
+      required: false
+      selector:
+        text:
+    client_type:
+      name: Client Type
+      description: Client type (pc, android, console)
+      required: false
+      default: "pc"
+      selector:
+        select:
+          options:
+            - "pc"
+            - "android"
+            - "android_tv"
+            - "console"
+            - "tabletop"
+
+set_spoiler_level:
+  name: Set Spoiler Level
+  description: Change spoiler settings during gameplay.
+  fields:
+    category:
+      name: Category
+      description: Spoiler category
+      required: true
+      selector:
+        select:
+          options:
+            - "all"
+            - "story"
+            - "items"
+            - "enemies"
+            - "bosses"
+            - "locations"
+            - "lore"
+            - "mechanics"
+    level:
+      name: Level
+      description: Spoiler level
+      required: true
+      selector:
+        select:
+          options:
+            - "none"
+            - "low"
+            - "medium"
+            - "high"
+    game:
+      name: Game
+      description: Game name (optional, for game-specific settings)
+      required: false
+      selector:
+        text:
+
+set_spoiler_profile:
+  name: Set Spoiler Profile
+  description: Set or clear a per-game spoiler profile (all categories at once).
+  fields:
+    game:
+      name: Game
+      description: Game name
+      required: true
+      selector:
+        text:
+    level:
+      name: Level
+      description: Spoiler level for all categories
+      required: false
+      default: "medium"
+      selector:
+        select:
+          options:
+            - "none"
+            - "low"
+            - "medium"
+            - "high"
+    clear:
+      name: Clear Profile
+      description: Set to true to remove the game profile
+      required: false
+      default: false
+      selector:
+        boolean:
+
+clear_history:
+  name: Clear History
+  description: Clear tip history for a game or all games.
+  fields:
+    game:
+      name: Game
+      description: Game name (leave empty to clear all)
+      required: false
+      selector:
+        text:
+
+capture_from_camera:
+  name: Capture from Camera
+  description: Grab a snapshot from a Home Assistant camera entity (e.g. IP Webcam, Generic Camera) and analyze it. Perfect for console gaming without a dedicated capture agent.
+  fields:
+    entity_id:
+      name: Camera Entity
+      description: The camera entity to capture from (e.g. camera.ip_webcam)
+      required: true
+      selector:
+        entity:
+          domain: camera
+    game_hint:
+      name: Game Hint
+      description: Optional game name hint for better tips
+      required: false
+      selector:
+        text:
+    client_type:
+      name: Client Type
+      description: Client type (pc, android, console)
+      required: false
+      default: "console"
+      selector:
+        select:
+          options:
+            - "pc"
+            - "android"
+            - "android_tv"
+            - "console"
+            - "tabletop"
+
+watch_camera:
+  name: Watch Camera
+  description: >
+    Start continuous monitoring of a Home Assistant camera entity.
+    Works like a built-in capture agent — grabs snapshots at a regular interval
+    and analyzes them automatically. Use any camera integrated in HA: IP Webcam,
+    Generic Camera, Frigate, Android TV, ONVIF, etc.
+    Perfect for board games, card games, chess, or console gaming.
+  fields:
+    entity_id:
+      name: Camera Entity
+      description: The camera entity to watch (e.g. camera.ip_webcam, camera.schachtisch)
+      required: true
+      selector:
+        entity:
+          domain: camera
+    game_hint:
+      name: Game Hint
+      description: Game name hint (e.g. "Schach", "Siedler von Catan", "Elden Ring")
+      required: false
+      selector:
+        text:
+    client_type:
+      name: Client Type
+      description: Type of game source
+      required: false
+      default: "tabletop"
+      selector:
+        select:
+          options:
+            - "pc"
+            - "android"
+            - "android_tv"
+            - "console"
+            - "tabletop"
+    interval:
+      name: Capture Interval
+      description: Seconds between captures (0 = use configured default)
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 300
+          unit_of_measurement: seconds
+
+stop_watch_camera:
+  name: Stop Watch Camera
+  description: Stop continuous camera monitoring. Leave entity_id empty to stop all watchers.
+  fields:
+    entity_id:
+      name: Camera Entity
+      description: The camera entity to stop watching (empty = stop all)
+      required: false
+      selector:
+        entity:
+          domain: camera
+
+summarize_session:
+  name: Summarize Session
+  description: >
+    Generate a summary of the current or last gaming session.
+    Analyzes all tips given during the session and produces a concise
+    2-3 sentence summary highlighting patterns and improvement areas.
+  fields:
+    game:
+      name: Game
+      description: Game name (leave empty to use current/last session)
+      required: false
+      selector:
+        text:
+
+configure:
+  name: Configure
+  description: Update runtime configuration (camera, TTS, model) from the panel.
+  fields:
+    camera_entity:
+      name: Camera Entity
+      description: Camera entity to use for watching
+      required: false
+      selector:
+        entity:
+          domain: camera
+    tts_entity:
+      name: TTS Entity
+      description: TTS service entity (e.g. tts.piper)
+      required: false
+      selector:
+        entity:
+          domain: tts
+    tts_target:
+      name: Media Player
+      description: Media player / speaker for announcements
+      required: false
+      selector:
+        entity:
+          domain: media_player
+    model:
+      name: AI Model
+      description: Ollama vision model name
+      required: false
+      selector:
+        text:
+
+announce:
+  name: Announce Tip
+  description: >
+    Speak the current tip (or a custom message) via a TTS service.
+    Uses the configured TTS entity and media player by default.
+    You can override both per call.
+  fields:
+    message:
+      name: Message
+      description: Custom message to speak (leave empty to announce the current tip)
+      required: false
+      selector:
+        text:
+    tts_entity:
+      name: TTS Entity
+      description: TTS entity to use (e.g. tts.piper). Overrides configured default.
+      required: false
+      selector:
+        entity:
+          domain: tts
+    media_player_entity_id:
+      name: Media Player
+      description: Media player / speaker to announce on. Overrides configured default.
+      required: false
+      selector:
+        entity:
+          domain: media_player
+
+set_game_hint:
+  name: Set Game Hint
+  description: >
+    Set a persistent game hint that is used for all future analyses
+    until changed or cleared. Useful when the game cannot be
+    auto-detected from the window title.
+  fields:
+    game_hint:
+      name: Game Hint
+      description: Game name (leave empty to clear)
+      required: false
+      default: ""
+      selector:
+        text:
+
+set_source_type:
+  name: Set Source Type
+  description: >
+    Set the source type for camera-based game detection.
+    Controls how the image is interpreted.
+  fields:
+    source_type:
+      name: Source Type
+      description: How the camera sees the game
+      required: true
+      default: "auto"
+      selector:
+        select:
+          options:
+            - "auto"
+            - "console"
+            - "tabletop"
+
+list_game_packs:
+  name: List Game Packs
+  description: >
+    List all available prompt packs (game-specific AI configurations).
+    Results are logged at INFO level and returned as a service response.
+
+refresh_prompt_packs:
+  name: Refresh Prompt Packs
+  description: >
+    Download the latest prompt packs from the community repository
+    (Chance-Konstruktion/ha-gaming-assistant-prompts) and hot-reload
+    them without restarting Home Assistant. Invalid packs are skipped
+    with a warning.
+
+set_agent_mode:
+  name: Set Agent Mode (Player 2)
+  description: >
+    Enable or disable Agent Mode. When enabled, each analyzed frame also
+    produces a validated controller action published over MQTT to the
+    agent executor (worker/agent_executor.py). Opt-in and always resets to
+    OFF on restart. Test with the executor in --dry-run first.
+  fields:
+    enabled:
+      name: Enabled
+      description: Turn Agent Mode on or off.
+      required: true
+      selector:
+        boolean:
+    allowed_buttons:
+      name: Allowed buttons
+      description: >
+        Optional whitelist of Xbox buttons the AI may use. Leave empty to
+        allow all. The executor enforces its own whitelist as well.
+      required: false
+      example: "A, B, X, Y, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT"
+      selector:
+        text:

@@ -1,0 +1,6 @@
+{
+  "id": "test_minimal",
+  "name": "Test Minimal",
+  "keywords": ["test"],
+  "system_prompt": "You are a test coach."
+}

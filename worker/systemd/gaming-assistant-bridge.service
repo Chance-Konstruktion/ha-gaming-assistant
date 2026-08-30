@@ -1,0 +1,37 @@
+# Example systemd unit for the HDMI Bridge capture agent on Raspberry Pi.
+#
+# Install:
+#   sudo cp gaming-assistant-bridge.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now gaming-assistant-bridge
+#
+# Adjust `ExecStart` to match your broker IP, capture device, and options.
+# The user running the agent needs read access to /dev/video0
+# (add to the `video` group: `sudo usermod -aG video pi`).
+
+[Unit]
+Description=Gaming Assistant – HDMI Bridge Capture Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/ha-gaming-assistant/worker
+ExecStart=/usr/bin/python3 /home/pi/ha-gaming-assistant/worker/capture_agent_bridge.py \
+    --broker 192.168.1.10 \
+    --device /dev/video0 \
+    --client-id console-hdmi \
+    --interval 2 \
+    --quality 70 \
+    --resize 960x540 \
+    --capture-resolution 1280x720 \
+    --detect-change \
+    --game-hint "Console"
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

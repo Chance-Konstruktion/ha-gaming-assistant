@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "manifest_version": 1,
+  "description": "Schema and metadata for Gaming Assistant prompt packs. Bundled packs are loaded as Python resources; the loader validates each pack against the 'pack_schema' below and rejects invalid files with a warning.",
+  "min_integration_version": "0.13.0",
+  "pack_schema": {
+    "type": "object",
+    "required": ["id", "name", "keywords", "system_prompt"],
+    "additionalProperties": true,
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[a-z0-9_]+$",
+        "description": "Unique snake_case pack identifier, e.g. 'elden_ring'."
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Human-readable game name."
+      },
+      "version": {
+        "type": "string",
+        "pattern": "^\\d+\\.\\d+(?:\\.\\d+)?$",
+        "description": "Semantic version of the pack, e.g. '1.0' or '1.2.3'. Optional."
+      },
+      "game_id": {
+        "type": "string",
+        "description": "Stable upstream game identifier (e.g. Steam AppID, IGDB slug). Optional."
+      },
+      "keywords": {
+        "type": "array",
+        "items": {"type": "string", "minLength": 1},
+        "minItems": 1,
+        "description": "Window-title / app-name substrings used to auto-select this pack."
+      },
+      "system_prompt": {
+        "type": "string",
+        "minLength": 1,
+        "description": "System role injected when this pack is active."
+      },
+      "additional_context": {
+        "type": "string",
+        "description": "Extra context appended in non-compact mode only."
+      },
+      "spoiler_defaults": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high"]
+        },
+        "description": "Per-category spoiler baseline; merged into the game profile on first use."
+      },
+      "constraints": {
+        "type": "object",
+        "description": "Optional runtime constraints for this pack.",
+        "properties": {
+          "min_model_params_b": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Minimum model size in billions of parameters."
+          },
+          "requires_vision": {
+            "type": "boolean",
+            "description": "If true, refuse to run under text-only backends."
+          },
+          "supported_modes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["coach", "coplay", "opponent", "analyst"]
+            }
+          }
+        }
+      },
+      "examples": {
+        "type": "array",
+        "description": "Optional few-shot examples for authors to document typical tips.",
+        "items": {
+          "type": "object",
+          "required": ["situation", "tip"],
+          "properties": {
+            "situation": {"type": "string"},
+            "tip": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

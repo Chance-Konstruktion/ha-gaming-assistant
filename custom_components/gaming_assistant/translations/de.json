@@ -1,0 +1,119 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "KI-Anbieter wählen",
+        "description": "Wähle dein KI-Backend. Ollama (lokal, kostenlos) ist der Standard. Cloud-Anbieter benötigen einen API-Key.",
+        "data": {
+          "llm_backend": "KI-Anbieter"
+        }
+      },
+      "connection": {
+        "title": "Verbindungseinstellungen",
+        "description": "Gib die Host-URL und den API-Key (falls erforderlich) für deinen KI-Anbieter ein.",
+        "data": {
+          "ollama_host": "Host-URL",
+          "llm_api_key": "API-Key"
+        }
+      },
+      "model": {
+        "title": "Modell wählen",
+        "description": "Wähle ein Vision-Modell und das Analyse-Intervall.",
+        "data": {
+          "model": "Vision-Modell",
+          "interval": "Intervall (Sekunden)"
+        }
+      },
+      "spoiler": {
+        "title": "Spoiler-Einstellungen",
+        "description": "Wähle ein Standard-Spoiler-Level. Dies gilt für alle Kategorien. Du kannst pro Kategorie und Spiel über die Spoiler-Level Entität oder den Service set_spoiler_level feinjustieren.",
+        "data": {
+          "default_spoiler_level": "Standard Spoiler-Level"
+        }
+      },
+      "camera": {
+        "title": "Kamera einrichten",
+        "description": "Optional: Wähle eine Home Assistant Kamera aus, die automatisch für Game-Screenshots überwacht wird. Du kannst das überspringen, wenn du einen externen Worker (PC/Android App) nutzt. Worker die sich per MQTT verbinden, werden automatisch registriert.",
+        "data": {
+          "camera_entity": "Kamera-Entität"
+        }
+      },
+      "tts": {
+        "title": "Sprachausgabe",
+        "description": "Optional: Konfiguriere Text-to-Speech damit Tipps vorgelesen werden. Wähle eine TTS-Engine (z.B. Piper) und einen Lautsprecher (Media Player). Du kannst auch Auto-Ansage aktivieren, um jeden neuen Tipp automatisch vorzulesen.",
+        "data": {
+          "tts_entity": "TTS-Engine",
+          "tts_target": "Lautsprecher (Media Player)",
+          "auto_announce": "Neue Tipps automatisch ansagen"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "KI-Server nicht erreichbar – bitte URL prüfen.",
+      "api_key_required": "Für diesen Cloud-Anbieter wird ein API-Key benötigt."
+    },
+    "abort": {
+      "single_instance_allowed": "Gaming Assistant ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Einstellungen",
+        "data": {
+          "model": "Vision-Modell",
+          "camera_entity": "Kamera-Entität",
+          "tts_entity": "TTS-Engine",
+          "tts_target": "Lautsprecher (Media Player)",
+          "auto_announce": "Neue Tipps automatisch ansagen"
+        }
+      }
+    }
+  },
+  "entity": {
+    "conversation": {
+      "gaming_assistant": {
+        "name": "Gaming-Assistent"
+      }
+    },
+    "select": {
+      "assistant_mode": {
+        "name": "Assistenten-Modus",
+        "state": {
+          "coach": "Coach",
+          "coplay": "Mitspieler",
+          "opponent": "Gegner",
+          "analyst": "Analyst"
+        }
+      },
+      "spoiler_level": {
+        "name": "Spoiler-Level",
+        "state": {
+          "none": "Keins",
+          "low": "Niedrig",
+          "medium": "Mittel",
+          "high": "Hoch"
+        }
+      }
+    },
+    "number": {
+      "interval": {
+        "name": "Analyse-Intervall"
+      },
+      "timeout": {
+        "name": "Analyse-Timeout"
+      }
+    },
+    "switch": {
+      "auto_announce": {
+        "name": "Auto-Ansage"
+      },
+      "auto_summary": {
+        "name": "Auto-Session-Zusammenfassung"
+      },
+      "agent_mode": {
+        "name": "Agent-Modus (Player 2)"
+      }
+    }
+  }
+}

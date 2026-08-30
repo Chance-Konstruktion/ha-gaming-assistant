@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>README Preview · Gaming Assistant for Home Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-2: #010409;
+    --panel: #151b23;
+    --border: #3d444d;
+    --border-muted: #262c36;
+    --text: #f0f6fc;
+    --text-muted: #9198a1;
+    --link: #4493f8;
+    --accent: #41BDF5;
+    --accent-2: #ff2d75;
+    --accent-3: #00ffa3;
+    --code-bg: #151b23;
+    --code-border: #3d444db3;
+    --kbd-bg: #151b23;
+    --selection: #1f6feb66;
+  }
+
+  html.light {
+    --bg: #ffffff;
+    --bg-2: #f6f8fa;
+    --panel: #f6f8fa;
+    --border: #d1d9e0;
+    --border-muted: #d1d9e0b3;
+    --text: #1f2328;
+    --text-muted: #59636e;
+    --link: #0969da;
+    --code-bg: #f6f8fa;
+    --code-border: #d1d9e0;
+    --kbd-bg: #f6f8fa;
+    --selection: #0969da33;
+  }
+
+  * { box-sizing: border-box; }
+  ::selection { background: var(--selection); }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg-2);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* sticky GitHub-like header */
+  .gh-bar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: 56px;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--border-muted);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 16px;
+    backdrop-filter: blur(8px);
+  }
+  .gh-bar .logo {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fff, #c9d1d9 60%, #6e7681);
+    display: grid; place-items: center;
+    color: #0d1117;
+    font-weight: 900;
+  }
+  .gh-bar .crumbs {
+    font-size: 14px;
+    color: var(--text);
+  }
+  .gh-bar .crumbs .org { color: var(--link); font-weight: 600; }
+  .gh-bar .crumbs .sep { color: var(--text-muted); margin: 0 6px; }
+  .gh-bar .crumbs .repo { color: var(--link); font-weight: 600; }
+  .gh-bar .crumbs .pub {
+    margin-left: 8px;
+    padding: 1px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .gh-bar .spacer { flex: 1; }
+  .gh-bar .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .gh-bar .btn .num {
+    background: var(--border-muted);
+    border-radius: 999px;
+    padding: 0 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* page layout */
+  .page {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 24px 32px 80px;
+  }
+
+  /* tab strip */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border-muted);
+    margin-bottom: 24px;
+    overflow-x: auto;
+  }
+  .tabs .tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    font-size: 14px;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .tabs .tab.active {
+    color: var(--text);
+    border-bottom-color: #fd7e14;
+    font-weight: 600;
+  }
+  .tabs .tab .pill {
+    font-size: 11px;
+    padding: 1px 6px;
+    background: var(--border-muted);
+    border-radius: 999px;
+    color: var(--text-muted);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 296px;
+    gap: 48px;
+  }
+
+  /* readme container */
+  .readme {
+    background: var(--bg);
+    border: 1px solid var(--border-muted);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .readme-head {
+    display: flex; align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-muted);
+    background: var(--panel);
+    font-size: 13px;
+    color: var(--text-muted);
+    gap: 10px;
+  }
+  .readme-head .dot {
+    width: 16px; height: 16px;
+    display: inline-grid; place-items: center;
+    color: var(--text-muted);
+  }
+  .readme-head .title { color: var(--text); font-weight: 600; }
+  .readme-body {
+    padding: 32px 48px 56px;
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  /* markdown styling (GitHub-ish) */
+  .md h1, .md h2, .md h3, .md h4 {
+    font-weight: 700;
+    line-height: 1.25;
+    margin-top: 28px;
+    margin-bottom: 16px;
+  }
+  .md h1 {
+    font-size: 2em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--border-muted);
+  }
+  .md h2 {
+    font-size: 1.5em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--border-muted);
+  }
+  .md h3 { font-size: 1.25em; }
+  .md h4 { font-size: 1em; }
+
+  .md p { margin: 0 0 16px; }
+  .md a {
+    color: var(--link);
+    text-decoration: none;
+  }
+  .md a:hover { text-decoration: underline; }
+
+  .md strong { font-weight: 700; color: var(--text); }
+  .md em { font-style: italic; }
+
+  .md hr {
+    border: 0;
+    height: 0.25em;
+    background: var(--border-muted);
+    margin: 24px 0;
+  }
+
+  .md ul, .md ol { padding-left: 2em; margin: 0 0 16px; }
+  .md li { margin: 0.25em 0; }
+  .md li + li { margin-top: 0.25em; }
+
+  .md blockquote {
+    margin: 0 0 16px;
+    padding: 0 1em;
+    color: var(--text-muted);
+    border-left: 0.25em solid var(--border);
+  }
+
+  .md code {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background: rgba(101, 108, 118, 0.2);
+    border-radius: 6px;
+  }
+  .md pre {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 6px;
+    padding: 16px;
+    overflow-x: auto;
+    line-height: 1.45;
+    margin: 0 0 16px;
+  }
+  .md pre code {
+    background: transparent;
+    padding: 0;
+    font-size: 85%;
+    color: var(--text);
+  }
+
+  .md table {
+    border-collapse: collapse;
+    margin: 0 0 16px;
+    width: 100%;
+    display: block;
+    overflow-x: auto;
+  }
+  .md table th, .md table td {
+    border: 1px solid var(--border);
+    padding: 6px 13px;
+    vertical-align: top;
+  }
+  .md table th {
+    background: var(--panel);
+    font-weight: 600;
+  }
+  .md table tr:nth-child(2n) {
+    background: var(--panel);
+  }
+
+  .md img { max-width: 100%; border-radius: 6px; }
+
+  .md details {
+    margin: 0 0 16px;
+    padding: 12px 16px;
+    border: 1px solid var(--border-muted);
+    border-radius: 8px;
+    background: var(--bg-2);
+  }
+  .md details[open] {
+    background: var(--panel);
+  }
+  .md details summary {
+    cursor: pointer;
+    font-weight: 500;
+    list-style: none;
+    padding: 4px 0;
+  }
+  .md details summary::-webkit-details-marker { display: none; }
+  .md details summary::before {
+    content: "▸";
+    display: inline-block;
+    margin-right: 8px;
+    color: var(--text-muted);
+    transition: transform 0.15s;
+  }
+  .md details[open] summary::before {
+    transform: rotate(90deg);
+  }
+  .md details > *:not(summary) { margin-top: 12px; }
+
+  .md table td p:last-child, .md table td ul:last-child, .md table td ol:last-child {
+    margin-bottom: 0;
+  }
+
+  /* center the hero region (the div align=center) */
+  .md > div[align="center"], .md div[align="center"] {
+    text-align: center;
+  }
+  .md div[align="center"] img {
+    margin: 0 auto;
+  }
+
+  /* sidebar */
+  .side {
+    position: sticky;
+    top: 80px;
+    align-self: start;
+    font-size: 14px;
+  }
+  .side h3 {
+    font-size: 16px;
+    margin: 0 0 8px;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .side .about {
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+  .side .meta {
+    display: flex; flex-direction: column; gap: 6px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-muted);
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+  }
+  .side .meta a { color: var(--link); text-decoration: none; }
+  .side .meta a:hover { text-decoration: underline; }
+  .side .stats {
+    display: flex; gap: 16px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-muted);
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+  }
+  .side .stats b { color: var(--text); }
+  .side .topics { display: flex; flex-wrap: wrap; gap: 6px; }
+  .side .topic {
+    font-size: 12px;
+    padding: 0 10px;
+    line-height: 22px;
+    height: 22px;
+    background: rgba(56,139,253,0.15);
+    color: var(--link);
+    border-radius: 999px;
+  }
+
+  /* badge-row spacing inside the hero */
+  .md p img[src*="shields.io"] {
+    margin: 2px;
+    vertical-align: middle;
+  }
+
+  /* loading skeleton */
+  .skeleton {
+    padding: 60px;
+    color: var(--text-muted);
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* tweaks toggle button (when panel is hidden) */
+  .tweaks-fab {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 100;
+    background: var(--accent);
+    color: #0a0e1a;
+    border: none;
+    height: 44px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    display: none;
+  }
+
+  @media (max-width: 980px) {
+    .grid { grid-template-columns: 1fr; }
+    .side { position: static; }
+    .readme-body { padding: 20px 16px 32px; }
+  }
+</style>
+
+</head>
+<body>
+
+<!-- fake GitHub header -->
+<div class="gh-bar" id="gh-bar">
+  <div class="logo">🐙</div>
+  <div class="crumbs">
+    <span class="org">Chance-Konstruktion</span>
+    <span class="sep">/</span>
+    <span class="repo">ha-gaming-assistant</span>
+    <span class="pub">Public</span>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn">👁 Watch <span class="num">0</span></button>
+  <button class="btn">🍴 Fork <span class="num">0</span></button>
+  <button class="btn">⭐ Star <span class="num">0</span></button>
+</div>
+
+<div class="page">
+
+  <!-- tabs -->
+  <div class="tabs">
+    <div class="tab active">📄 Code</div>
+    <div class="tab">⊙ Issues <span class="pill">3</span></div>
+    <div class="tab">↻ Pull requests</div>
+    <div class="tab">▶ Actions</div>
+    <div class="tab">📋 Projects</div>
+    <div class="tab">🛡 Security</div>
+    <div class="tab">📈 Insights</div>
+  </div>
+
+  <div class="grid">
+
+    <!-- readme card -->
+    <div>
+      <div class="readme">
+        <div class="readme-head">
+          <span class="dot">📄</span>
+          <span class="title">README</span>
+          <span style="flex:1"></span>
+          <span>MIT license</span>
+        </div>
+        <div class="readme-body md" id="md">
+          <div class="skeleton">Rendering README…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- sidebar -->
+    <aside class="side">
+      <h3>About</h3>
+      <p class="about">AI-powered gaming coach for Home Assistant — uses local Vision LLM (Ollama) to analyze your screen and push gameplay tips via MQTT. HACS-ready.</p>
+      <div class="meta">
+        <div>📖 <a>Readme</a></div>
+        <div>⚖ <a>MIT license</a></div>
+        <div>📊 <a>Activity</a></div>
+        <div>⭐ <b style="color:var(--text)">0</b> stars</div>
+        <div>👁 <b style="color:var(--text)">0</b> watching</div>
+        <div>🍴 <b style="color:var(--text)">0</b> forks</div>
+      </div>
+      <h3>Releases</h3>
+      <div class="about"><b style="color:var(--text)">v0.11.0</b> – Gaming Assistant <span style="background:rgba(35,134,54,0.4);color:#7ee787;padding:0 6px;border-radius:999px;font-size:11px">Latest</span></div>
+      <h3 style="margin-top:16px">Topics</h3>
+      <div class="topics">
+        <span class="topic">home-assistant</span>
+        <span class="topic">hacs</span>
+        <span class="topic">gaming</span>
+        <span class="topic">ollama</span>
+        <span class="topic">vision-llm</span>
+        <span class="topic">mqtt</span>
+        <span class="topic">ai</span>
+        <span class="topic">smart-home</span>
+      </div>
+      <h3 style="margin-top:16px">Languages</h3>
+      <div style="height:8px;border-radius:999px;overflow:hidden;display:flex;margin-bottom:8px">
+        <div style="width:86.1%;background:#3572A5"></div>
+        <div style="width:6.7%;background:#f1e05a"></div>
+        <div style="width:4.2%;background:#A97BFF"></div>
+        <div style="width:1.6%;background:#C1F12E"></div>
+        <div style="width:1.4%;background:#012456"></div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);display:flex;flex-direction:column;gap:4px">
+        <div>● Python <b style="color:var(--text)">86.1%</b></div>
+        <div>● JavaScript <b style="color:var(--text)">6.7%</b></div>
+        <div>● Kotlin <b style="color:var(--text)">4.2%</b></div>
+        <div>● Batchfile <b style="color:var(--text)">1.6%</b></div>
+        <div>● PowerShell <b style="color:var(--text)">1.4%</b></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<button class="tweaks-fab" id="tweaks-fab">⚙ TWEAKS</button>
+
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<script>
+(async function renderReadme() {
+  try {
+    const res = await fetch('README.md');
+    if (!res.ok) throw new Error('Could not fetch README.md: ' + res.status);
+    let md = await res.text();
+
+    // Configure marked
+    marked.setOptions({
+      gfm: true,
+      breaks: false,
+      headerIds: true,
+      mangle: false,
+    });
+
+    // Render; marked preserves HTML inside markdown
+    const html = marked.parse(md);
+    const target = document.getElementById('md');
+    target.innerHTML = html;
+
+    // post-process: align="center" inside divs
+    target.querySelectorAll('div[align="center"]').forEach(d => {
+      d.style.textAlign = 'center';
+    });
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById('md').innerHTML =
+      '<div class="skeleton">Failed to load README.md: ' + err.message + '</div>';
+  }
+})();
+</script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "dark",
+  "showChrome": true,
+  "showSidebar": false,
+  "accent": "#41BDF5"
+}/*EDITMODE-END*/;
+
+function App() {
+  const [t, setTweak] = window.useTweaks(DEFAULTS);
+
+  // apply theme
+  useEffect(() => {
+    document.documentElement.classList.toggle('light', t.theme === 'light');
+  }, [t.theme]);
+
+  // toggle chrome
+  useEffect(() => {
+    const bar = document.getElementById('gh-bar');
+    const tabs = document.querySelector('.tabs');
+    const side = document.querySelector('.side');
+    if (bar) bar.style.display = t.showChrome ? '' : 'none';
+    if (tabs) tabs.style.display = t.showChrome ? '' : 'none';
+    if (side) side.style.display = t.showSidebar ? '' : 'none';
+    const grid = document.querySelector('.grid');
+    if (grid) grid.style.gridTemplateColumns = t.showSidebar ? 'minmax(0, 1fr) 296px' : 'minmax(0, 1fr)';
+  }, [t.showChrome, t.showSidebar]);
+
+  // accent color
+  useEffect(() => {
+    document.documentElement.style.setProperty('--accent', t.accent);
+  }, [t.accent]);
+
+  const {
+    TweaksPanel, TweakSection, TweakRadio, TweakToggle, TweakColor
+  } = window;
+
+  return (
+    <TweaksPanel>
+      <TweakSection label="Theme">
+        <TweakRadio
+          label="Mode"
+          value={t.theme}
+          onChange={v => setTweak('theme', v)}
+          options={[
+            { value: 'dark', label: 'Dark' },
+            { value: 'light', label: 'Light' }
+          ]}
+        />
+        <TweakColor
+          label="Accent"
+          value={t.accent}
+          onChange={v => setTweak('accent', v)}
+          options={['#41BDF5', '#ff2d75', '#00ffa3', '#b026ff']}
+        />
+      </TweakSection>
+      <TweakSection label="Chrome">
+        <TweakToggle
+          label="GitHub header + tabs"
+          value={t.showChrome}
+          onChange={v => setTweak('showChrome', v)}
+        />
+        <TweakToggle
+          label="Sidebar (About / Topics)"
+          value={t.showSidebar}
+          onChange={v => setTweak('showSidebar', v)}
+        />
+      </TweakSection>
+    </TweaksPanel>
+  );
+}
+
+// Mount once tweaks-panel.jsx has loaded
+function mount() {
+  if (!window.TweaksPanel || !window.useTweaks) {
+    return setTimeout(mount, 50);
+  }
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  ReactDOM.createRoot(root).render(<App />);
+}
+mount();
+</script>
+
+</body>
+</html>

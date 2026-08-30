@@ -1,0 +1,16 @@
+{
+  "id": "your_game_id",
+  "name": "Your Game Name",
+  "keywords": ["game name", "alternate name"],
+  "system_prompt": "You are an expert coach for Your Game. Describe your expertise here.",
+  "spoiler_defaults": {
+    "story": "none",
+    "items": "medium",
+    "enemies": "medium",
+    "bosses": "low",
+    "locations": "medium",
+    "lore": "none",
+    "mechanics": "high"
+  },
+  "additional_context": "Any extra context about the game that helps the AI give better tips."
+}

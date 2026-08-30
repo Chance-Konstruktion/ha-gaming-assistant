@@ -1,0 +1,212 @@
+################################################################################
+# Gaming Assistant – Lovelace Dashboard (v0.11)
+# Copy this into a manual card or your dashboard YAML
+################################################################################
+
+type: vertical-stack
+cards:
+
+  # -- Header ----------------------------------------------------------------
+  - type: markdown
+    content: |
+      ## Gaming Assistant
+      AI-powered gaming coach (multi-backend, multi-client ready)
+
+  # -- Status row ------------------------------------------------------------
+  - type: horizontal-stack
+    cards:
+      - type: entity
+        entity: binary_sensor.gaming_mode
+        name: Gaming Mode
+        icon: mdi:gamepad-variant
+
+      - type: entity
+        entity: sensor.gaming_assistant_status
+        name: Status
+        icon: mdi:robot
+
+      - type: entity
+        entity: sensor.gaming_assistant_history
+        name: Tips Count
+        icon: mdi:history
+      - type: entity
+        entity: select.gaming_assistant_source_type
+        name: Source Type
+        icon: mdi:video-input-component
+
+  # -- Controls (Select + Number entities) -----------------------------------
+  - type: entities
+    title: Controls
+    entities:
+      - entity: select.gaming_assistant_assistant_mode
+        name: Mode
+      - entity: select.gaming_assistant_spoiler_level
+        name: Spoiler Level
+      - entity: number.gaming_assistant_interval
+        name: Interval
+      - entity: number.gaming_assistant_timeout
+        name: Timeout
+      - entity: switch.gaming_assistant_auto_announce
+        name: Auto Announce
+      - entity: switch.gaming_assistant_auto_summary
+        name: Auto Summary
+
+  # -- Current tip -----------------------------------------------------------
+  # Uses the full_tip attribute to avoid the 255-char HA state limit.
+  - type: markdown
+    content: |
+      ### Current Tip
+      {% set tip = state_attr('sensor.gaming_assistant_tip', 'full_tip') or states('sensor.gaming_assistant_tip') %}
+      {% if tip and tip != 'Waiting for tips...' %}
+      > {{ tip }}
+      {% if state_attr('sensor.gaming_assistant_tip', 'game') %}
+
+      **Game:** {{ state_attr('sensor.gaming_assistant_tip', 'game') }}
+      {% endif %}
+      {% else %}
+      _Waiting for tips..._
+      {% endif %}
+
+  # -- Tip History -----------------------------------------------------------
+  # Each tip is clearly separated with a horizontal rule and numbered.
+  # Wrapped in a scrollable container via card_mod (if installed) or
+  # limited to last 10 tips to keep the dashboard readable.
+  - type: markdown
+    content: |
+      ### Recent Tips
+      {% set tips = state_attr('sensor.gaming_assistant_history', 'recent_tips') %}
+      {% if tips %}
+      {% for entry in tips | reverse %}
+      **{{ loop.index }}.** {{ entry.tip }}
+      {% if not loop.last %}
+      ---
+      {% endif %}
+      {% endfor %}
+      {% else %}
+      _No tips yet._
+      {% endif %}
+    card_mod:
+      style: |
+        ha-markdown {
+          max-height: 400px;
+          overflow-y: auto;
+        }
+
+  # -- Session Summary -------------------------------------------------------
+  - type: markdown
+    content: |
+      ### Session Summary
+      {% set summary = state_attr('sensor.gaming_assistant_session_summary', 'full_summary') or states('sensor.gaming_assistant_session_summary') %}
+      {% if summary and summary != 'No summary yet' %}
+      > {{ summary }}
+      {% if state_attr('sensor.gaming_assistant_session_summary', 'game') %}
+
+      **Game:** {{ state_attr('sensor.gaming_assistant_session_summary', 'game') }}
+      {% endif %}
+      {% else %}
+      _No session summary yet._
+      {% endif %}
+
+  # -- Last Received Frame (Debug) -------------------------------------------
+  - type: picture-entity
+    entity: image.gaming_assistant_last_frame
+    name: Last Received Frame
+    show_state: true
+    show_name: true
+    camera_view: live
+
+  # -- Diagnostics -----------------------------------------------------------
+  - type: horizontal-stack
+    cards:
+      - type: entity
+        entity: sensor.gaming_assistant_latency
+        name: Latency
+        icon: mdi:clock
+
+      - type: entity
+        entity: sensor.gaming_assistant_frames_processed
+        name: Frames
+        icon: mdi:image-multiple
+
+      - type: entity
+        entity: sensor.gaming_assistant_active_watchers
+        name: Watchers
+        icon: mdi:camera-eye
+      - type: entity
+        entity: sensor.gaming_assistant_error_count
+        name: Errors
+        icon: mdi:alert
+
+  # -- Runtime / LLM / Clients -----------------------------------------------
+  - type: markdown
+    content: |
+      ### Runtime
+      **Status:** {{ states('sensor.gaming_assistant_status') }}
+
+      **Assistant Mode:** {{ state_attr('sensor.gaming_assistant_status', 'assistant_mode') or '-' }}
+
+      **Active Model:** {{ state_attr('sensor.gaming_assistant_status', 'active_model') or '-' }}
+
+      **Active Client:** {{ state_attr('sensor.gaming_assistant_status', 'active_client_id') or '-' }}
+
+      {% set clients = state_attr('sensor.gaming_assistant_status', 'clients') %}
+      {% if clients %}
+      **Known Clients:** {{ clients | count }}
+      {% for cid, info in clients.items() %}
+      - `{{ cid }}` · last_seen={{ info.last_seen or '-' }} · game={{ info.last_game or '-' }}
+      {% endfor %}
+      {% else %}
+      **Known Clients:** 0
+      {% endif %}
+
+      {% set models = state_attr('sensor.gaming_assistant_status', 'available_models') %}
+      {% if models %}
+      **Available Models:** {{ models | join(', ') }}
+      {% else %}
+      **Available Models:** _(none reported yet)_
+      {% endif %}
+
+  # -- Action buttons --------------------------------------------------------
+  - type: horizontal-stack
+    cards:
+      - type: button
+        name: Analyze Now
+        icon: mdi:camera
+        tap_action:
+          action: call-service
+          service: gaming_assistant.analyze
+
+      - type: button
+        name: Start Agent
+        icon: mdi:play
+        tap_action:
+          action: call-service
+          service: gaming_assistant.start
+
+      - type: button
+        name: Stop Agent
+        icon: mdi:stop
+        tap_action:
+          action: call-service
+          service: gaming_assistant.stop
+
+      - type: button
+        name: Clear History
+        icon: mdi:delete
+        tap_action:
+          action: call-service
+          service: gaming_assistant.clear_history
+
+      - type: button
+        name: Announce
+        icon: mdi:bullhorn
+        tap_action:
+          action: call-service
+          service: gaming_assistant.announce
+
+      - type: button
+        name: Summarize
+        icon: mdi:text-box-outline
+        tap_action:
+          action: call-service
+          service: gaming_assistant.summarize_session
