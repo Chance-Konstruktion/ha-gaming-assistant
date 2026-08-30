@@ -11,8 +11,8 @@
 Local Vision LLM (Ollama) or cloud AI (GPT-4o, Gemini, DeepSeek, Groq) analyzes your gameplay — frame by frame — and pushes context-aware tips, voice lines, and triggers straight into Home Assistant. RGB lights react. TTS reads tips aloud. Spoilers? You control them.
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge&logo=home-assistant&logoColor=white)](https://github.com/hacs/integration)
-[![Release](https://img.shields.io/github/v/release/Chance-Konstruktion/ha-gaming-assistant?style=for-the-badge&color=ff2d75&logo=github)](https://github.com/Chance-Konstruktion/ha-gaming-assistant/releases)
-[![CI](https://img.shields.io/github/actions/workflow/status/Chance-Konstruktion/ha-gaming-assistant/ci.yml?style=for-the-badge&label=tests&logo=githubactions&logoColor=white)](https://github.com/Chance-Konstruktion/ha-gaming-assistant/actions)
+[![Release](https://img.shields.io/gitlab/v/release/chance-konstruktion%2Fha-gaming-assistant?gitlab_url=https%3A%2F%2Fgitlab.schanz.ipv64.net&style=for-the-badge&color=ff2d75&logo=gitlab)](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant/-/releases)
+[![Pipeline](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant/badges/main/pipeline.svg?style=for-the-badge)](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant/-/pipelines)
 [![License: MIT](https://img.shields.io/badge/License-MIT-00ffa3.svg?style=for-the-badge)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11+-b026ff.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 
@@ -140,12 +140,14 @@ Old workers that publish finished tips to `gaming_assistant/tip` still work in p
 
 ## 🚀 Quick Start
 
-### 1 — Install via HACS
+### 1 — Install
 
-```text
-HACS → Integrations → ⋯ → Custom repositories
-  URL:   https://github.com/Chance-Konstruktion/ha-gaming-assistant
-  Type:  Integration
+This repository lives on a self-hosted GitLab, and HACS only speaks GitHub —
+so custom-repository installs are out. Copy the integration in by hand:
+
+```bash
+git clone https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant.git
+cp -r ha-gaming-assistant/custom_components/gaming_assistant       /config/custom_components/
 ```
 
 Restart Home Assistant.
@@ -224,7 +226,7 @@ Chess · Poker · Catan · UNO
 </td></tr>
 </table>
 
-Community packs are pulled from [`ha-gaming-assistant-prompts`](https://github.com/Chance-Konstruktion/ha-gaming-assistant-prompts) and hot-reloaded via the `gaming_assistant.refresh_prompt_packs` service. Roll your own with [`docs/pack_authoring.md`](docs/pack_authoring.md) — schema, validation, local testing, the full workflow. A `_template.json` ships in the repo.
+Community packs are pulled from [`ha-gaming-assistant-prompts`](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant-prompts) and hot-reloaded via the `gaming_assistant.refresh_prompt_packs` service. Roll your own with [`docs/pack_authoring.md`](docs/pack_authoring.md) — schema, validation, local testing, the full workflow. A `_template.json` ships in the repo.
 
 ---
 
@@ -661,9 +663,9 @@ Install `pywin32` on Windows; make sure the game is in the foreground. Or add yo
 
 Issues, PRs, and prompt-pack submissions are welcome.
 
-- Bug? File an [issue](https://github.com/Chance-Konstruktion/ha-gaming-assistant/issues).
-- New game? Drop a pack — start from [`_template.json`](custom_components/gaming_assistant/prompts/_template.json), follow [`docs/pack_authoring.md`](docs/pack_authoring.md), open a PR against [`ha-gaming-assistant-prompts`](https://github.com/Chance-Konstruktion/ha-gaming-assistant-prompts).
-- Tests live in `tests/`. CI is green or it doesn't merge.
+- Bug? File an [issue](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant/-/issues).
+- New game? Drop a pack — start from [`_template.json`](custom_components/gaming_assistant/prompts/_template.json), follow [`docs/pack_authoring.md`](docs/pack_authoring.md), open a merge request against [`ha-gaming-assistant-prompts`](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant-prompts).
+- Tests live in `tests/`. The pipeline is green or it doesn't merge.
 
 ---
 

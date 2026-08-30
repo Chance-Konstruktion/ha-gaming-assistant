@@ -17,8 +17,9 @@ _BUNDLED_DIR = Path(__file__).parent
 _MANIFEST_FILE = _BUNDLED_DIR / "pack_manifest.json"
 
 PROMPTS_REPO_URL = (
-    "https://github.com/Chance-Konstruktion/"
-    "ha-gaming-assistant-prompts/archive/refs/heads/main.zip"
+    "https://gitlab.schanz.ipv64.net/chance-konstruktion/"
+    "ha-gaming-assistant-prompts/-/archive/main/"
+    "ha-gaming-assistant-prompts-main.zip"
 )
 
 _SPOILER_LEVELS = {"none", "low", "medium", "high"}
@@ -233,7 +234,7 @@ class PromptPackLoader:
 
 
 async def download_prompt_packs(cache_dir: Path) -> bool:
-    """Download latest prompt packs from GitHub to cache directory.
+    """Download latest prompt packs from GitLab to cache directory.
 
     Returns True on success, False on failure.
     """
