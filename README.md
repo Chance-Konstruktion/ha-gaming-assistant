@@ -654,13 +654,6 @@ Install `pywin32` on Windows; make sure the game is in the foreground. Or add yo
 
 </details>
 
----
-
-## 🪄 Migration from v0.2 / v0.3
-
-- **Workers:** old workers moved to `worker/legacy/`. Still functional but deprecated — switch to the new capture agents.
-- **Config:** existing entries remain valid. New fields get defaults automatically.
-- **Topics:** old MQTT topics (`gaming_assistant/tip`, `…/status`, `…/gaming_mode`) are still supported in legacy passthrough mode.
 
 ---
 
