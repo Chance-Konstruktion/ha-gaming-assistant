@@ -27,6 +27,12 @@ MQTT_IMAGE_TOPIC = "gaming_assistant/+/image"  # + = client_id wildcard
 MQTT_META_TOPIC = "gaming_assistant/+/meta"
 MQTT_WORKER_REGISTER_TOPIC = "gaming_assistant/+/register"
 MQTT_DETECTIONS_TOPIC = "gaming_assistant/+/detections"
+# Die drei Themen der Wahrnehmungs-Arbeiter: OCR liest Zahlen aus dem HUD,
+# der Ton-Arbeiter meldet Lautheit und Einsaetze, das Brett kommt als FEN.
+# Sie hoeren dieselbe Client-Wildcard wie die uebrigen Themen.
+MQTT_HUD_TOPIC = "gaming_assistant/+/hud"  # OCR'd HUD numbers (health/ammo/…)
+MQTT_AUDIO_TOPIC = "gaming_assistant/+/audio"  # game-audio signals (loudness/onsets)
+MQTT_BOARD_TOPIC = "gaming_assistant/+/board"  # board state as FEN for chess grounding
 MQTT_YOLO_COMMAND_TOPIC = "gaming_assistant/yolo/command"
 MQTT_YOLO_STATUS_TOPIC = "gaming_assistant/+/status"
 
@@ -83,6 +89,10 @@ EVENT_NEW_TIP = "gaming_assistant_new_tip"
 
 # Event fired when a gaming session ends
 EVENT_SESSION_ENDED = "gaming_assistant_session_ended"
+
+# Event fired for every Agent Mode action decision (published / no_op /
+# error / auto_disabled) so automations can audit autonomous play.
+EVENT_AGENT_ACTION = "gaming_assistant_agent_action"
 
 # Session Summary
 CONF_AUTO_SUMMARY = "auto_summary"
