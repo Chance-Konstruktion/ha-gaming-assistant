@@ -53,6 +53,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator._config_entry_id = entry.entry_id
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
+    # Erster Datenstand, bevor Entitaeten angelegt werden: sonst ist
+    # coordinator.data noch None und extra_state_attributes faellt aus.
+    await coordinator.async_refresh()
+
     # Forward setup to platforms so entities are available immediately
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
