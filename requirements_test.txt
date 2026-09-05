@@ -11,3 +11,6 @@ numpy
 paho-mqtt>=2.1.0
 mss>=10.2.0
 requests
+# chess-Brettlogik fuer chess_grounding. Ohne dieses Paket ueberspringen
+# sich die 21 Tests dazu stumm -- ein gruener Lauf, der nichts geprueft hat.
+chess>=1.10.0

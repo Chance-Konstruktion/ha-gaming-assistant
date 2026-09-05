@@ -384,3 +384,47 @@ class PromptBuilder:
             )
 
         return "\n\n".join(parts)
+
+    @staticmethod
+    def build_strategy(
+        game: str,
+        recent_tips: list[str] | None = None,
+        trends: list[str] | None = None,
+        language: str = "",
+        compact: bool = False,
+    ) -> str:
+        """Build a prompt that distils ONE strategic focus for the session.
+
+        Used by Tier 3: given the observed cross-frame trends and recent
+        tips, ask the model for a single imperative sentence the coach
+        should keep in mind for the next few minutes.
+        """
+        recent_tips = recent_tips or []
+        trends = trends or []
+        parts: list[str] = []
+
+        if language:
+            parts.append(
+                f"Respond in {language}." if compact
+                else f"IMPORTANT: Always respond in {language}."
+            )
+
+        parts.append(
+            f"You are the strategic coach for a {game or 'game'} session. "
+            "State ONE concise strategic focus — a single imperative "
+            "sentence — the player should keep in mind for the next few "
+            "minutes. No preamble or list, just the one sentence."
+        )
+
+        if trends:
+            parts.append(
+                "Observed trends:\n" + "\n".join(f"- {t}" for t in trends)
+            )
+        if recent_tips:
+            parts.append(
+                "Recent tips:\n"
+                + "\n".join(f"- {t}" for t in recent_tips[-8:])
+            )
+
+        parts.append("Strategic focus:")
+        return "\n\n".join(parts)
