@@ -63,6 +63,7 @@ if "custom_components.gaming_assistant.sensor" in sys.modules:
     del sys.modules["custom_components.gaming_assistant.sensor"]
 
 from custom_components.gaming_assistant.sensor import (
+    GamingAssistantStatusSensor,
     GamingAssistantLatencySensor,
     GamingAssistantErrorCountSensor,
     GamingAssistantFramesProcessedSensor,
@@ -124,6 +125,39 @@ class TestDiagnosticSensors(unittest.TestCase):
         for cls in (GamingAssistantLatencySensor, GamingAssistantErrorCountSensor,
                     GamingAssistantFramesProcessedSensor, GamingAssistantLastAnalysisSensor):
             self.assertIsNone(getattr(cls, "_attr_entity_category", None))
+
+class TestStatusSensorAttributes(unittest.TestCase):
+    """Der Statussensor darf auch ohne ersten Refresh Attribute liefern."""
+
+    def _coordinator(self, data):
+        coord = MagicMock()
+        coord.data = data
+        coord.assistant_mode = "coach"
+        coord.default_game_hint = ""
+        coord.available_game_packs = []
+        coord.active_model = "llava"
+        coord.status = "idle"
+        return coord
+
+    def test_attributes_without_data(self):
+        """coordinator.data ist None, bis der erste Refresh gelaufen ist."""
+        sensor = GamingAssistantStatusSensor(self._coordinator(None))
+        attrs = sensor.extra_state_attributes
+        self.assertEqual(attrs["available_models"], [])
+        self.assertEqual(attrs["active_client_id"], "")
+        self.assertEqual(attrs["clients"], {})
+        self.assertEqual(attrs["assistant_mode"], "coach")
+
+    def test_attributes_with_data(self):
+        coord = self._coordinator({
+            "available_models": ["llava"],
+            "active_client_id": "pc-1",
+            "clients": {"pc-1": {"type": "pc"}},
+        })
+        attrs = GamingAssistantStatusSensor(coord).extra_state_attributes
+        self.assertEqual(attrs["available_models"], ["llava"])
+        self.assertEqual(attrs["active_client_id"], "pc-1")
+        self.assertEqual(attrs["clients"], {"pc-1": {"type": "pc"}})
 
 
 if __name__ == "__main__":
