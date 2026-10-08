@@ -1,0 +1,5 @@
+# Die CI-Vorlage im GitLab installiert genau diese Datei (requirements_test.txt).
+# Die eigentliche Liste fuehrt requirements-test.txt (GitHub-CI) -- eine Quelle,
+# zwei Namen. pytest-asyncio braucht die Vorlage zusaetzlich.
+-r requirements-test.txt
+pytest-asyncio

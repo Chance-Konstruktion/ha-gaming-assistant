@@ -1,0 +1,20 @@
+# Diese Datei bindet die gemeinsame Vorlage ein, statt sie zu kopieren.
+#
+# Frueher lag hier die vollstaendige Vorlage, in jedem Repository ein Mal,
+# und ein eigener Job verglich sie byteweise mit der Quelle -- weil zweimal
+# ein Job still verschwunden war. Eingebunden kann sie nicht abweichen,
+# also braucht es den Vergleich nicht mehr.
+#
+# `ref` zeigt auf ein Etikett, nicht auf main: Ein Commit in der Vorlage
+# aendert hier nichts. Erst wenn das Etikett bewusst weitergesetzt wird,
+# wirkt eine Aenderung -- und dann ueberall zugleich.
+#
+# Die Vorlage: https://gitlab.schanz.ipv64.net/claude/ci-vorlagen
+# Was sie mitbringt: pytest, pytest-ha, hassfest, hacs-angaben, release,
+# pytest-hardware, pages und die Geheimnis-Suche. Jeder Job hat eine
+# `exists`-Regel und laeuft nur, wenn es hier etwas fuer ihn zu tun gibt.
+
+include:
+  - project: 'claude/ci-vorlagen'
+    file: '/vorlagen/standard.yml'
+    ref: 'standard-v1'
