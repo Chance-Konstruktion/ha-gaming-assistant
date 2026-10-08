@@ -10,7 +10,7 @@ import sys
 import types
 import unittest
 from datetime import datetime
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 
 # ---------------------------------------------------------------------------
@@ -41,6 +41,13 @@ class _FakeSwitchEntity:
     @property
     def is_on(self):
         return None
+
+
+class _FakeButtonEntity:
+    _attr_name = ""
+    _attr_unique_id = ""
+    _attr_icon = ""
+    _attr_translation_key = ""
 
 
 class _FakeImageEntity:
@@ -79,6 +86,7 @@ _ha_stubs["homeassistant.helpers.update_coordinator"] = _coordinator_mod
 # coordinator.py imports async_track_time_interval at module level.
 _event_mod = types.ModuleType("homeassistant.helpers.event")
 _event_mod.async_track_time_interval = MagicMock()
+_event_mod.async_call_later = MagicMock()
 _ha_stubs["homeassistant.helpers.event"] = _event_mod
 
 _bs_mod = types.ModuleType("homeassistant.components.binary_sensor")
@@ -89,6 +97,10 @@ _ha_stubs["homeassistant.components.binary_sensor"] = _bs_mod
 _sw_mod = types.ModuleType("homeassistant.components.switch")
 _sw_mod.SwitchEntity = _FakeSwitchEntity
 _ha_stubs["homeassistant.components.switch"] = _sw_mod
+
+_btn_mod = types.ModuleType("homeassistant.components.button")
+_btn_mod.ButtonEntity = _FakeButtonEntity
+_ha_stubs["homeassistant.components.button"] = _btn_mod
 
 _img_mod = types.ModuleType("homeassistant.components.image")
 _img_mod.ImageEntity = _FakeImageEntity
@@ -116,7 +128,12 @@ from custom_components.gaming_assistant.binary_sensor import (
     GamingAssistantHealthSensor,
     GamingModeSensor,
 )
+from custom_components.gaming_assistant.button import (
+    AgentConfirmActionButton,
+    AgentRejectActionButton,
+)
 from custom_components.gaming_assistant.switch import (
+    AgentConfirmSwitch,
     AgentModeSwitch,
     AutoAnnounceSwitch,
     AutoSummarySwitch,
@@ -227,6 +244,54 @@ class TestSwitches(unittest.TestCase):
         coord.set_strategy_reflection.assert_called_with(False)
         self.assertEqual(
             sw._attr_unique_id, "gaming_assistant_strategy_reflection"
+        )
+
+    def test_agent_confirm_switch(self):
+        coord = MagicMock()
+        coord.agent_confirm = False
+        sw = AgentConfirmSwitch(coord)
+        self.assertFalse(sw.is_on)
+        _run(sw.async_turn_on())
+        coord.set_agent_confirm.assert_called_with(True)
+        _run(sw.async_turn_off())
+        coord.set_agent_confirm.assert_called_with(False)
+        self.assertEqual(sw._attr_unique_id, "gaming_assistant_agent_confirm")
+        self.assertEqual(sw._attr_translation_key, "agent_confirm")
+
+
+class TestAgentActionButtons(unittest.TestCase):
+    def _coord(self, pending):
+        coord = MagicMock()
+        coord.agent_pending_action = pending
+        coord.async_confirm_agent_action = AsyncMock(return_value=True)
+        coord.async_reject_agent_action = AsyncMock(return_value=True)
+        return coord
+
+    def test_available_only_while_an_action_waits(self):
+        for cls in (AgentConfirmActionButton, AgentRejectActionButton):
+            self.assertFalse(cls(self._coord(None)).available)
+            self.assertTrue(cls(self._coord({"id": "abc"})).available)
+
+    def test_confirm_button_confirms(self):
+        coord = self._coord({"id": "abc"})
+        _run(AgentConfirmActionButton(coord).async_press())
+        coord.async_confirm_agent_action.assert_awaited_once_with()
+        coord.async_reject_agent_action.assert_not_awaited()
+
+    def test_reject_button_rejects(self):
+        coord = self._coord({"id": "abc"})
+        _run(AgentRejectActionButton(coord).async_press())
+        coord.async_reject_agent_action.assert_awaited_once_with()
+        coord.async_confirm_agent_action.assert_not_awaited()
+
+    def test_unique_ids(self):
+        self.assertEqual(
+            AgentConfirmActionButton._attr_unique_id,
+            "gaming_assistant_agent_confirm_action",
+        )
+        self.assertEqual(
+            AgentRejectActionButton._attr_unique_id,
+            "gaming_assistant_agent_reject_action",
         )
 
 

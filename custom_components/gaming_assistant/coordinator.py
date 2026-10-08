@@ -14,7 +14,7 @@ from homeassistant.components import mqtt
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
@@ -38,7 +38,9 @@ from .const import (
     CONF_TTS_TARGET,
     AGENT_VALID_BUTTONS,
     AGENT_ACTION_MIN_INTERVAL,
+    AGENT_CONFIRM_TIMEOUT,
     AGENT_MAX_CONSECUTIVE_FAILURES,
+    DEFAULT_AGENT_CONFIRM,
     DEFAULT_AGENT_MODE,
     DEFAULT_ASSISTANT_MODE,
     DEFAULT_AUTO_ANNOUNCE,
@@ -113,6 +115,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._agent_governor = AgentActionGovernor(
             AGENT_ACTION_MIN_INTERVAL, AGENT_MAX_CONSECUTIVE_FAILURES
         )
+        # Optional per-action confirmation (runtime-only, off by default) and
+        # the timer that expires a pending action nobody decided on.
+        self._agent_confirm: bool = DEFAULT_AGENT_CONFIRM
+        self._agent_confirm_unsub = None
 
         # Persistent game hint – used by camera watchers when no auto-detection
         self._default_game_hint: str = ""
@@ -582,30 +588,171 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     def agent_last_action_timestamp(self) -> str:
         return self._agent_governor.last_timestamp
 
+    @property
+    def agent_confirm(self) -> bool:
+        return self._agent_confirm
+
+    @property
+    def agent_pending_action(self) -> dict | None:
+        """The action awaiting confirmation (id, action, client, deadline)."""
+        return self._agent_governor.pending
+
+    @property
+    def agent_actions_rejected(self) -> int:
+        return self._agent_governor.rejected
+
+    @property
+    def agent_actions_expired(self) -> int:
+        return self._agent_governor.expired
+
     def set_agent_mode(
-        self, enabled: bool, allowed_buttons: list[str] | None = None
+        self,
+        enabled: bool,
+        allowed_buttons: list[str] | None = None,
+        confirm: bool | None = None,
     ) -> None:
         """Enable/disable Agent Mode (opt-in autonomous controller actions).
 
         When enabled, each analyzed frame additionally produces a validated
-        controller action published to ``gaming_assistant/{client_id}/action``.
+        controller action published to ``gaming_assistant/{client_id}/action``
+        (or parked for confirmation, see :meth:`set_agent_confirm`).
         Runtime-only by design: it always resets to OFF on restart.
         """
         if enabled and not self._agent_mode:
             # Fresh enable: clear any stale failure streak from a prior run.
             self._agent_governor.reset_failures()
         self._agent_mode = bool(enabled)
+        if not self._agent_mode:
+            self._cancel_pending_agent_action()
+        if confirm is not None:
+            self._agent_confirm = bool(confirm)
+            if not self._agent_confirm:
+                self._cancel_pending_agent_action()
         if allowed_buttons is not None:
             valid = {b.upper() for b in AGENT_VALID_BUTTONS}
             self._agent_allowed_buttons = [
                 b.upper() for b in allowed_buttons if b.upper() in valid
             ]
         _LOGGER.info(
-            "Agent mode set to: %s (allowed buttons: %s)",
+            "Agent mode set to: %s (allowed buttons: %s, confirm: %s)",
             self._agent_mode,
             ", ".join(self._agent_allowed_buttons) or "all",
+            self._agent_confirm,
         )
         self.async_set_updated_data(self._build_data())
+
+    def set_agent_confirm(self, enabled: bool) -> None:
+        """Require (or stop requiring) a confirmation for each agent action.
+
+        Turning it off drops an action that is still waiting rather than
+        publishing it behind the user's back.
+        """
+        self._agent_confirm = bool(enabled)
+        if not self._agent_confirm:
+            self._cancel_pending_agent_action()
+        _LOGGER.info("Agent action confirmation set to: %s", self._agent_confirm)
+        self.async_set_updated_data(self._build_data())
+
+    # -- Agent Mode: optional per-action confirmation --------------------------
+
+    def _hold_agent_action(
+        self, client_id: str, game: str, action: dict, now: float, ts: str
+    ) -> None:
+        """Park a generated action until it is confirmed, rejected or expires."""
+        pending = self._agent_governor.hold(
+            action, client_id, game, now, ts, AGENT_CONFIRM_TIMEOUT
+        )
+        # Wall-clock deadline for dashboards and notifications.
+        pending["expires"] = time.strftime(
+            "%Y-%m-%dT%H:%M:%S", time.localtime(time.time() + AGENT_CONFIRM_TIMEOUT)
+        )
+        self._cancel_agent_confirm_timer()
+        self._agent_confirm_unsub = async_call_later(
+            self.hass, AGENT_CONFIRM_TIMEOUT, self._async_expire_pending_agent_action
+        )
+        _LOGGER.info(
+            "Agent action %s awaiting confirmation (%ss): %s",
+            pending["id"], AGENT_CONFIRM_TIMEOUT, action,
+        )
+        self._pipeline._fire_agent_action_event(
+            client_id, game, "pending", action, pending["id"]
+        )
+        self._notify_update()
+
+    async def async_confirm_agent_action(self, action_id: str | None = None) -> bool:
+        """Publish the pending action. Returns False if there is none to confirm.
+
+        ``action_id`` pins the decision to the action a notification showed;
+        without it, whatever is pending is confirmed.
+        """
+        now = time.monotonic()
+        if self._agent_governor.pending_due(now):
+            # Past its deadline but the timer has not fired yet: expire it now
+            # and disarm the timer, so it cannot lapse a newer action later.
+            self._cancel_agent_confirm_timer()
+            self._async_expire_pending_agent_action()
+            return False
+        pending = self._agent_governor.take_pending(action_id)
+        if pending is None:
+            _LOGGER.info("No pending agent action to confirm (id: %s)", action_id)
+            return False
+        self._cancel_agent_confirm_timer()
+        ts = time.strftime("%Y-%m-%dT%H:%M:%S")
+        await self.async_publish_action(pending["client_id"], pending["action"])
+        self._agent_governor.record_published(pending["action"], now, ts)
+        self._pipeline._fire_agent_action_event(
+            pending["client_id"], pending["game"], "published",
+            pending["action"], pending["id"],
+        )
+        self._notify_update()
+        return True
+
+    async def async_reject_agent_action(self, action_id: str | None = None) -> bool:
+        """Drop the pending action. Returns False if there is none to reject."""
+        pending = self._agent_governor.take_pending(action_id)
+        if pending is None:
+            _LOGGER.info("No pending agent action to reject (id: %s)", action_id)
+            return False
+        self._cancel_agent_confirm_timer()
+        self._agent_governor.record_rejected(time.strftime("%Y-%m-%dT%H:%M:%S"))
+        self._pipeline._fire_agent_action_event(
+            pending["client_id"], pending["game"], "rejected",
+            pending["action"], pending["id"],
+        )
+        self._notify_update()
+        return True
+
+    @callback
+    def _async_expire_pending_agent_action(self, _now=None) -> None:
+        """Timer callback: nobody decided in time, so the action lapses."""
+        self._agent_confirm_unsub = None
+        pending = self._agent_governor.take_pending()
+        if pending is None:
+            return
+        self._agent_governor.record_expired(time.strftime("%Y-%m-%dT%H:%M:%S"))
+        _LOGGER.info("Agent action %s expired without confirmation", pending["id"])
+        self._pipeline._fire_agent_action_event(
+            pending["client_id"], pending["game"], "expired",
+            pending["action"], pending["id"],
+        )
+        self._notify_update()
+
+    def _cancel_pending_agent_action(self) -> None:
+        """Drop a pending action because Agent Mode or confirmation went off."""
+        self._cancel_agent_confirm_timer()
+        pending = self._agent_governor.take_pending()
+        if pending is None:
+            return
+        self._agent_governor.record_cancelled(time.strftime("%Y-%m-%dT%H:%M:%S"))
+        self._pipeline._fire_agent_action_event(
+            pending["client_id"], pending["game"], "cancelled",
+            pending["action"], pending["id"],
+        )
+
+    def _cancel_agent_confirm_timer(self) -> None:
+        if self._agent_confirm_unsub is not None:
+            self._agent_confirm_unsub()
+            self._agent_confirm_unsub = None
 
     async def async_announce(
         self,
@@ -1046,6 +1193,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             self._cleanup_unsub = None
         self._session_tracker.cancel_timer()
         self._client_registry.cancel_timers()
+        self._cancel_agent_confirm_timer()
         await self._pipeline.cancel_worker()
         await self.async_stop_watch_camera()  # stops all
         self.async_unsubscribe()
@@ -1104,6 +1252,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "agent_last_action": self._agent_governor.last_action,
             "agent_last_action_status": self._agent_governor.last_status,
             "agent_last_action_timestamp": self._agent_governor.last_timestamp,
+            "agent_confirm": self._agent_confirm,
+            "agent_pending_action": self._agent_governor.pending,
         }
 
     async def _async_update_data(self) -> dict:

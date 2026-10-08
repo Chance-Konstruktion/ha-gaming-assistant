@@ -99,6 +99,78 @@ class TestSnapshot(unittest.TestCase):
         self.assertEqual(snap["last_status"], "published")
         self.assertEqual(snap["last_action"], {"action": "stick", "stick": "left"})
         self.assertEqual(snap["last_timestamp"], "ts1")
+        self.assertEqual(snap["rejected"], 0)
+        self.assertEqual(snap["expired"], 0)
+        self.assertIsNone(snap["pending"])
+
+
+class TestPendingConfirmation(unittest.TestCase):
+    ACTION = {"action": "tap_button", "button": "A"}
+
+    def _held(self, now=10.0, timeout=30.0):
+        gov = AgentActionGovernor(min_interval=1.0, max_consecutive_failures=5)
+        pending = gov.hold(self.ACTION, "rig1", "Doom", now=now, ts_iso="t0", timeout=timeout)
+        return gov, pending
+
+    def test_hold_parks_the_action(self):
+        gov, pending = self._held()
+        self.assertIs(gov.pending, pending)
+        self.assertEqual(pending["action"], self.ACTION)
+        self.assertEqual(pending["client_id"], "rig1")
+        self.assertEqual(pending["game"], "Doom")
+        self.assertEqual(pending["deadline"], 40.0)
+        self.assertEqual(gov.last_status, "pending")
+        self.assertEqual(gov.last_action, self.ACTION)
+        # Holding is not publishing.
+        self.assertEqual(gov.published, 0)
+
+    def test_hold_clears_failure_streak(self):
+        gov = AgentActionGovernor(min_interval=1.0, max_consecutive_failures=5)
+        gov.record_error("t")
+        gov.hold(self.ACTION, "rig1", "Doom", now=1.0, ts_iso="t", timeout=30)
+        self.assertEqual(gov.consecutive_failures, 0)
+
+    def test_ids_are_unique(self):
+        gov = AgentActionGovernor(min_interval=1.0, max_consecutive_failures=5)
+        ids = {
+            gov.hold(self.ACTION, "rig1", "Doom", now=1.0, ts_iso="t", timeout=30)["id"]
+            for _ in range(20)
+        }
+        self.assertEqual(len(ids), 20)
+
+    def test_take_with_matching_id(self):
+        gov, pending = self._held()
+        self.assertIs(gov.take_pending(pending["id"]), pending)
+        self.assertIsNone(gov.pending)
+
+    def test_take_with_other_id_keeps_pending(self):
+        gov, pending = self._held()
+        self.assertIsNone(gov.take_pending("not-this-one"))
+        self.assertIs(gov.pending, pending)
+
+    def test_take_without_id_takes_whatever_is_pending(self):
+        gov, pending = self._held()
+        self.assertIs(gov.take_pending(), pending)
+        self.assertIsNone(gov.take_pending())
+
+    def test_pending_due(self):
+        gov, _ = self._held(now=10.0, timeout=30.0)
+        self.assertFalse(gov.pending_due(39.9))
+        self.assertTrue(gov.pending_due(40.0))
+        gov.take_pending()
+        self.assertFalse(gov.pending_due(100.0))
+
+    def test_outcome_counters_and_status(self):
+        gov = AgentActionGovernor(min_interval=1.0, max_consecutive_failures=5)
+        gov.record_rejected("t1")
+        self.assertEqual((gov.rejected, gov.last_status), (1, "rejected"))
+        gov.record_expired("t2")
+        self.assertEqual((gov.expired, gov.last_status), (1, "expired"))
+        gov.record_cancelled("t3")
+        self.assertEqual(gov.last_status, "cancelled")
+        self.assertEqual(gov.last_timestamp, "t3")
+        # None of these count as failures.
+        self.assertEqual(gov.failed, 0)
 
 
 if __name__ == "__main__":

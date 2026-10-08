@@ -278,6 +278,10 @@ Agent Mode is governed on both ends. On the Home Assistant side an
 - **Audited.** Every decision (`published` / `no_op` / `error` /
   `auto_disabled`) updates the audit sensor and fires
   `gaming_assistant_agent_action` for automations.
+- **Optional confirmation.** Off by default. When on, each action waits
+  as `pending` until a human confirms or rejects it (buttons, services,
+  notification) and lapses as `expired` after 30 s; while one waits, no
+  new action is generated.
 - Actions travel as JSON on `gaming_assistant/{client_id}/action` and
   must pass `PromptBuilder.parse_action()` validation.
 - The worker maintains a **whitelist** of allowed buttons/axes. Any

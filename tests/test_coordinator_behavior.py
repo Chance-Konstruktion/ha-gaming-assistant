@@ -44,6 +44,7 @@ class _Platform:
     SELECT = "select"
     NUMBER = "number"
     SWITCH = "switch"
+    BUTTON = "button"
     CONVERSATION = "conversation"
     IMAGE = "image"
 
@@ -90,6 +91,7 @@ def _build_stubs():
 
     event_mod = types.ModuleType("homeassistant.helpers.event")
     event_mod.async_track_time_interval = MagicMock(return_value=MagicMock())
+    event_mod.async_call_later = MagicMock(return_value=MagicMock())
     stubs["homeassistant.helpers.event"] = event_mod
 
     duc_mod = types.ModuleType("homeassistant.helpers.update_coordinator")
@@ -891,6 +893,132 @@ class TestAgentModeWiring(unittest.TestCase):
         self.assertFalse(self.coord.agent_mode)  # auto-disabled
         statuses = [d["status"] for d in self.hass.bus.fired(EVENT_AGENT_ACTION)]
         self.assertIn("auto_disabled", statuses)
+
+
+class TestAgentConfirmation(unittest.TestCase):
+    """Optional per-action confirmation: hold, then confirm/reject/expire."""
+
+    ACTION = {"action": "tap_button", "button": "A"}
+
+    def setUp(self):
+        # Patch the timer helper where the coordinator looks it up: other test
+        # modules swap the stub in sys.modules, but the coordinator module
+        # keeps the reference it imported.
+        self.call_later = MagicMock(return_value=MagicMock())
+        patcher = patch.dict(
+            GamingAssistantCoordinator._hold_agent_action.__globals__,
+            {"async_call_later": self.call_later},
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.coord, self.hass = _make_coord()
+        self.coord.set_agent_mode(True, confirm=True)
+        self.coord._image_processor.generate_action = AsyncMock(
+            return_value=dict(self.ACTION)
+        )
+        _MQTT.async_publish.reset_mock()
+
+    def _generate(self):
+        _run(self.coord._maybe_publish_agent_action("rig1", b"frame", "Doom"))
+
+    def _statuses(self):
+        return [d["status"] for d in self.hass.bus.fired(EVENT_AGENT_ACTION)]
+
+    def test_confirm_is_off_by_default(self):
+        coord, _ = _make_coord()
+        self.assertFalse(coord.agent_confirm)
+
+    def test_action_is_held_not_published(self):
+        self._generate()
+        _MQTT.async_publish.assert_not_called()
+        pending = self.coord.agent_pending_action
+        self.assertEqual(pending["action"], self.ACTION)
+        self.assertEqual(pending["client_id"], "rig1")
+        self.assertTrue(pending["expires"])
+        self.assertEqual(self.coord.agent_last_action_status, "pending")
+        event = self.hass.bus.fired(EVENT_AGENT_ACTION)[-1]
+        self.assertEqual(event["status"], "pending")
+        self.assertEqual(event["action_id"], pending["id"])
+        # The expiry timer was armed with the confirmation timeout.
+        self.call_later.assert_called_once()
+        self.assertEqual(self.call_later.call_args.args[1], 30)
+
+    def test_no_new_llm_call_while_pending(self):
+        self._generate()
+        self._generate()
+        self.assertEqual(self.coord._image_processor.generate_action.await_count, 1)
+
+    def test_confirm_publishes_the_held_action(self):
+        self._generate()
+        action_id = self.coord.agent_pending_action["id"]
+        self.assertTrue(_run(self.coord.async_confirm_agent_action(action_id)))
+        _MQTT.async_publish.assert_awaited_once()
+        topic = _MQTT.async_publish.await_args.args[1]
+        self.assertEqual(topic, "gaming_assistant/rig1/action")
+        self.assertIsNone(self.coord.agent_pending_action)
+        self.assertEqual(self.coord.agent_actions_published, 1)
+        event = self.hass.bus.fired(EVENT_AGENT_ACTION)[-1]
+        self.assertEqual((event["status"], event["action_id"]), ("published", action_id))
+
+    def test_confirm_with_stale_id_does_nothing(self):
+        self._generate()
+        self.assertFalse(_run(self.coord.async_confirm_agent_action("stale-id")))
+        _MQTT.async_publish.assert_not_called()
+        self.assertIsNotNone(self.coord.agent_pending_action)
+
+    def test_confirm_without_pending_returns_false(self):
+        self.assertFalse(_run(self.coord.async_confirm_agent_action()))
+
+    def test_reject_drops_the_action(self):
+        self._generate()
+        self.assertTrue(_run(self.coord.async_reject_agent_action()))
+        _MQTT.async_publish.assert_not_called()
+        self.assertIsNone(self.coord.agent_pending_action)
+        self.assertEqual(self.coord.agent_actions_rejected, 1)
+        self.assertEqual(self._statuses()[-1], "rejected")
+
+    def test_timer_expires_the_action(self):
+        self._generate()
+        self.coord._async_expire_pending_agent_action()
+        self.assertIsNone(self.coord.agent_pending_action)
+        self.assertEqual(self.coord.agent_actions_expired, 1)
+        self.assertEqual(self._statuses()[-1], "expired")
+        # A new action may be generated again afterwards.
+        self._generate()
+        self.assertEqual(self.coord._image_processor.generate_action.await_count, 2)
+
+    def test_confirm_after_deadline_expires_instead_of_publishing(self):
+        self._generate()
+        timer_unsub = self.call_later.return_value
+        self.coord.agent_pending_action["deadline"] = time.monotonic() - 1
+        self.assertFalse(_run(self.coord.async_confirm_agent_action()))
+        _MQTT.async_publish.assert_not_called()
+        self.assertEqual(self._statuses()[-1], "expired")
+        # The still-armed timer is disarmed so it can't lapse a later action.
+        timer_unsub.assert_called_once()
+
+    def test_disabling_agent_mode_cancels_pending(self):
+        self._generate()
+        self.coord.set_agent_mode(False)
+        self.assertIsNone(self.coord.agent_pending_action)
+        self.assertEqual(self._statuses()[-1], "cancelled")
+        _MQTT.async_publish.assert_not_called()
+
+    def test_turning_confirmation_off_cancels_pending(self):
+        self._generate()
+        self.coord.set_agent_confirm(False)
+        self.assertIsNone(self.coord.agent_pending_action)
+        self.assertEqual(self._statuses()[-1], "cancelled")
+
+    def test_set_agent_mode_keeps_confirm_when_not_given(self):
+        self.coord.set_agent_mode(True)
+        self.assertTrue(self.coord.agent_confirm)
+
+    def test_without_confirmation_actions_publish_directly(self):
+        self.coord.set_agent_confirm(False)
+        self._generate()
+        _MQTT.async_publish.assert_awaited_once()
+        self.assertIsNone(self.coord.agent_pending_action)
 
 
 if __name__ == "__main__":

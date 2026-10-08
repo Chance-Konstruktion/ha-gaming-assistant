@@ -32,6 +32,7 @@ const_mod.Platform = types.SimpleNamespace(
     SELECT="select",
     NUMBER="number",
     SWITCH="switch",
+    BUTTON="button",
     CONVERSATION="conversation",
 )
 sys.modules["homeassistant.const"] = const_mod

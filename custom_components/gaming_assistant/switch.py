@@ -26,6 +26,7 @@ async def async_setup_entry(
         AutoAnnounceSwitch(coordinator),
         AutoSummarySwitch(coordinator),
         AgentModeSwitch(coordinator),
+        AgentConfirmSwitch(coordinator),
         StrategyReflectionSwitch(coordinator),
     ])
 
@@ -104,6 +105,35 @@ class AgentModeSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs) -> None:
         self._coordinator.set_agent_mode(False)
+
+
+class AgentConfirmSwitch(CoordinatorEntity, SwitchEntity):
+    """Require a confirmation before each Agent Mode action is sent.
+
+    Off by default: whoever enables Agent Mode trusts their agent. When on,
+    every generated action waits as pending until it is confirmed or rejected
+    (buttons, services or a notification) and lapses after a timeout.
+    """
+
+    _attr_name = "Gaming Assistant Agent Confirm Actions"
+    _attr_unique_id = "gaming_assistant_agent_confirm"
+    _attr_icon = "mdi:hand-back-right-outline"
+    _attr_translation_key = "agent_confirm"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def is_on(self) -> bool:
+        return self._coordinator.agent_confirm
+
+    async def async_turn_on(self, **kwargs) -> None:
+        self._coordinator.set_agent_confirm(True)
+
+    async def async_turn_off(self, **kwargs) -> None:
+        self._coordinator.set_agent_confirm(False)
 
 
 class StrategyReflectionSwitch(CoordinatorEntity, SwitchEntity):

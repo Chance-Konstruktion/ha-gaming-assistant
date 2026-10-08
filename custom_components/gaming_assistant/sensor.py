@@ -305,9 +305,11 @@ class GamingAssistantAgentActionSensor(CoordinatorEntity, SensorEntity):
     """Audit sensor for Agent Mode (Player 2) autonomous actions.
 
     State is the last decision status (``idle`` / ``published`` / ``no_op`` /
-    ``error`` / ``auto_disabled``); attributes carry the full action, the
-    published/failed counters, and the active button whitelist so autonomous
-    play can be monitored and automated against from Home Assistant.
+    ``error`` / ``auto_disabled``, and with confirmation on also ``pending`` /
+    ``rejected`` / ``expired`` / ``cancelled``); attributes carry the full
+    action, the counters, the active button whitelist and the action awaiting
+    confirmation, so autonomous play can be monitored and automated against
+    from Home Assistant.
     """
 
     _attr_name = "Gaming Assistant Agent Action"
@@ -325,13 +327,20 @@ class GamingAssistantAgentActionSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
+        pending = self._coordinator.agent_pending_action or {}
         return {
             "agent_mode": self._coordinator.agent_mode,
             "last_action": self._coordinator.agent_last_action,
             "timestamp": self._coordinator.agent_last_action_timestamp,
             "actions_published": self._coordinator.agent_actions_published,
             "actions_failed": self._coordinator.agent_actions_failed,
+            "actions_rejected": self._coordinator.agent_actions_rejected,
+            "actions_expired": self._coordinator.agent_actions_expired,
             "allowed_buttons": self._coordinator.agent_allowed_buttons or "all",
+            "confirm_actions": self._coordinator.agent_confirm,
+            "pending_action_id": pending.get("id"),
+            "pending_action": pending.get("action"),
+            "pending_expires": pending.get("expires"),
         }
 
 

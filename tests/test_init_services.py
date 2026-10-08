@@ -60,7 +60,7 @@ def _build_stubs():
     const_mod = types.ModuleType("homeassistant.const")
 
     class _Platform:
-        SENSOR = BINARY_SENSOR = SELECT = NUMBER = SWITCH = "p"
+        SENSOR = BINARY_SENSOR = SELECT = NUMBER = SWITCH = BUTTON = "p"
         CONVERSATION = IMAGE = "p"
 
     const_mod.Platform = _Platform
@@ -69,6 +69,7 @@ def _build_stubs():
 
     event_mod = types.ModuleType("homeassistant.helpers.event")
     event_mod.async_track_time_interval = MagicMock(return_value=MagicMock())
+    event_mod.async_call_later = MagicMock(return_value=MagicMock())
     stubs["homeassistant.helpers.event"] = event_mod
 
     duc_mod = types.ModuleType("homeassistant.helpers.update_coordinator")
