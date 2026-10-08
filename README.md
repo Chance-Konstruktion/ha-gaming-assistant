@@ -142,6 +142,12 @@ Old workers that publish finished tips to `gaming_assistant/tip` still work in p
 
 ### 1 — Install via HACS
 
+This button opens the repository in your own HACS and adds it as a custom repository automatically:
+
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Chance-Konstruktion&repository=ha-gaming-assistant&category=integration)
+
+Or by hand:
+
 ```text
 HACS → Integrations → ⋯ → Custom repositories
   URL:   https://github.com/Chance-Konstruktion/ha-gaming-assistant
@@ -151,6 +157,8 @@ HACS → Integrations → ⋯ → Custom repositories
 Restart Home Assistant.
 
 ### 2 — Add the integration
+
+[![Open your Home Assistant instance and start setting up the integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=gaming_assistant)
 
 `Settings → Devices & Services → Add Integration → Gaming Assistant`
 
