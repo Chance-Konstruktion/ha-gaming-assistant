@@ -1,5 +1,7 @@
-# Dependencies for the real-Home-Assistant load smoketest
-# (tests/test_setup_smoketest.py).
+# Dependencies for the real-Home-Assistant load smoketest (tests_ha/, see
+# pytest-ha.ini) in the GitHub job `smoketest`. Pinned to the MINIMUM
+# supported Home Assistant (hacs.json); the GitLab job `pytest-ha` tests the
+# current release from requirements_test_ha.txt.
 #
 # This is a deliberately separate, heavyweight set from requirements-test.txt.
 # The normal unit suite stubs Home Assistant away; this smoketest boots a real

@@ -1,6 +1,13 @@
 name: Android Capture Build
 
+# GitHub only receives main from the GitLab mirror (no pull requests are
+# opened here), so build whenever the app changes on main.
 on:
+  push:
+    branches: [main]
+    paths:
+      - "android-capture-agent/**"
+      - ".github/workflows/android-build.yml"
   pull_request:
     paths:
       - "android-capture-agent/**"

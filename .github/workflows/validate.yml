@@ -1,6 +1,10 @@
 name: Validate
 
+# GitHub only receives main from the GitLab mirror (no pull requests are
+# opened here), so validate every push to main as well.
 on:
+  push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 

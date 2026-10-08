@@ -1,0 +1,7 @@
+# Home Assistant integrations the load smoketest (tests_ha/) sets up: the
+# manifest dependencies of gaming_assistant. The GitLab job `pytest-ha`
+# installs their Python packages from Home Assistant's own manifests and
+# follows their dependencies; `frontend` is installed by the job separately.
+mqtt
+http
+conversation

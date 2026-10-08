@@ -9,8 +9,10 @@ through the real config-entry lifecycle — set up all platforms, reach
 It is the only test that can catch the class of bug unit tests are blind to: a
 broken ``manifest.json``, a platform that fails to forward, a setup step that
 explodes against the real HA APIs, or a dependency that no longer resolves. It
-is intentionally run as a separate CI job (it pulls in the full HA core), see
-``.github/workflows/ci.yml`` and ``requirements-smoketest.txt``.
+lives outside ``tests/`` and runs as a separate CI job because it pulls in the
+full HA core: ``pytest-ha`` in the GitLab CI and ``smoketest`` in
+``.github/workflows/ci.yml``, both with ``pytest -c pytest-ha.ini`` and the
+dependencies from ``requirements-smoketest.txt``.
 
 Network side effects of setup (prompt-pack download, Ollama model fetch) are
 patched out; MQTT is provided by the ``mqtt_mock`` fixture.
@@ -22,10 +24,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-# Braucht ein echtes Home Assistant. Die GitHub-CI faehrt das im eigenen
-# Job "smoketest"; der GitLab-Job pytest hat nur die Attrappe aus conftest.py
-# und ueberspringt die Datei deshalb hier.
-pytest.importorskip("homeassistant.setup", reason="braucht ein echtes Home Assistant (Smoketest-Job)")
+# Needs a real Home Assistant. Without one (e.g. a plain `pytest tests_ha`
+# on a dev machine) skip instead of failing at import; CI runs this file with
+# STRICT_NO_SKIP=1, so a skip there still fails the build.
+pytest.importorskip("homeassistant.setup", reason="needs a real Home Assistant (pytest-ha job)")
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
