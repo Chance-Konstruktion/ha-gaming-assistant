@@ -68,6 +68,8 @@ const_mod.Platform = types.SimpleNamespace(
     NUMBER="number",
     SWITCH="switch",
     CONVERSATION="conversation",
+    IMAGE="image",
+    BUTTON="button",
 )
 core_mod.HomeAssistant = object
 core_mod.ServiceCall = object
@@ -77,6 +79,7 @@ helpers_mod.selector = selector_mod
 device_registry_mod.DeviceInfo = object
 update_coordinator_mod.DataUpdateCoordinator = object
 event_mod.async_track_time_interval = MagicMock()
+event_mod.async_call_later = MagicMock()
 exceptions_mod.HomeAssistantError = Exception
 ha_mod.config_entries = config_entries_mod
 ha_mod.core = core_mod

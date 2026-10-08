@@ -184,6 +184,36 @@ class TestAgentModeContracts(unittest.TestCase):
     def test_service_documented(self):
         self.assertIn("set_agent_mode:", self.services)
 
+    def test_confirmation_services_registered_and_documented(self):
+        for service in ("confirm_agent_action", "reject_agent_action"):
+            self.assertIn(f'"{service}"', self.init)
+            self.assertIn(f"{service}:", self.services)
+        self.assertIn("confirm_actions:", self.services)
+
+    def test_confirmation_defaults_off(self):
+        self.assertIn("DEFAULT_AGENT_CONFIRM = False", self.const)
+        self.assertIn("self._agent_confirm: bool = DEFAULT_AGENT_CONFIRM", self.coord)
+
+    def test_button_platform_and_confirm_switch_wired(self):
+        self.assertIn("Platform.BUTTON", self.init)
+        self.assertIn("AgentConfirmSwitch(coordinator)", self.switch)
+        button = Path("custom_components/gaming_assistant/button.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("AgentConfirmActionButton(coordinator)", button)
+        self.assertIn("AgentRejectActionButton(coordinator)", button)
+
+    def test_entity_names_translated(self):
+        import json
+
+        base = Path("custom_components/gaming_assistant")
+        for path in [base / "strings.json", *sorted((base / "translations").glob("*.json"))]:
+            entity = json.loads(path.read_text(encoding="utf-8"))["entity"]
+            with self.subTest(path=path.name):
+                self.assertIn("agent_confirm", entity["switch"])
+                self.assertIn("agent_confirm_action", entity["button"])
+                self.assertIn("agent_reject_action", entity["button"])
+
 
 if __name__ == "__main__":
     unittest.main()

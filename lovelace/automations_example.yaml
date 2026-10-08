@@ -116,3 +116,49 @@
         title: "Gaming Tip ({{ trigger.event.data.game }})"
         message: "{{ trigger.event.data.tip }}"
   mode: single
+
+# -- 7. Agent Mode: confirm each action from your phone ------------------------
+# Needs Agent Mode with "Confirm each action" on (switch
+# switch.gaming_assistant_agent_confirm_actions or set_agent_mode with
+# confirm_actions: true). The action_id makes sure a late tap never confirms
+# a newer action than the one the notification showed.
+- alias: "Gaming Assistant – Ask before the agent acts"
+  description: "Push each pending Agent Mode action to the phone with Do it / Skip buttons."
+  trigger:
+    - platform: event
+      event_type: gaming_assistant_agent_action
+      event_data:
+        status: pending
+  action:
+    - service: notify.mobile_app_your_phone  # Change to your notify service
+      data:
+        title: "Agent wants to act ({{ trigger.event.data.game }})"
+        message: >
+          {{ trigger.event.data.action.action }}
+          {{ trigger.event.data.action.button | default('') }}
+          – {{ trigger.event.data.action.reason | default('') }}
+        data:
+          tag: "gaming_assistant_agent"
+          actions:
+            - action: "GA_CONFIRM_{{ trigger.event.data.action_id }}"
+              title: "Do it"
+            - action: "GA_REJECT_{{ trigger.event.data.action_id }}"
+              title: "Skip"
+  mode: queued
+
+- alias: "Gaming Assistant – Agent decision from phone"
+  description: "Forward the Do it / Skip tap to confirm_agent_action / reject_agent_action."
+  trigger:
+    - platform: event
+      event_type: mobile_app_notification_action
+  condition:
+    - condition: template
+      value_template: "{{ trigger.event.data.action.startswith('GA_') }}"
+  action:
+    - service: >
+        gaming_assistant.{{ 'confirm_agent_action'
+          if trigger.event.data.action.startswith('GA_CONFIRM_')
+          else 'reject_agent_action' }}
+      data:
+        action_id: "{{ trigger.event.data.action.split('_')[-1] }}"
+  mode: queued

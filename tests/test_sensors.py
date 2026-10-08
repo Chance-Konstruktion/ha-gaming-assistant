@@ -144,7 +144,41 @@ class TestAgentActionSensor(unittest.TestCase):
         coord.agent_actions_failed = failed
         coord.agent_mode = mode
         coord.agent_allowed_buttons = buttons if buttons is not None else []
+        coord.agent_actions_rejected = 0
+        coord.agent_actions_expired = 0
+        coord.agent_confirm = False
+        coord.agent_pending_action = None
         return coord
+
+    def test_no_pending_action(self):
+        attrs = GamingAssistantAgentActionSensor(self._coord()).extra_state_attributes
+        self.assertFalse(attrs["confirm_actions"])
+        self.assertIsNone(attrs["pending_action_id"])
+        self.assertIsNone(attrs["pending_action"])
+        self.assertIsNone(attrs["pending_expires"])
+
+    def test_pending_action_attributes(self):
+        coord = self._coord(status="pending")
+        coord.agent_confirm = True
+        coord.agent_actions_rejected = 2
+        coord.agent_actions_expired = 1
+        coord.agent_pending_action = {
+            "id": "3f9a1c2b",
+            "action": {"action": "tap_button", "button": "A"},
+            "client_id": "rig1",
+            "game": "Doom",
+            "expires": "2026-10-08T18:00:30",
+            "deadline": 123.0,
+        }
+        sensor = GamingAssistantAgentActionSensor(coord)
+        attrs = sensor.extra_state_attributes
+        self.assertEqual(sensor.native_value, "pending")
+        self.assertTrue(attrs["confirm_actions"])
+        self.assertEqual(attrs["pending_action_id"], "3f9a1c2b")
+        self.assertEqual(attrs["pending_action"], {"action": "tap_button", "button": "A"})
+        self.assertEqual(attrs["pending_expires"], "2026-10-08T18:00:30")
+        self.assertEqual(attrs["actions_rejected"], 2)
+        self.assertEqual(attrs["actions_expired"], 1)
 
     def test_idle_when_no_action(self):
         sensor = GamingAssistantAgentActionSensor(self._coord(status=""))

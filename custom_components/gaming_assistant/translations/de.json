@@ -114,8 +114,19 @@
       "agent_mode": {
         "name": "Agent-Modus (Player 2)"
       },
+      "agent_confirm": {
+        "name": "Agent-Modus: Aktionen bestätigen"
+      },
       "strategy_reflection": {
         "name": "Strategie-LLM-Reflexion"
+      }
+    },
+    "button": {
+      "agent_confirm_action": {
+        "name": "Agent-Aktion bestätigen"
+      },
+      "agent_reject_action": {
+        "name": "Agent-Aktion verwerfen"
       }
     }
   }

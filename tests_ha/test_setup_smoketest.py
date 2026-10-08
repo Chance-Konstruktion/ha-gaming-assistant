@@ -44,24 +44,6 @@ from custom_components.gaming_assistant.const import (
 )
 
 
-@pytest.fixture(autouse=True)
-def _enable_custom_integrations(enable_custom_integrations):
-    """Let Home Assistant discover custom_components/gaming_assistant."""
-    yield
-
-
-@pytest.fixture
-def expected_lingering_timers() -> bool:
-    """Allow lingering timers for this smoketest.
-
-    Home Assistant's own mqtt component (provided here by ``mqtt_mock``)
-    schedules a self-rescheduling "misc periodic" timer while connected. It is
-    not owned by this integration and cannot be cancelled from the config entry,
-    so it would otherwise trip pytest-hacc's cleanup guard.
-    """
-    return True
-
-
 # Minimal config entry. Every consumed key also has a runtime default, so this
 # only needs to be a plausible, well-typed subset.
 ENTRY_DATA = {

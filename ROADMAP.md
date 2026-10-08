@@ -170,7 +170,7 @@ Detailliertes Diagramm: `docs/architecture.md`.
 | GA-109 | `vgamepad`-Executor-Worker (`worker/agent_executor.py`, MQTT `gaming_assistant/{client_id}/action`, Whitelist + Audit-Log) | ✅ v260618 — Worker + Whitelist + Dry-Run + Not-Aus + Audit-Log. |
 | GA-110 | Schach-Bot-Prototyp auf Action-Mode (TTS-Ansage für physisches Schach + optional vgamepad für PC-Schach) | ⬜ |
 | GA-111 | ViZDoom-Hybrid: Reflex-Agent + LLM-Strategie | 🧪 |
-| GA-AUD | Audit-Log + konfigurierbare Bestätigung pro Aktion | 🟡 — opt-in HA-seitiges Action-Publishing (`set_agent_mode`-Service + Agent-Mode-Switch, Whitelist, Audit, Reset-on-restart) seit v260618; Governor mit Drosselung, Totmannschalter, Audit-Sensor und -Event seit v260619. Bestätigung pro Aktion fehlt noch; sie wird optional (Standard aus), siehe Abschnitt 10. |
+| GA-AUD | Audit-Log + konfigurierbare Bestätigung pro Aktion | ✅ — Action-Publishing (`set_agent_mode`, Switch, Whitelist, Audit, Reset-on-restart) seit v260618; Governor mit Drosselung, Totmannschalter, Audit-Sensor und -Event seit v260619. Optionale Bestätigung pro Aktion (unreleased): Schalter, zwei Buttons, Services `confirm_agent_action`/`reject_agent_action`, Ablauf nach 30 s, Beispiel für Handy-Benachrichtigung; standardmäßig aus (Abschnitt 10). |
 
 ### Phase 6 — Community & Ökosystem
 
@@ -289,9 +289,10 @@ Empfohlener Workflow je Task:
 - Unit-Tests für Spoiler, History, Prompt Builder, Pack-Validator.
 - Integrationstests mit gemocktem MQTT + Ollama API.
 - Regressionstests für Legacy-Topics.
-- Aktueller Stand (08.10.2026): **555 Tests**. 554 Unit-Tests in `tests/`
-  stubben Home Assistant weg; der Ladetest in `tests_ha/` bootet ein echtes
-  Home Assistant und lädt die Integration (`pytest -c pytest-ha.ini`).
+- Aktueller Stand (08.10.2026): **590 Tests**. 586 Unit-Tests in `tests/`
+  stubben Home Assistant weg; die 4 Tests in `tests_ha/` booten ein echtes
+  Home Assistant, laden die Integration und spielen die Agent-Bestätigung
+  durch (`pytest -c pytest-ha.ini`).
 - In beiden CIs gilt `STRICT_NO_SKIP`: Ein übersprungener Test ist ein
   Fehler.
   - **GitLab** (Merge-Tor): Unit-Tests auf Python 3.13; der Ladetest
@@ -390,9 +391,9 @@ Bei folgenden Themen vor Implementierung Entscheidung dokumentieren:
   brachte die Stufen-Architektur, die Edge-Worker und Schach in HA.
 - Nächster großer Hebel ist **Phase 5** (Agent Mode mit vgamepad). Executor
   (`worker/agent_executor.py`, GA-109) und HA-seitiges Action-Publishing
-  mit Governor (GA-AUD) sind ausgeliefert; es fehlen die optionale
-  Bestätigung pro Aktion, der Schach-Bot (GA-110) und der ViZDoom-Versuch
-  (GA-111).
+  mit Governor (GA-AUD) sind ausgeliefert, die optionale Bestätigung pro
+  Aktion liegt auf `main`; es fehlen der Schach-Bot (GA-110) und der
+  ViZDoom-Versuch (GA-111).
 - Die Prompt-Packs liegen im separaten Repo `ha-gaming-assistant-prompts`
   und werden per Auto-Download und `refresh_prompt_packs`-Service direkt in
   jede Installation gespiegelt.

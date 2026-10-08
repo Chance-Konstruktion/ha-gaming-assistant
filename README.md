@@ -620,6 +620,8 @@ data:
 
 > **Safety:** Agent Mode is strictly opt-in and **resets to OFF on every Home Assistant restart** — the AI never controls inputs unless you deliberately turn it on. The HA-side governor adds two more rails: actions are **rate limited** (no input flooding) and Agent Mode **auto-disables after repeated failures** (dead-man switch), so a broken pipeline never keeps the AI "driving". Every decision is audited on `sensor.gaming_assistant_agent_action` and the `gaming_assistant_agent_action` event. It runs a *second* inference per frame (in addition to the normal tip), so expect higher load, especially on local models. The executor still enforces its own whitelist and `--dry-run`, and `stop` on `gaming_assistant/command` is the emergency brake. Start with the executor in `--dry-run` to watch the action stream safely before going live.
 
+**Optional: confirm each action.** Turn on `switch.gaming_assistant_agent_confirm_actions` (or pass `confirm_actions: true` to `set_agent_mode`) and every generated action waits as *pending* instead of being sent. Press `button.gaming_assistant_agent_confirm_action` / `..._reject_action`, call `gaming_assistant.confirm_agent_action` / `reject_agent_action`, or answer a phone notification (example in [`lovelace/automations_example.yaml`](lovelace/automations_example.yaml)); an action nobody decides on lapses after 30 s. While an action waits, no new one is generated. Off by default: whoever enables Agent Mode trusts their agent.
+
 </details>
 
 ---
@@ -639,6 +641,10 @@ data:
 | `switch.gaming_assistant_auto_announce` | Switch | Auto-announce tips via TTS |
 | `switch.gaming_assistant_auto_summary` | Switch | Auto-summarize on session end |
 | `switch.gaming_assistant_strategy_reflection` | Switch | Tier 3 LLM reflection (off = deterministic focus only, saves calls) |
+| `switch.gaming_assistant_agent_mode` | Switch | Agent Mode / Player 2 (off after every restart) |
+| `switch.gaming_assistant_agent_confirm_actions` | Switch | Agent Mode: hold each action until confirmed (off by default) |
+| `button.gaming_assistant_agent_confirm_action` | Button | Send the pending agent action (available only while one waits) |
+| `button.gaming_assistant_agent_reject_action` | Button | Drop the pending agent action |
 
 </details>
 
@@ -658,7 +664,7 @@ data:
 | `sensor.gaming_assistant_active_watchers` | Active camera watchers |
 | `sensor.gaming_assistant_registered_workers` | Auto-discovered workers |
 | `sensor.gaming_assistant_session_summary` | Last session summary |
-| `sensor.gaming_assistant_agent_action` | Agent Mode audit: last decision status (attrs: full action, published/failed counts, whitelist) |
+| `sensor.gaming_assistant_agent_action` | Agent Mode audit: last decision status (attrs: full action, published/failed/rejected/expired counts, whitelist, pending action + id + expiry) |
 | `sensor.gaming_assistant_scene_change` | Tier 1 perception: last frame's scene-change magnitude (attrs: frame_motion, frames_skipped) |
 | `sensor.gaming_assistant_strategy` | Tier 3 strategic focus fed into tips (attrs: full_strategy, game) |
 | `binary_sensor.gaming_mode` | ON when a game is detected |
@@ -685,6 +691,8 @@ data:
 | `gaming_assistant.announce` | Speak current tip (or custom message) via TTS |
 | `gaming_assistant.summarize_session` | Generate a session summary |
 | `gaming_assistant.refresh_prompt_packs` | Hot-reload community packs |
+| `gaming_assistant.set_agent_mode` | Agent Mode on/off, button whitelist, optional per-action confirmation |
+| `gaming_assistant.confirm_agent_action` / `.reject_agent_action` | Send or drop the action awaiting confirmation (optional `action_id`) |
 
 > Mode, spoiler level, interval, and timeout are now controlled via **entities** — services are for one-shot actions.
 

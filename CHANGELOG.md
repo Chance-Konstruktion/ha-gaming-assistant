@@ -6,6 +6,20 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ### Added
 
+- **Agent Mode: optional confirmation per action** (GA-AUD). Off by default —
+  whoever enables Agent Mode trusts their agent. When on
+  (`switch.gaming_assistant_agent_confirm_actions` or `set_agent_mode` with
+  `confirm_actions: true`), every generated action waits as *pending* instead
+  of being sent. Confirm or reject it with the new
+  `button.gaming_assistant_agent_confirm_action` /
+  `button.gaming_assistant_agent_reject_action` (available only while an
+  action waits), the new `gaming_assistant.confirm_agent_action` /
+  `gaming_assistant.reject_agent_action` services (optional `action_id`), or a
+  phone notification (example automation included). An action nobody decides
+  on lapses after 30 s; while one waits, no new action is generated. The audit
+  sensor and the `gaming_assistant_agent_action` event gain the statuses
+  `pending`, `rejected`, `expired` and `cancelled` plus the `action_id`.
+
 - **Board-vision worker (`worker/board_vision.py`):** the FEN source for the
   in-HA chess engine when a physical board is watched by a camera. Runs on a
   client, warps the board from four configured corners, reads per-square

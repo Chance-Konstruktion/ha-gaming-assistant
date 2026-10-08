@@ -34,6 +34,7 @@ others.
 | **Rate limiting** | Actions are throttled so a runaway pipeline cannot flood inputs. |
 | **Dead-man switch** | Agent Mode **auto-disables after repeated failures**, so a broken pipeline never keeps the AI "driving". |
 | **Audit** | Every decision (published or rejected) lands on `sensor.gaming_assistant_agent_action` and the `gaming_assistant_agent_action` event. |
+| **Optional confirmation** | Off by default. When on, each action waits as *pending* until you confirm or reject it, and lapses after 30 s. See below. |
 
 ### Executor side (`agent_executor.py`)
 
@@ -84,6 +85,38 @@ data:
 Each analyzed frame then additionally asks the LLM for **one** controller
 action, validates it, and publishes it to `gaming_assistant/{client_id}/action`
 for the executor.
+
+---
+
+## Optional: confirm each action
+
+Whoever enables Agent Mode trusts their agent, so actions go straight to the
+executor by default. If you would rather approve each one, turn on
+`switch.gaming_assistant_agent_confirm_actions` or pass `confirm_actions: true`:
+
+```yaml
+action: gaming_assistant.set_agent_mode
+data:
+  enabled: true
+  confirm_actions: true
+```
+
+Each generated action is then held as **pending**:
+
+- `sensor.gaming_assistant_agent_action` switches to `pending` and shows the
+  action, its `pending_action_id` and `pending_expires`.
+- The `gaming_assistant_agent_action` event fires with `status: pending` and
+  the `action_id`.
+- `button.gaming_assistant_agent_confirm_action` and
+  `button.gaming_assistant_agent_reject_action` become available.
+
+Decide with a button, with `gaming_assistant.confirm_agent_action` /
+`gaming_assistant.reject_agent_action` (optionally with the `action_id`, so a
+notification never confirms a newer action than the one it showed), or with a
+phone notification (see `lovelace/automations_example.yaml`). Nobody decides
+within 30 seconds? The action lapses as `expired`. While an action waits, the
+agent does not ask the LLM for the next one. Turning Agent Mode or the
+confirmation off drops a waiting action (`cancelled`) instead of sending it.
 
 ---
 

@@ -80,8 +80,14 @@ AGENT_ACTION_MIN_INTERVAL = 1.0
 # the AI "driving" blindly.
 AGENT_MAX_CONSECUTIVE_FAILURES = 5
 # Event fired for every Agent Mode action decision (published / no_op /
-# error / auto_disabled) so automations can audit autonomous play.
+# error / auto_disabled, plus pending / rejected / expired / cancelled when
+# confirmation is on) so automations can audit autonomous play.
 EVENT_AGENT_ACTION = "gaming_assistant_agent_action"
+# Optional per-action confirmation. Off by default: whoever enables Agent Mode
+# trusts their agent. When on, each generated action waits as "pending" until
+# it is confirmed or rejected, and expires after AGENT_CONFIRM_TIMEOUT seconds.
+DEFAULT_AGENT_CONFIRM = False
+AGENT_CONFIRM_TIMEOUT = 30
 
 # TTS / Announce
 CONF_TTS_ENTITY = "tts_entity"

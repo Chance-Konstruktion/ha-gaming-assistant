@@ -30,6 +30,7 @@ PLATFORMS: list[Platform] = [
     Platform.SELECT,
     Platform.NUMBER,
     Platform.SWITCH,
+    Platform.BUTTON,
     Platform.CONVERSATION,
     Platform.IMAGE,
 ]
@@ -42,7 +43,7 @@ _ALL_SERVICES = (
     "announce", "summarize_session", "configure",
     "set_game_hint", "list_game_packs", "set_source_type",
     "refresh_prompt_packs", "set_agent_mode", "send_yolo_command",
-    "analyze_board",
+    "analyze_board", "confirm_agent_action", "reject_agent_action",
 )
 
 
@@ -438,9 +439,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             allowed = call.data.get("allowed_buttons")
             if isinstance(allowed, str):
                 allowed = [b.strip() for b in allowed.split(",") if b.strip()]
+            confirm = call.data.get("confirm_actions")
             for coord in hass.data[DOMAIN].values():
                 if isinstance(coord, GamingAssistantCoordinator):
-                    coord.set_agent_mode(enabled, allowed)
+                    coord.set_agent_mode(
+                        enabled, allowed,
+                        confirm=None if confirm is None else bool(confirm),
+                    )
+                    break
+
+        async def handle_confirm_agent_action(call: ServiceCall) -> None:
+            """Send the Agent Mode action that is waiting for confirmation."""
+            action_id = (call.data.get("action_id") or "").strip() or None
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_confirm_agent_action(action_id)
+                    break
+
+        async def handle_reject_agent_action(call: ServiceCall) -> None:
+            """Drop the Agent Mode action that is waiting for confirmation."""
+            action_id = (call.data.get("action_id") or "").strip() or None
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_reject_agent_action(action_id)
                     break
 
         async def handle_send_yolo_command(call: ServiceCall) -> None:
@@ -565,6 +586,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "set_source_type", handle_set_source_type)
         hass.services.async_register(DOMAIN, "analyze_board", handle_analyze_board)
         hass.services.async_register(DOMAIN, "set_agent_mode", handle_set_agent_mode)
+        hass.services.async_register(
+            DOMAIN, "confirm_agent_action", handle_confirm_agent_action
+        )
+        hass.services.async_register(
+            DOMAIN, "reject_agent_action", handle_reject_agent_action
+        )
         hass.services.async_register(DOMAIN, "list_game_packs", handle_list_game_packs)
         hass.services.async_register(
             DOMAIN, "refresh_prompt_packs", handle_refresh_prompt_packs

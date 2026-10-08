@@ -273,11 +273,17 @@ class AnalysisPipeline:
 
         Safety-governed: actions are rate limited, repeated failures
         auto-disable Agent Mode (dead-man switch), and every decision is
-        recorded for audit. Fully isolated: any failure here must never
-        disrupt the tip pipeline.
+        recorded for audit. With confirmation on, the action is parked as
+        pending instead of published. Fully isolated: any failure here must
+        never disrupt the tip pipeline.
         """
         coord = self.coord
         now = time.monotonic()
+        if coord._agent_governor.pending is not None:
+            # One decision at a time: while an action waits for confirmation,
+            # don't spend an LLM call on the next one.
+            _LOGGER.debug("Agent action awaiting confirmation, skipping")
+            return
         if coord._agent_governor.rate_limited(now):
             _LOGGER.debug(
                 "Agent action rate-limited (<%.1fs), skipping",
@@ -314,15 +320,28 @@ class AnalysisPipeline:
             coord._notify_update()
             return
 
+        if coord._agent_confirm:
+            coord._hold_agent_action(client_id, game, action, now, ts)
+            return
+
         await coord.async_publish_action(client_id, action)
         coord._agent_governor.record_published(action, now, ts)
         self._fire_agent_action_event(client_id, game, "published", action)
         coord._notify_update()
 
     def _fire_agent_action_event(
-        self, client_id: str, game: str, status: str, action: dict | None
+        self,
+        client_id: str,
+        game: str,
+        status: str,
+        action: dict | None,
+        action_id: str | None = None,
     ) -> None:
-        """Fire an event for each Agent Mode decision (audit / automations)."""
+        """Fire an event for each Agent Mode decision (audit / automations).
+
+        ``action_id`` is set for actions that went through confirmation, so a
+        notification button can confirm or reject exactly the action it showed.
+        """
         coord = self.coord
         coord.hass.bus.async_fire(
             EVENT_AGENT_ACTION,
@@ -331,6 +350,7 @@ class AnalysisPipeline:
                 "game": game,
                 "status": status,
                 "action": action,
+                "action_id": action_id,
                 "published": coord._agent_governor.published,
                 "failed": coord._agent_governor.failed,
             },

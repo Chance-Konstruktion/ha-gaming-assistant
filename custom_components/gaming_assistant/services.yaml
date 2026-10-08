@@ -421,6 +421,47 @@ set_agent_mode:
       example: "A, B, X, Y, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT"
       selector:
         text:
+    confirm_actions:
+      name: Confirm each action
+      description: >
+        Optional. When on, every action waits as pending until it is
+        confirmed or rejected (buttons, services or a notification) and
+        lapses after 30 seconds. Off by default. Leave empty to keep the
+        current setting.
+      required: false
+      selector:
+        boolean:
+
+confirm_agent_action:
+  name: Confirm agent action
+  description: >
+    Send the Agent Mode action that is waiting for confirmation to the
+    executor. Only used when "Confirm each action" is on.
+  fields:
+    action_id:
+      name: Action ID
+      description: >
+        Optional. Only confirm this action (the action_id from the
+        gaming_assistant_agent_action event or the Agent Action sensor), so
+        a notification button never confirms a newer action than it showed.
+      required: false
+      example: "3f9a1c2b"
+      selector:
+        text:
+
+reject_agent_action:
+  name: Reject agent action
+  description: >
+    Drop the Agent Mode action that is waiting for confirmation. Nothing is
+    sent to the executor.
+  fields:
+    action_id:
+      name: Action ID
+      description: Optional. Only reject this action.
+      required: false
+      example: "3f9a1c2b"
+      selector:
+        text:
 
 send_yolo_command:
   name: Send YOLO Command
