@@ -1,6 +1,12 @@
 # Tooling configuration for the Gaming Assistant integration.
 # Ruff is used for linting in CI (see .github/workflows/ci.yml).
 
+[tool.pytest.ini_options]
+# The unit suite, which stubs Home Assistant away. Tests that need a real
+# Home Assistant live in tests_ha/ and run in their own CI job with
+# pytest-ha.ini; a shared run would hand them the stubs.
+testpaths = ["tests"]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100

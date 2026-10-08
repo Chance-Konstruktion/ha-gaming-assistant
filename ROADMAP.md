@@ -289,10 +289,17 @@ Empfohlener Workflow je Task:
 - Unit-Tests für Spoiler, History, Prompt Builder, Pack-Validator.
 - Integrationstests mit gemocktem MQTT + Ollama API.
 - Regressionstests für Legacy-Topics.
-- Aktueller Stand (08.10.2026): **555 Tests**, davon ein Ladetest gegen ein
-  echtes Home Assistant (2024.12.5). Die GitLab-CI (Python 3.13) und die
-  GitHub-CI (Python 3.12, `STRICT_NO_SKIP`, Coverage ≥ 70 %) sind grün; der
-  Ladetest läuft bisher nur auf GitHub.
+- Aktueller Stand (08.10.2026): **555 Tests**. 554 Unit-Tests in `tests/`
+  stubben Home Assistant weg; der Ladetest in `tests_ha/` bootet ein echtes
+  Home Assistant und lädt die Integration (`pytest -c pytest-ha.ini`).
+- In beiden CIs gilt `STRICT_NO_SKIP`: Ein übersprungener Test ist ein
+  Fehler.
+  - **GitLab** (Merge-Tor): Unit-Tests auf Python 3.13; der Ladetest
+    (`pytest-ha`) läuft gegen das **aktuelle** Home Assistant (2026.10, Python
+    3.14, `requirements_test_ha.txt`; Pin mit neuen HA-Versionen anheben).
+  - **GitHub** (nach dem Spiegeln): Unit-Tests auf Python 3.12 mit
+    Coverage ≥ 70 % und ruff; der Ladetest läuft gegen die **Mindestversion**
+    aus `hacs.json` (2024.12.5, `requirements-smoketest.txt`).
 
 ### Test-Matrix
 - Plattformen: Windows, Linux, macOS (best effort), Android (ADB).

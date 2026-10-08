@@ -1,0 +1,16 @@
+# Home Assistant for the GitLab job `pytest-ha` (tests_ha/, see pytest-ha.ini).
+#
+# Pins the CURRENT Home Assistant release, so the merge gate checks what users
+# actually run. The GitHub job `smoketest` pins the MINIMUM supported release
+# instead (requirements-smoketest.txt, matching hacs.json). Bump this pin
+# deliberately when a new Home Assistant release is out; current Home
+# Assistant needs Python 3.14 (see the image override in .gitlab-ci.yml).
+#
+# The packages of the integrations our manifest depends on are not pinned
+# here: the CI template reads them from Home Assistant's own manifests (see
+# requirements_test_ha_components.txt), so they always match the core.
+
+pytest-homeassistant-custom-component==0.13.371  # brings Home Assistant 2026.10.x
+
+# Integration manifest requirement (not auto-installed under enable_custom_integrations).
+chess==1.10.0

@@ -18,3 +18,18 @@ include:
   - project: 'claude/ci-vorlagen'
     file: '/vorlagen/standard.yml'
     ref: 'standard-v1'
+
+# Ein uebersprungener Test ist in dieser CI ein Fehler (siehe conftest.py).
+# Hier sind alle Test-Abhaengigkeiten installiert; eine Auslassung heisst
+# also, dass eine davon still fehlt und ein ganzes Modul nicht mehr
+# geprueft wird.
+variables:
+  STRICT_NO_SKIP: "1"
+
+# pytest-ha laedt die Integration in ein echtes, AKTUELLES Home Assistant
+# (requirements_test_ha.txt), und das braucht seit 2026 Python 3.14. Die
+# Vorlage nimmt fuer diesen Job noch python:3.13, deshalb wird hier nur das
+# Abbild ueberschrieben; Skript und Regeln bleiben die der Vorlage. Die
+# Mindestversion aus hacs.json prueft der GitHub-Job "smoketest".
+pytest-ha:
+  image: python:3.14
