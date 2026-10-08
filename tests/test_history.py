@@ -30,7 +30,9 @@ from custom_components.gaming_assistant.history import HistoryManager
 
 def _run(coro):
     """Helper to run async code in tests."""
-    return asyncio.get_event_loop().run_until_complete(coro)
+    # asyncio.run instead of get_event_loop(): the latter no longer creates a
+    # loop when none is running and raises RuntimeError from Python 3.14 on.
+    return asyncio.run(coro)
 
 
 class TestHistoryJSONL(unittest.TestCase):

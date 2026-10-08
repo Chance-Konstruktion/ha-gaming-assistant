@@ -5,7 +5,8 @@ Statusangaben werden bei jeder Release aktualisiert; abgehakte Tasks
 bleiben als Beleg im Dokument stehen, damit nachvollziehbar ist, was
 ausgeliefert wurde.
 
-**Aktueller Stand:** 260619.
+**Aktueller Stand:** Release 260619. Auf `main` liegen weitere, noch
+unveröffentlichte Änderungen (`CHANGELOG.md`, Abschnitt *Unreleased*).
 Detaillierte Versionshistorie: `CHANGELOG.md`.
 
 Statusmarker:
@@ -54,15 +55,16 @@ Home Assistant Integration ("Brain")
 Optional Companions
   -> tools/overlay_pc.py     (Display-only HUD)
   -> YOLO Worker             (externe GPU-Objekterkennung)
-  -> Agent Mode Executor     (geplant, vgamepad, Whitelist-Sandbox)
+  -> Agent Mode Executor     (vgamepad, Whitelist, Dry-Run, Not-Aus)
 ```
 
 Detailliertes Diagramm: `docs/architecture.md`.
 
 ### Kernprinzipien
 - **Compute zentral in HA**, Capture minimal halten.
-- **Sicher-by-default**, insbesondere für jeden zukünftigen Agent
-  Mode (vgamepad statt OS-Input, Whitelist + Audit).
+- **Sicher-by-default**: Agent Mode ist opt-in, nach jedem Neustart
+  aus und läuft mit Whitelist + Audit; wie weit der Agent gehen darf,
+  entscheidet, wer ihn einbindet (Abschnitt 10).
 - **Idempotente Services** + nachvollziehbare Zustände.
 - **Backward Compatibility**, wo sinnvoll.
 - **Feature-Flags** für experimentelle Module.
@@ -106,8 +108,10 @@ Detailliertes Diagramm: `docs/architecture.md`.
   Packs.
 - Manifest + Schema-Validator (`pack_manifest.json`, v0.13).
 - Hot-Reload-Service `gaming_assistant.refresh_prompt_packs` (v0.13).
-- 26+ Community-Packs (Action, RPG, Tabletop, Card), beim HA-Start
+- Rund 150 Packs (Action, RPG, Tabletop, Card), beim HA-Start
   automatisch heruntergeladen und lokal gecacht (nicht im Repo gebündelt).
+- Prüfsummen (`checksums.json`, SHA-256) gegen kaputte oder unvollständige
+  Downloads; ein Pack mit gültigen Pflichtfeldern lädt immer (unreleased).
 
 ### Diagnose & UX — ✅
 - Sensoren: Tip, Status, Latency, Frames Processed, Error Count,
@@ -163,10 +167,10 @@ Detailliertes Diagramm: `docs/architecture.md`.
 | Task | Beschreibung | Status |
 |------|--------------|--------|
 | GA-ACT | Action-Output-Format im PromptBuilder (JSON-Schema + Whitelist-Parser) | ✅ v0.13 |
-| GA-109 | `vgamepad`-Executor-Worker (`worker/agent_executor.py`, MQTT `gaming_assistant/{client_id}/action`, Whitelist + Audit-Log) | ✅ — Worker + Whitelist + Dry-Run + Not-Aus + Audit-Log (unreleased). |
+| GA-109 | `vgamepad`-Executor-Worker (`worker/agent_executor.py`, MQTT `gaming_assistant/{client_id}/action`, Whitelist + Audit-Log) | ✅ v260618 — Worker + Whitelist + Dry-Run + Not-Aus + Audit-Log. |
 | GA-110 | Schach-Bot-Prototyp auf Action-Mode (TTS-Ansage für physisches Schach + optional vgamepad für PC-Schach) | ⬜ |
 | GA-111 | ViZDoom-Hybrid: Reflex-Agent + LLM-Strategie | 🧪 |
-| GA-AUD | Audit-Log + konfigurierbare Bestätigung pro Aktion | 🟡 — opt-in HA-seitiges Action-Publishing (`set_agent_mode`-Service + Agent-Mode-Switch, Whitelist, INFO-Audit, Reset-on-restart) implementiert (unreleased). Per-Aktion-Bestätigung fehlt noch. |
+| GA-AUD | Audit-Log + konfigurierbare Bestätigung pro Aktion | 🟡 — opt-in HA-seitiges Action-Publishing (`set_agent_mode`-Service + Agent-Mode-Switch, Whitelist, Audit, Reset-on-restart) seit v260618; Governor mit Drosselung, Totmannschalter, Audit-Sensor und -Event seit v260619. Bestätigung pro Aktion fehlt noch; sie wird optional (Standard aus), siehe Abschnitt 10. |
 
 ### Phase 6 — Community & Ökosystem
 
@@ -183,8 +187,8 @@ Detailliertes Diagramm: `docs/architecture.md`.
 |------|--------------|--------|
 | GA-LLM | Multi-LLM-Backend (Ollama / GPT / Gemini / DeepSeek / LM Studio / Groq) | ✅ v0.10 |
 | GA-YOL | YOLO-Worker für Object Detection (CUDA / NCNN / Hailo / TFLite) | ✅ v0.10 |
-| GA-OCR | HUD-OCR-Worker (`worker/ocr_agent.py`) – liest HP/Ammo/Score per OCR aus konfigurierten Regionen und speist sie als gemessene Tier-1-Signale ein | ✅ (unreleased) |
-| GA-AUD | Game-Audio-Worker (`worker/audio_agent.py`) – läuft **clientseitig auf dem Gaming-PC**, leitet Lautheit/Intensität/Onsets (Schüsse/Explosionen) lokal per DSP ab und schickt nur kompakte Tier-1-Signale; rohes Audio erreicht HA nie | ✅ (unreleased) |
+| GA-OCR | HUD-OCR-Worker (`worker/ocr_agent.py`) – liest HP/Ammo/Score per OCR aus konfigurierten Regionen und speist sie als gemessene Tier-1-Signale ein | ✅ v260619 |
+| GA-SND | Game-Audio-Worker (`worker/audio_agent.py`) – läuft **clientseitig auf dem Gaming-PC**, leitet Lautheit/Intensität/Onsets (Schüsse/Explosionen) lokal per DSP ab und schickt nur kompakte Tier-1-Signale; rohes Audio erreicht HA nie | ✅ v260619 (bis 08.10.2026 doppelt als GA-AUD geführt) |
 | GA-CHS | Schach-Grounding (`chess_grounding.py`) – läuft **in HA** (pure-Python `python-chess`, kein Zusatzserver/kein Stockfish), da Brettspiele am Tisch oft nur mit Cam und **ohne Client** laufen; validiert FEN, rechnet legale Züge/Material/Drohungen + besten Zug und speist alles als Tier-1-Signale ein | ✅ v260619 |
 | GA-BVW | Board-Vision-Worker (`worker/board_vision.py`) – Client-seitig: entzerrt das physische Brett aus 4 Eckpunkten, misst Belegung+Figurenfarbe und leitet den Zug per **Tracking** ab (keine Figuren-Typ-Klassifikation nötig) → publiziert FEN an `…/board`. Pixel-Schicht ist kalibrierbarer Best-Effort; Kern (Geometrie + Zug-Inferenz) voll getestet | ✅ (unreleased) |
 | GA-GST | Game-State-Engine + Trend Detection | ✅ v0.10 |
@@ -285,7 +289,10 @@ Empfohlener Workflow je Task:
 - Unit-Tests für Spoiler, History, Prompt Builder, Pack-Validator.
 - Integrationstests mit gemocktem MQTT + Ollama API.
 - Regressionstests für Legacy-Topics.
-- Aktueller Stand: **313 Tests grün**.
+- Aktueller Stand (08.10.2026): **555 Tests**, davon ein Ladetest gegen ein
+  echtes Home Assistant (2024.12.5). Die GitLab-CI (Python 3.13) und die
+  GitHub-CI (Python 3.12, `STRICT_NO_SKIP`, Coverage ≥ 70 %) sind grün; der
+  Ladetest läuft bisher nur auf GitHub.
 
 ### Test-Matrix
 - Plattformen: Windows, Linux, macOS (best effort), Android (ADB).
@@ -316,6 +323,24 @@ Empfohlener Workflow je Task:
 - **1.0.x** ⬜ Player 2 / Agent Mode (vgamepad-Executor, Whitelist,
   Audit-Log).
 
+Seit 260618 sind die Versionen datumsbasiert (`YYMMDD`); die Liste oben
+zeigt die Meilensteine bis dahin.
+
+### Repository & Auslieferung
+- Entwickelt wird im eigenen GitLab
+  (`chance-konstruktion/ha-gaming-assistant`). Arbeit geht als Branch mit
+  Merge Request hoch; gemergt wird nur bei grüner Pipeline.
+- GitHub (`Chance-Konstruktion/ha-gaming-assistant`) ist die Ladentheke für
+  HACS: `main` und alle Tags kommen per Push-Spiegel aus dem GitLab. Auf
+  GitHub wird nicht gearbeitet; Fehlermeldungen laufen weiter über die
+  GitHub-Issues.
+- **Release-Tags nur im GitLab anlegen.** Der Spiegel löscht auf GitHub jeden
+  Tag, den es im GitLab nicht gibt, und ohne seinen Tag verschwindet ein
+  GitHub-Release aus der Liste. HACS sieht dann kein Release mehr und
+  installiert `main` (so geschehen am 08.10.2026, am selben Tag repariert).
+- Die Prompt-Pakete lädt die Integration weiter von GitHub
+  (`ha-gaming-assistant-prompts`).
+
 ### Definition of Done
 Ein Feature gilt als „done", wenn:
 1. Code implementiert + getestet (Unit + manuell, wo sinnvoll).
@@ -344,8 +369,8 @@ Bei folgenden Themen vor Implementierung Entscheidung dokumentieren:
 
 | Thema | Status |
 |-------|--------|
-| Remote-Pack-Trust-Modell (Signaturen, Allowlist, manuelle Reviews) | ⬜ — derzeit Trust-by-Repo-Origin |
-| Agent-Mode-Scope (nur „assistive actions" vs. volle Input-Kontrolle) | ⬜ — Phase 5 setzt auf vgamepad-only |
+| Remote-Pack-Trust-Modell (Signaturen, Allowlist, manuelle Reviews) | ✅ entschieden am 08.10.2026: Vertrauen über die Herkunft. Alle Packs stammen von Chris (erstellt mit seinem OpenClaw-Bot) und werden vor der Veröffentlichung an drei externen Stellen auf Fehler und Schadcode geprüft. Keine Signaturen; die SHA-256-Prüfsummen sichern nur gegen kaputte oder unvollständige Downloads. |
+| Agent-Mode-Scope (nur „assistive actions" vs. volle Input-Kontrolle) | ✅ entschieden am 08.10.2026: volle Kontrolle. Wer seinen Agenten einbindet, vertraut ihm. Die Schutzschienen (Freigabeliste, Drosselung, Totmannschalter, Not-Aus, aus nach Neustart) bleiben als Voreinstellung; die Bestätigung pro Aktion wird optional und ist standardmäßig aus. |
 | Overlay im Hauptrepo vs. Companion-Repo | ✅ — Hauptrepo (`tools/`), reine Display-Komponente |
 | Mindest-Hardwareprofil für empfehlenswerte Modelle | 🟡 — README-Tabelle vorhanden, nicht ADR-formal |
 
@@ -354,12 +379,15 @@ Bei folgenden Themen vor Implementierung Entscheidung dokumentieren:
 ## 11) Stakeholder-Kurzfassung
 
 - Phasen 1–4 sind vollständig ausgeliefert.
-- v0.13 hat die letzten Capture- und Diagnose-Lücken geschlossen.
-- Nächster großer Hebel ist **Phase 5** (Agent Mode mit vgamepad), die
-  bereits durch das Action-Schema in v0.13 vorbereitet ist. Der Executor
-  (`worker/agent_executor.py`, GA-109) ist implementiert, ebenso das opt-in
-  HA-seitige Action-Publishing (`set_agent_mode`, GA-AUD); es fehlt noch die
-  Per-Aktion-Bestätigungs-UI.
-- Community-Beiträge laufen über das separate Prompt-Pack-Repo, das
-  per Auto-Download und neuem `refresh_prompt_packs`-Service direkt
-  in jede Installation gespiegelt wird.
+- v0.13 hat die letzten Capture- und Diagnose-Lücken geschlossen; 260619
+  brachte die Stufen-Architektur, die Edge-Worker und Schach in HA.
+- Nächster großer Hebel ist **Phase 5** (Agent Mode mit vgamepad). Executor
+  (`worker/agent_executor.py`, GA-109) und HA-seitiges Action-Publishing
+  mit Governor (GA-AUD) sind ausgeliefert; es fehlen die optionale
+  Bestätigung pro Aktion, der Schach-Bot (GA-110) und der ViZDoom-Versuch
+  (GA-111).
+- Die Prompt-Packs liegen im separaten Repo `ha-gaming-assistant-prompts`
+  und werden per Auto-Download und `refresh_prompt_packs`-Service direkt in
+  jede Installation gespiegelt.
+- Entwickelt wird seit dem 30.08.2026 im eigenen GitLab; GitHub bleibt die
+  Installationsquelle für HACS.

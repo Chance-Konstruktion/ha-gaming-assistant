@@ -63,6 +63,7 @@ if "custom_components.gaming_assistant.sensor" in sys.modules:
     del sys.modules["custom_components.gaming_assistant.sensor"]
 
 from custom_components.gaming_assistant.sensor import (
+    GamingAssistantStatusSensor,
     GamingAssistantLatencySensor,
     GamingAssistantErrorCountSensor,
     GamingAssistantFramesProcessedSensor,
@@ -256,6 +257,40 @@ class TestTierSensors(unittest.TestCase):
         self.assertEqual(attrs["side_to_move"], "white")
         self.assertEqual(attrs["eval_white_cp"], 30)
         self.assertEqual(attrs["phase"], "opening")
+
+
+class TestStatusSensorAttributes(unittest.TestCase):
+    """The status sensor must expose attributes before the first refresh."""
+
+    def _coordinator(self, data):
+        coord = MagicMock()
+        coord.data = data
+        coord.assistant_mode = "coach"
+        coord.default_game_hint = ""
+        coord.available_game_packs = []
+        coord.active_model = "llava"
+        coord.status = "idle"
+        return coord
+
+    def test_attributes_without_data(self):
+        """coordinator.data is None until the first MQTT update arrives."""
+        sensor = GamingAssistantStatusSensor(self._coordinator(None))
+        attrs = sensor.extra_state_attributes
+        self.assertEqual(attrs["available_models"], [])
+        self.assertEqual(attrs["active_client_id"], "")
+        self.assertEqual(attrs["clients"], {})
+        self.assertEqual(attrs["assistant_mode"], "coach")
+
+    def test_attributes_with_data(self):
+        coord = self._coordinator({
+            "available_models": ["llava"],
+            "active_client_id": "pc-1",
+            "clients": {"pc-1": {"type": "pc"}},
+        })
+        attrs = GamingAssistantStatusSensor(coord).extra_state_attributes
+        self.assertEqual(attrs["available_models"], ["llava"])
+        self.assertEqual(attrs["active_client_id"], "pc-1")
+        self.assertEqual(attrs["clients"], {"pc-1": {"type": "pc"}})
 
 
 if __name__ == "__main__":

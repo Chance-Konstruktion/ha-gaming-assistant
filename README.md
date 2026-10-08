@@ -704,7 +704,7 @@ Sample automations live in [`lovelace/automations_example.yaml`](lovelace/automa
 
 | Component | Minimum |
 | :--- | :--- |
-| Home Assistant | `2024.1+` with MQTT integration |
+| Home Assistant | `2024.12+` with MQTT integration |
 | MQTT Broker | Mosquitto (built-in HA add-on) |
 | Capture device | Windows · Linux · macOS · Android · Android TV · IP cam · HDMI bridge |
 | AI backend | Ollama (local) **or** cloud API (GPT-4o, Gemini, DeepSeek, Groq) |
