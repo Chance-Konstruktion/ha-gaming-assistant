@@ -4,8 +4,41 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ## [Unreleased]
 
+### Added
+
+- **Board-vision worker (`worker/board_vision.py`):** the FEN source for the
+  in-HA chess engine when a physical board is watched by a camera. Runs on a
+  client, warps the board from four configured corners, reads per-square
+  occupancy + piece colour and recovers the move by *tracking* from a known
+  position (captures, castling and en passant included), then publishes the
+  FEN to `gaming_assistant/{client_id}/board`.
+- **Prompt-pack integrity check:** downloaded packs are verified against the
+  prompts repo's `checksums.json` (SHA-256) before they replace cached packs,
+  so a corrupted or partial download can no longer overwrite a good pack. The
+  fetch is pinned to a named ref (`PROMPTS_REPO_REF`, default `main`).
+
+### Changed
+
+- **Prompt-pack loader is more forgiving:** a pack whose required fields are
+  valid always loads; problems in optional fields (e.g. a date in `version`)
+  are logged and recorded instead of silently dropping the whole pack.
+- **Manifest:** no longer lists `aiohttp` and `Pillow` as requirements — Home
+  Assistant ships both, and hassfest rejects them.
+- **Internal:** the per-frame analysis pipeline moved out of the coordinator
+  into `pipeline.py` (no behavioural change).
+- **Development moved to a self-hosted GitLab.** This GitHub repository stays
+  the HACS install source and receives `main` and the release tags through a
+  push mirror; issues are still tracked here on GitHub.
+
 ### Fixed
 
+- **Minimum Home Assistant version** (`hacs.json`, README): raised from
+  2024.1 to 2024.12. The options flow relies on `OptionsFlow.config_entry`
+  (Home Assistant 2024.11+), and 2024.12.5 is the version the load smoketest
+  runs against — older installations could install the integration but not
+  load it.
+- **Prompt packs with a non-UTF-8 file** no longer abort the whole pack load;
+  the bad file is skipped and every other pack still loads.
 - **Blocking disk I/O off the event loop** (#123): spoiler profiles and prompt
   packs are no longer read from disk inside the coordinator's `__init__` (which
   runs on the HA event loop) — setup now loads both in the executor before
