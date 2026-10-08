@@ -50,6 +50,8 @@ cards:
         name: Auto Announce
       - entity: switch.gaming_assistant_auto_summary
         name: Auto Summary
+      - entity: switch.gaming_assistant_strategy_reflection
+        name: Strategy Reflection
 
   # -- Current tip -----------------------------------------------------------
   # Uses the full_tip attribute to avoid the 255-char HA state limit.
@@ -105,6 +107,52 @@ cards:
       {% endif %}
       {% else %}
       _No session summary yet._
+      {% endif %}
+
+  # -- Tiered Cognition ------------------------------------------------------
+  - type: markdown
+    content: |
+      ### Strategic Focus
+      {% set note = state_attr('sensor.gaming_assistant_strategy', 'full_strategy') or states('sensor.gaming_assistant_strategy') %}
+      {% if note and note != 'No focus yet' %}
+      > {{ note }}
+      {% else %}
+      _No strategic focus yet._
+      {% endif %}
+
+  - type: horizontal-stack
+    cards:
+      - type: entity
+        entity: sensor.gaming_assistant_scene_change
+        name: Scene Change
+        icon: mdi:motion-sensor
+
+      - type: entity
+        entity: sensor.gaming_assistant_scene_change
+        name: Motion
+        attribute: frame_motion
+        icon: mdi:run-fast
+
+      - type: entity
+        entity: sensor.gaming_assistant_scene_change
+        name: Frames Skipped
+        attribute: frames_skipped
+        icon: mdi:debug-step-over
+
+  # -- Chess grounding (runs in HA; for tabletop/camera play) ----------------
+  - type: markdown
+    content: |
+      ### Chess
+      {% set best = state_attr('sensor.gaming_assistant_chess', 'best_move') %}
+      {% set summary = state_attr('sensor.gaming_assistant_chess', 'summary') %}
+      {% if best %}
+      > **Suggested move:** {{ best }}
+      {% if summary %}
+
+      {{ summary }}
+      {% endif %}
+      {% else %}
+      _No board analysed yet. Call `gaming_assistant.analyze_board` with a FEN._
       {% endif %}
 
   # -- Last Received Frame (Debug) -------------------------------------------

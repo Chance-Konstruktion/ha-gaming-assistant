@@ -58,6 +58,146 @@ Windows, Linux, macOS, Android, Android TV, and Raspberry Pi / HDMI bridges.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## Tiered Cognition (perception → tactics → strategy)
+
+The reasoning stack is organised as **tiers** staggered by latency and
+cost. Cheap perception runs on every frame and decides when it is worth
+spending an expensive model call — instead of one flat fixed-interval LLM
+loop that re-derives everything from scratch each time.
+
+| Tier | Cadence | Cost | Job | Where |
+|------|---------|------|-----|-------|
+| **1 — Reflex / Perception** | every frame | none (no LLM) | Measure the frame: scene-change magnitude, motion class. Optional external workers add measured signals: YOLO object detection, OCR'd HUD numbers (health/ammo/score), and game-audio cues (loudness/intensity/onsets). Emits *measured* signals. | `perception.py` (`PerceptionTier`); `worker/yolo_worker.py`, `worker/ocr_agent.py`, `worker/audio_agent.py` |
+| **2 — Tactics** | seconds | medium (vision LLM) | Produce the actual tip, consuming Tier 1 signals as input. | `image_processor.py` → `llm_backend.py` |
+| **3 — Strategy / Meta** | every few tips / session | medium (rare LLM, deterministic fallback) | Distil a session-level **strategic focus** (LLM reflection over trends + recent tips) and feed it back down into Tier 2. Also: session recap. | `strategy.py` (`StrategyTier`), `session_tracker.py` (recap) |
+
+**Why Tier 1 exists.** Structured game state used to be produced *after*
+the LLM, by scraping the prose tip back out with regexes
+(`game_state.extract_observations_from_tip`). That made perception
+downstream of, and dependent on, the model's wording. Tier 1 inverts the
+flow: it **measures first** and hands the measurements to Tier 2 as input.
+On a key collision the measured value wins over the scraped guess, and all
+signals for a frame merge into a *single* state snapshot.
+
+```
+frame ─► Tier 1 (perception.py)  ── measured signals ─►  Tier 2 (image_processor.py)
+            scene_change, motion        (prompt input)        vision LLM ─► tip
+                                                                   │
+                                                                   ▼
+                                                       GameStateManager (one snapshot/frame:
+                                                       measured signals override tip-scraped)
+```
+
+Tier 1 keeps a per-client perceptual-hash memory so scene change is
+computed per capture source. The first frame from a client is always
+treated as significant.
+
+**Heavy perception runs at the edge, never in HA.** The project is built to
+run Home Assistant on modest hardware (a Raspberry Pi / small NUC) without a
+high-end server. So every expensive perceptual signal is produced by an
+*external worker* — ideally co-located with the data on the gaming PC, which
+already has the compute — and only a compact JSON of measured signals
+travels over MQTT. HA merely *fuses* those signals into the game state. This
+holds for `worker/yolo_worker.py` (object detection), `worker/ocr_agent.py`
+(HUD OCR), and `worker/audio_agent.py` (game audio). The audio worker in
+particular *must* run on the gaming PC: the sound is produced there, so it is
+captured and analysed locally (plain RMS/onset DSP — no model, no GPU) and
+only loudness/intensity/onset events are published; raw audio never touches
+HA. Even the LLM is external (Ollama); HA orchestrates rather than crunches.
+
+**The deliberate exception: chess grounding runs *in* HA.** Continuous
+perception (audio/vision/YOLO) needs a client — there is nothing to capture a
+PC game's audio or run an object detector but the gaming machine itself. But a
+physical board game is often played *at a table with just a camera and no
+client at all*. The reasoning for that case therefore cannot live on a client
+— it must live where the only always-present brain is: Home Assistant. This is
+viable because chess reasoning is **episodic and symbolic**, not continuous
+and heavy: `chess_grounding.py` uses `python-chess` (pure-Python, pip-installed
+via the manifest — no Stockfish binary, no extra server) to validate a FEN and
+compute legal moves, material, threats and a suggested move from a small
+built-in evaluator + shallow alpha-beta. It runs only on a board change, off
+the event loop, in well under the "GA needs a bit more than a Pi 4" budget.
+Its grounded facts become Tier 1 measured signals just like HUD or audio.
+
+```
+board FEN (cam/worker/automation/service) ─► chess_grounding.analyze_fen() [in HA]
+        gaming_assistant/{id}/board                 │ legal moves, material,
+        or gaming_assistant.analyze_board service    │ threats, best move
+                                                     ▼
+                              GameStateManager (chess_* measured signals)
+                                                     │
+                                                     ▼  sensor.gaming_assistant_chess
+                                              Tier 2 prompt / Tier 3 strategy
+```
+
+**The FEN source — board-vision worker (`worker/board_vision.py`).** The
+camera-and-no-client case is fed by an edge worker that perspective-warps the
+board from four configured corners, reads per-square **occupancy + piece
+colour**, and recovers the actual move by **tracking**: starting from a known
+position, the single legal move whose resulting occupancy/colour matches the
+new grid is unambiguous (captures, castling and en passant included), so it
+never needs to visually classify piece *types*. It maintains the game with
+`python-chess` and publishes the resulting FEN to `gaming_assistant/{id}/board`.
+Consistent with the split, the heavy vision stays on the client; HA only does
+the symbolic reasoning. (The pixel layer — corner-warp + square classification
+— is a calibratable best-effort; robust auto corner-detection / a small
+classifier are future work.)
+
+**Event-driven escalation.** Tier 2 is no longer run on every frame.
+`coordinator._process_image` consults `PerceptionTier.should_escalate()`
+and spends an LLM call only when:
+
+- the frame is a **significant** change (`scene_change ≥ SCENE_CHANGE_SIGNIFICANT`
+  or it is the first frame for the client), or
+- the **heartbeat** has elapsed (`TIER2_HEARTBEAT_SECONDS`) since the last
+  analysis, so a paused or slowly-changing scene still gets a refreshed tip
+  instead of going silent.
+
+Frames that don't escalate are handled by Tier 1 only: their measured
+signals are still written to the game state (keeping trends flowing), the
+status returns to `idle`, and no LLM call is made. The count of such
+frames is exposed as `frames_skipped` for diagnostics.
+
+```
+frame ─► Tier 1 ─► should_escalate(significant | heartbeat)?
+                       │ no  ──► record measured state, idle, frames_skipped++
+                       │ yes ──► Tier 2 (LLM) ─► tip + merged snapshot
+                                     ▲                    │
+                          strategy_note (fed back down)   ▼
+                                     └────────  Tier 3: record_tip ─► refresh focus
+```
+
+### Tier 3 feedback loop
+
+`StrategyTier` (`strategy.py`) makes the strategy a *live* input rather
+than a dead-end recap:
+
+- After each Tier 2 tip the coordinator calls `record_tip(game, tip)`.
+  Every `STRATEGY_EVERY_N_TIPS` tips it recomputes a deterministic baseline
+  **strategic focus** from the trends `GameStateManager.detect_trends()`
+  already surfaces (e.g. declining health → "prioritise survival and play
+  defensively"; a stalled phase → "try a different approach"; sinking
+  momentum → "change tactics"), and signals that a richer reflection is
+  due.
+- When due, the coordinator schedules `async_reflect(game)` in the
+  **background** (so it never adds latency to the tip path). It asks the
+  configured text backend for a single strategic-focus sentence grounded
+  in the trends + recent tips, and upgrades the note. If the LLM is
+  unavailable or returns nothing it keeps the deterministic baseline —
+  Tier 3 degrades gracefully and never breaks the pipeline.
+- The reflection is toggleable at runtime via
+  `switch.gaming_assistant_strategy_reflection` (config key
+  `strategy_reflection`, default on). When off, the focus still updates from
+  the deterministic trend analysis — only the extra periodic text-LLM call
+  is skipped, which is handy on small or rate-limited models.
+- Before each Tier 2 call the coordinator reads `note(game)` and passes it
+  as `strategy_note`, which `ImageProcessor.process` puts at the **top** of
+  the prompt context (above the Tier 1 live signals and the rolling state
+  block). So tactical tips reason under the session's higher-level frame.
+- The current focus is exposed as `strategy_note` for diagnostics. The
+  deterministic synthesiser can later be swapped for an LLM "reflection"
+  behind the same interface and injection point.
+
 ## MQTT Topic Conventions
 
 | Direction | Topic | Payload |
@@ -65,6 +205,10 @@ Windows, Linux, macOS, Android, Android TV, and Raspberry Pi / HDMI bridges.
 | In | `gaming_assistant/{client_id}/image` | JPEG bytes |
 | In | `gaming_assistant/{client_id}/meta`  | JSON (game hint, resolution, …) |
 | In | `gaming_assistant/{client_id}/status`| `online` / `offline` (LWT) |
+| In | `gaming_assistant/{client_id}/detections` | YOLO detections (JSON, optional worker) |
+| In | `gaming_assistant/{client_id}/hud` | OCR'd HUD numbers (JSON, optional worker) |
+| In | `gaming_assistant/{client_id}/audio` | Game-audio signals (JSON, optional client-side worker) |
+| In | `gaming_assistant/{client_id}/board` | Board position as FEN for chess grounding (JSON) |
 | Out | `gaming_assistant/tip` | Latest tip (string) |
 | Out | `gaming_assistant/status` | `analyzing` / `idle` / `error` |
 | Experimental | `gaming_assistant/{client_id}/action` | Structured JSON action (Phase 5) |
@@ -115,11 +259,25 @@ All runtime metrics live on the coordinator and are surfaced as sensors:
   (NEW) – surfaced via the `Gaming Assistant Last Error` sensor.
 - `frames_processed`, `last_analysis`, `registered_workers`,
   `active_watchers`, `session_summary`.
+- `agent_last_action` / `agent_actions_published` / `agent_actions_failed`
+  – surfaced via the `Gaming Assistant Agent Action` sensor and the
+  `gaming_assistant_agent_action` event (one per decision).
 
 ## Safety Boundaries (Phase 5)
 
-- **Agent Mode is opt-in.** The integration never sends actions
-  unless the user explicitly enables the feature flag.
+Agent Mode is governed on both ends. On the Home Assistant side an
+`AgentActionGovernor` (`agent_governor.py`) is the safety gate:
+
+- **Opt-in.** The integration never sends actions unless the user
+  explicitly enables Agent Mode, which **resets to OFF on every restart**.
+- **Rate limited.** At most one action per `AGENT_ACTION_MIN_INTERVAL`
+  seconds, so the AI can never flood the executor with inputs.
+- **Dead-man switch.** After `AGENT_MAX_CONSECUTIVE_FAILURES` consecutive
+  action-generation failures (backend down, repeated timeouts), Agent Mode
+  **auto-disables** so a broken pipeline never keeps the AI "driving".
+- **Audited.** Every decision (`published` / `no_op` / `error` /
+  `auto_disabled`) updates the audit sensor and fires
+  `gaming_assistant_agent_action` for automations.
 - Actions travel as JSON on `gaming_assistant/{client_id}/action` and
   must pass `PromptBuilder.parse_action()` validation.
 - The worker maintains a **whitelist** of allowed buttons/axes. Any

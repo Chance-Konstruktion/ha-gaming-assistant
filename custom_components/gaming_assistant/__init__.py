@@ -41,7 +41,8 @@ _ALL_SERVICES = (
     "watch_camera", "stop_watch_camera",
     "announce", "summarize_session", "configure",
     "set_game_hint", "list_game_packs", "set_source_type",
-    "refresh_prompt_packs", "set_agent_mode",
+    "refresh_prompt_packs", "set_agent_mode", "send_yolo_command",
+    "analyze_board",
 )
 
 
@@ -53,9 +54,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator._config_entry_id = entry.entry_id
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    # Erster Datenstand, bevor Entitaeten angelegt werden: sonst ist
-    # coordinator.data noch None und extra_state_attributes faellt aus.
-    await coordinator.async_refresh()
+    # Load spoiler profiles + prompt packs from disk before entities read them
+    # (executor-backed — file I/O is not allowed on the event loop).
+    await coordinator.async_load_stored_data()
 
     # Forward setup to platforms so entities are available immediately
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -100,8 +101,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         try:
             if await download_prompt_packs(packs_cache):
-                coordinator.pack_loader.reload()
-                _LOGGER.info("Prompt packs updated from GitLab")
+                await hass.async_add_executor_job(coordinator.pack_loader.reload)
+                _LOGGER.info("Prompt packs updated from GitHub")
         except Exception:  # noqa: BLE001
             _LOGGER.debug("Could not update prompt packs, using cached/bundled")
 
@@ -272,7 +273,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
             for coord in hass.data[DOMAIN].values():
                 if isinstance(coord, GamingAssistantCoordinator):
-                    coord.spoiler_manager.set_level(category, level, game)
+                    await hass.async_add_executor_job(
+                        coord.spoiler_manager.set_level, category, level, game
+                    )
                     _LOGGER.info(
                         "Spoiler level set: %s=%s (game=%s)",
                         category, level, game or "global",
@@ -292,10 +295,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             for coord in hass.data[DOMAIN].values():
                 if isinstance(coord, GamingAssistantCoordinator):
                     if clear:
-                        coord.spoiler_manager.clear_game_profile(game)
+                        await hass.async_add_executor_job(
+                            coord.spoiler_manager.clear_game_profile, game
+                        )
                         _LOGGER.info("Spoiler profile cleared for game: %s", game)
                     else:
-                        coord.spoiler_manager.set_game_profile(game, level)
+                        await hass.async_add_executor_job(
+                            coord.spoiler_manager.set_game_profile, game, level
+                        )
                         _LOGGER.info("Spoiler profile set for game: %s=%s", game, level)
                     break
 
@@ -409,6 +416,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     coord.set_source_type(source_type)
                     break
 
+        async def handle_analyze_board(call: ServiceCall) -> None:
+            """Ground a chess position given as FEN (engine runs in HA).
+
+            Useful for a board-vision worker, an automation, or manual testing
+            of the tabletop/camera scenario where there is no client at all.
+            """
+            fen = (call.data.get("fen") or "").strip()
+            if not fen:
+                _LOGGER.error("analyze_board requires a 'fen'")
+                return
+            client_id = call.data.get("client_id") or "manual"
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord._process_board(client_id, fen)
+                    break
+
         async def handle_set_agent_mode(call: ServiceCall) -> None:
             """Enable/disable Agent Mode (opt-in autonomous controller actions)."""
             enabled = bool(call.data.get("enabled", False))
@@ -420,6 +443,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     coord.set_agent_mode(enabled, allowed)
                     break
 
+        async def handle_send_yolo_command(call: ServiceCall) -> None:
+            """Send a runtime command to connected YOLO detection workers.
+
+            Supported commands (handled by worker/yolo_worker.py):
+            ``status``, ``restart`` (optional ``model``),
+            ``set_confidence`` (``value`` 0-1), ``set_max_fps`` (``value``).
+            """
+            command = (call.data.get("command") or "").strip()
+            if not command:
+                _LOGGER.error("send_yolo_command requires a command")
+                return
+            extra: dict[str, object] = {}
+            if "value" in call.data and call.data["value"] is not None:
+                extra["value"] = call.data["value"]
+            if call.data.get("model"):
+                extra["model"] = call.data["model"]
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_send_yolo_command(command, **extra)
+                    break
+
         async def handle_list_game_packs(call: ServiceCall) -> None:
             """Return available prompt packs (mainly for internal use)."""
             for coord in hass.data[DOMAIN].values():
@@ -429,7 +473,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     break
 
         async def handle_refresh_prompt_packs(call: ServiceCall) -> None:
-            """Re-download prompt packs from GitLab and hot-reload them."""
+            """Re-download prompt packs from GitHub and hot-reload them."""
             packs_cache = (
                 Path(hass.config.config_dir) / "gaming_assistant" / "prompt_packs"
             )
@@ -469,7 +513,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if not isinstance(coord, GamingAssistantCoordinator):
                     continue
                 if camera is not None:
-                    coord._tts_entity = coord._tts_entity  # keep
                     # Stop old watcher, start new one if non-empty
                     if coord.active_camera_watchers:
                         await coord.async_stop_watch_camera()
@@ -520,10 +563,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "configure", handle_configure)
         hass.services.async_register(DOMAIN, "set_game_hint", handle_set_game_hint)
         hass.services.async_register(DOMAIN, "set_source_type", handle_set_source_type)
+        hass.services.async_register(DOMAIN, "analyze_board", handle_analyze_board)
         hass.services.async_register(DOMAIN, "set_agent_mode", handle_set_agent_mode)
         hass.services.async_register(DOMAIN, "list_game_packs", handle_list_game_packs)
         hass.services.async_register(
             DOMAIN, "refresh_prompt_packs", handle_refresh_prompt_packs
+        )
+        hass.services.async_register(
+            DOMAIN, "send_yolo_command", handle_send_yolo_command
         )
 
     _LOGGER.info("Gaming Assistant integration loaded successfully")
@@ -552,7 +599,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not remaining:
             for service in _ALL_SERVICES:
                 hass.services.async_remove(DOMAIN, service)
-            hass.components.frontend.async_remove_panel("gaming-assistant")
+            # Import directly rather than via the deprecated hass.components
+            # accessor (removed in HA 2025.3).
+            from homeassistant.components.frontend import async_remove_panel
+
+            async_remove_panel(hass, "gaming-assistant")
             hass.data[DOMAIN].pop("panel_registered", None)
 
     return unload_ok

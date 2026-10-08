@@ -11,8 +11,8 @@
 Local Vision LLM (Ollama) or cloud AI (GPT-4o, Gemini, DeepSeek, Groq) analyzes your gameplay — frame by frame — and pushes context-aware tips, voice lines, and triggers straight into Home Assistant. RGB lights react. TTS reads tips aloud. Spoilers? You control them.
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge&logo=home-assistant&logoColor=white)](https://github.com/hacs/integration)
-[![Release](https://img.shields.io/gitlab/v/release/chance-konstruktion%2Fha-gaming-assistant?gitlab_url=https%3A%2F%2Fgitlab.schanz.ipv64.net&style=for-the-badge&color=ff2d75&logo=gitlab)](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant/-/releases)
-[![Pipeline](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant/badges/main/pipeline.svg?style=for-the-badge)](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant/-/pipelines)
+[![Release](https://img.shields.io/github/v/release/Chance-Konstruktion/ha-gaming-assistant?style=for-the-badge&color=ff2d75&logo=github)](https://github.com/Chance-Konstruktion/ha-gaming-assistant/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/Chance-Konstruktion/ha-gaming-assistant/ci.yml?style=for-the-badge&label=tests&logo=githubactions&logoColor=white)](https://github.com/Chance-Konstruktion/ha-gaming-assistant/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-00ffa3.svg?style=for-the-badge)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11+-b026ff.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 
@@ -68,8 +68,8 @@ Chess, Poker, Catan, UNO via webcam. Consoles via HDMI capture or IP webcam. No 
 **🎙 HA Assist conversation agent**
 "Wechsel modus auf gegner." "How do I beat this boss?" Both work.
 
-**📦 26 prompt packs included**
-Elden Ring, BG3, CS2, Zelda, Hearthstone, MTG Arena, FIFA, Civ VI, Rocket League… plus community packs hot-reloaded from a sibling repo.
+**📦 150+ community prompt packs**
+~50 games × base / cheats / secrets / completion flavors — Elden Ring, BG3, CS2, Zelda, Hearthstone, MTG Arena, FIFA, Civ VI, Rocket League… auto-downloaded from a sibling repo on first start (cached locally) and hot-reloaded on demand.
 
 </td>
 <td width="50%" valign="top">
@@ -83,8 +83,8 @@ Tracks structured state across frames (health declining, phase changes, momentum
 **⚡ Pluggable backends**
 Ollama · LM Studio · GPT-4o · Gemini · DeepSeek · Groq. Vision or text-only. Raspberry Pi friendly.
 
-**🟢 Optional YOLO worker**
-Real-time object detection on CUDA / NCNN / Hailo-8L / TFLite, feeding the Game State Engine.
+**🟢 Optional YOLO + OCR workers**
+Real-time object detection (CUDA / NCNN / Hailo-8L / TFLite) and HUD number OCR (health/ammo/score) — both feed *measured* values straight into the Game State Engine.
 
 </td>
 </tr>
@@ -94,7 +94,7 @@ Real-time object detection on CUDA / NCNN / Hailo-8L / TFLite, feeding the Game 
 
 ## 🧠 Architecture
 
-`v0.11` is a **Thin Client** design. The gaming device only captures and ships frames. All intelligence lives in Home Assistant.
+`v260619` is a **Thin Client** design. The gaming device only captures and ships frames. All intelligence lives in Home Assistant.
 
 ```
 ┌─────────────────────────────────────────┐        ┌───────────────────────────────────────────────┐
@@ -140,14 +140,12 @@ Old workers that publish finished tips to `gaming_assistant/tip` still work in p
 
 ## 🚀 Quick Start
 
-### 1 — Install
+### 1 — Install via HACS
 
-This repository lives on a self-hosted GitLab, and HACS only speaks GitHub —
-so custom-repository installs are out. Copy the integration in by hand:
-
-```bash
-git clone https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant.git
-cp -r ha-gaming-assistant/custom_components/gaming_assistant       /config/custom_components/
+```text
+HACS → Integrations → ⋯ → Custom repositories
+  URL:   https://github.com/Chance-Konstruktion/ha-gaming-assistant
+  Type:  Integration
 ```
 
 Restart Home Assistant.
@@ -209,13 +207,13 @@ Tips start landing on `sensor.gaming_assistant_tip` within seconds.
 <table>
 <tr><td valign="top">
 
-**🎮 Video (18)**
+**🎮 Video (19)**
 
 Elden Ring · Dark Souls III · Baldur's Gate 3 · Minecraft · Zelda: TotK · Zelda: BotW · Stardew Valley · Hades · Mario Kart · CS2 · League of Legends · Valorant · Fortnite · Rocket League · FIFA / EA FC · Civ VI · Cyberpunk 2077 · The Witcher 3 · Diablo IV
 
 </td><td valign="top">
 
-**🃏 Card / Strategy (4)**
+**🃏 Card / Strategy (3)**
 
 Hearthstone · MTG Arena · Among Us
 
@@ -226,7 +224,7 @@ Chess · Poker · Catan · UNO
 </td></tr>
 </table>
 
-Community packs are pulled from [`ha-gaming-assistant-prompts`](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant-prompts) and hot-reloaded via the `gaming_assistant.refresh_prompt_packs` service. Roll your own with [`docs/pack_authoring.md`](docs/pack_authoring.md) — schema, validation, local testing, the full workflow. A `_template.json` ships in the repo.
+Community packs are pulled from [`ha-gaming-assistant-prompts`](https://github.com/Chance-Konstruktion/ha-gaming-assistant-prompts) and hot-reloaded via the `gaming_assistant.refresh_prompt_packs` service. Roll your own with [`docs/pack_authoring.md`](docs/pack_authoring.md) — schema, validation, local testing, the full workflow. A `_template.json` ships in the repo.
 
 ---
 
@@ -471,6 +469,88 @@ python worker/capture_agent_android.py \
 
 </details>
 
+<details>
+<summary><b>HUD OCR worker</b> — read health/ammo/score straight off the screen</summary>
+
+`worker/ocr_agent.py` is an optional external worker that subscribes to your game frames, runs OCR on **configured HUD regions**, and publishes the numbers to Home Assistant. These land in the Game State Engine as **measured** values (Tier 1) — far more reliable than letting the LLM guess them from the picture.
+
+Regions are given as fractions of the frame (`x,y,w,h` in `0..1`), so they're resolution-independent:
+
+```bash
+pip install -r worker/requirements-ocr.txt   # opencv + numpy + pytesseract
+# Tesseract engine: apt install tesseract-ocr  (or brew install tesseract)
+
+python worker/ocr_agent.py \
+  --broker 192.168.1.10 \
+  --regions "health:0.04,0.90,0.10,0.05;ammo:0.86,0.90,0.10,0.05" \
+  --max-fps 1
+```
+
+Prefer a config file? Use `--regions-file regions.json` with `{"health": [0.04, 0.90, 0.10, 0.05], ...}`. Use `--engine easyocr` for a pure-pip alternative to Tesseract. The numbers show up on `sensor.gaming_assistant_scene_change`'s game state and flow into every tip and the Tier 3 strategy.
+
+</details>
+
+<details>
+<summary><b>Game audio worker</b> — loudness, intensity & onsets (gunshots/explosions)</summary>
+
+`worker/audio_agent.py` is an optional worker that **runs on the gaming PC** and listens to the game's own audio. It derives a few cheap signals locally — loudness (dB), an intensity class (`quiet`/`moderate`/`intense`), and sudden **onsets** like gunshots, explosions or stingers — and publishes only those as compact JSON. They land in the Game State Engine as **measured** Tier-1 signals.
+
+This is deliberately client-side: Home Assistant is meant to run on modest hardware (a Pi/NUC) **without** a high-end server, so the audio is captured and analysed on the PC where it's produced (plain RMS/onset DSP — no model, no GPU) and **only the results** travel over MQTT. Raw audio never touches HA.
+
+```bash
+pip install -r worker/requirements-audio.txt   # sounddevice + numpy + paho-mqtt
+
+# Find your loopback / "Stereo Mix" / .monitor device:
+python worker/audio_agent.py --list-devices
+
+# Capture the game's audio and stream signals to HA:
+python worker/audio_agent.py \
+  --broker 192.168.1.10 \
+  --client-id gaming-pc \
+  --device 7
+```
+
+To analyse the game's *output* (not a microphone) you need a loopback source: a WASAPI loopback / "Stereo Mix" device or virtual cable on Windows, a `.monitor` source on PulseAudio/PipeWire, or a loopback driver (e.g. BlackHole) on macOS. Set `--client-id` to match your capture agent so the signals join the right game state.
+
+</details>
+
+<details>
+<summary><b>Chess grounding</b> — real chess facts, computed inside Home Assistant</summary>
+
+For physical board games you often have **just a camera on a table and no client at all** — nothing to offload computation to. So the chess engine runs **inside Home Assistant**. It's feasible because chess reasoning is *episodic and symbolic* (not a continuous heavy stream): it uses [`python-chess`](https://pypi.org/project/chess/) — a pure-Python dependency installed automatically via the manifest, **no Stockfish binary and no extra server** — to validate a position and compute **legal moves, material balance, threats (captures/checks), and a suggested move** from a small built-in evaluator + shallow search. This turns the *opponent*/*analyst* modes from guessing into real chess.
+
+Feed it a board as FEN and read the result on `sensor.gaming_assistant_chess`:
+
+```yaml
+# Manually / from an automation / from a future board-vision worker:
+service: gaming_assistant.analyze_board
+data:
+  fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+```
+
+or publish to MQTT `gaming_assistant/{client_id}/board` with `{"fen": "..."}`. The grounded facts (`chess_best_move`, `chess_material_cp`, `chess_eval_cp`, `chess_phase`, …) flow into the game state, every tip, and the Tier 3 strategy. The engine is intentionally modest — its job is to *ground* the LLM in correct, legal chess, not to be Stockfish.
+
+</details>
+
+<details>
+<summary><b>Board-vision worker</b> — a camera turns a *physical* board into FEN</summary>
+
+`worker/board_vision.py` is the **source** for the chess engine in the camera-on-a-table case: it watches frames, perspective-warps the board from four configured corners, reads each square's **occupancy + piece colour**, and recovers the move by **tracking** — starting from a known position, the single legal move whose result matches the new board is unambiguous (captures, castling, en passant included), so it never has to visually classify piece *types*. It maintains the game with `python-chess` and publishes the FEN to `gaming_assistant/{client_id}/board`, which the in-HA engine already consumes.
+
+```bash
+pip install -r worker/requirements-boardvision.txt   # opencv + numpy + paho + chess
+
+# Corners are fractions of the frame, clockwise from top-left as the camera sees it:
+python worker/board_vision.py \
+  --broker 192.168.1.10 \
+  --client-id chess-cam \
+  --corners "0.12,0.08;0.88,0.10;0.90,0.92;0.10,0.90"
+```
+
+Point any capture agent (e.g. `capture_agent_ipcam.py` for an IP webcam) at the board so frames flow on `gaming_assistant/{id}/image`; the worker reads those. It assumes the game **starts from the standard position** and that each move is seen as a stable frame. The pixel layer is a **calibratable best-effort** — tune `--occupancy-std` / `--dark-below` for your board and lighting (robust auto corner-detection / a small classifier are future work). The reliable, fully-tested part is the geometry + move-inference; reset the tracker any time with an MQTT command `{"command": "reset"}` on `gaming_assistant/board/command`.
+
+</details>
+
 ---
 
 ## 🕹️ Agent Mode / Player 2 *(experimental)*
@@ -530,7 +610,7 @@ data:
   allowed_buttons: "A, B, X, Y, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT"
 ```
 
-> **Safety:** Agent Mode is strictly opt-in and **resets to OFF on every Home Assistant restart** — the AI never controls inputs unless you deliberately turn it on. It runs a *second* inference per frame (in addition to the normal tip), so expect higher load, especially on local models. The executor still enforces its own whitelist and `--dry-run`, and `stop` on `gaming_assistant/command` is the emergency brake. Start with the executor in `--dry-run` to watch the action stream safely before going live.
+> **Safety:** Agent Mode is strictly opt-in and **resets to OFF on every Home Assistant restart** — the AI never controls inputs unless you deliberately turn it on. The HA-side governor adds two more rails: actions are **rate limited** (no input flooding) and Agent Mode **auto-disables after repeated failures** (dead-man switch), so a broken pipeline never keeps the AI "driving". Every decision is audited on `sensor.gaming_assistant_agent_action` and the `gaming_assistant_agent_action` event. It runs a *second* inference per frame (in addition to the normal tip), so expect higher load, especially on local models. The executor still enforces its own whitelist and `--dry-run`, and `stop` on `gaming_assistant/command` is the emergency brake. Start with the executor in `--dry-run` to watch the action stream safely before going live.
 
 </details>
 
@@ -545,10 +625,12 @@ data:
 | :--- | :--- | :--- |
 | `select.gaming_assistant_assistant_mode` | Select | Coach / Co-Player / Opponent / Analyst |
 | `select.gaming_assistant_spoiler_level` | Select | Default spoiler level |
+| `select.gaming_assistant_source_type` | Select | Capture source interpretation: auto / console / tabletop |
 | `number.gaming_assistant_interval` | Number | Capture interval (5–120 s) |
 | `number.gaming_assistant_timeout` | Number | Analysis timeout (10–300 s) |
 | `switch.gaming_assistant_auto_announce` | Switch | Auto-announce tips via TTS |
 | `switch.gaming_assistant_auto_summary` | Switch | Auto-summarize on session end |
+| `switch.gaming_assistant_strategy_reflection` | Switch | Tier 3 LLM reflection (off = deterministic focus only, saves calls) |
 
 </details>
 
@@ -562,11 +644,15 @@ data:
 | `sensor.gaming_assistant_history` | Tip count + recent tips |
 | `sensor.gaming_assistant_latency` | Duration of last analysis (s) |
 | `sensor.gaming_assistant_error_count` | Errors since startup |
+| `sensor.gaming_assistant_last_error` | Last error message (attrs: error_type, timestamp) |
 | `sensor.gaming_assistant_frames_processed` | Total frames analyzed |
 | `sensor.gaming_assistant_last_analysis` | Timestamp of last success |
 | `sensor.gaming_assistant_active_watchers` | Active camera watchers |
 | `sensor.gaming_assistant_registered_workers` | Auto-discovered workers |
 | `sensor.gaming_assistant_session_summary` | Last session summary |
+| `sensor.gaming_assistant_agent_action` | Agent Mode audit: last decision status (attrs: full action, published/failed counts, whitelist) |
+| `sensor.gaming_assistant_scene_change` | Tier 1 perception: last frame's scene-change magnitude (attrs: frame_motion, frames_skipped) |
+| `sensor.gaming_assistant_strategy` | Tier 3 strategic focus fed into tips (attrs: full_strategy, game) |
 | `binary_sensor.gaming_mode` | ON when a game is detected |
 | `image.gaming_assistant_last_frame` | Last received JPEG (debug) |
 | `conversation.gaming_assistant` | Voice control via HA Assist |
@@ -656,6 +742,13 @@ Install `pywin32` on Windows; make sure the game is in the foreground. Or add yo
 
 </details>
 
+---
+
+## 🪄 Migration from v0.2 / v0.3
+
+- **Workers:** old workers moved to `worker/legacy/`. Still functional but deprecated — switch to the new capture agents.
+- **Config:** existing entries remain valid. New fields get defaults automatically.
+- **Topics:** old MQTT topics (`gaming_assistant/tip`, `…/status`, `…/gaming_mode`) are still supported in legacy passthrough mode.
 
 ---
 
@@ -663,9 +756,9 @@ Install `pywin32` on Windows; make sure the game is in the foreground. Or add yo
 
 Issues, PRs, and prompt-pack submissions are welcome.
 
-- Bug? File an [issue](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant/-/issues).
-- New game? Drop a pack — start from [`_template.json`](custom_components/gaming_assistant/prompts/_template.json), follow [`docs/pack_authoring.md`](docs/pack_authoring.md), open a merge request against [`ha-gaming-assistant-prompts`](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant-prompts).
-- Tests live in `tests/`. The pipeline is green or it doesn't merge.
+- Bug? File an [issue](https://github.com/Chance-Konstruktion/ha-gaming-assistant/issues).
+- New game? Drop a pack — start from [`_template.json`](custom_components/gaming_assistant/prompt_packs/_template.json), follow [`docs/pack_authoring.md`](docs/pack_authoring.md), open a PR against [`ha-gaming-assistant-prompts`](https://github.com/Chance-Konstruktion/ha-gaming-assistant-prompts).
+- Tests live in `tests/`. CI is green or it doesn't merge.
 
 ---
 
@@ -679,6 +772,6 @@ Issues, PRs, and prompt-pack submissions are welcome.
 
 **Built by gamers, for the HA homelab crowd.**
 
-<sub>v0.11 · `Thin Client` · Local-first · Open source · Made with 🟦 and 🟪</sub>
+<sub>v260619 · `Thin Client` · Local-first · Open source · Made with 🟦 and 🟪</sub>
 
 </div>

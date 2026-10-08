@@ -4,7 +4,7 @@ import asyncio
 import sys
 import types
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 # ---------------------------------------------------------------------------
 # Stub HA modules before importing conversation.py
@@ -87,7 +87,6 @@ for mod_key in list(sys.modules.keys()):
 from custom_components.gaming_assistant.conversation import (
     GamingAssistantConversationEntity,
 )
-from custom_components.gaming_assistant.const import ASSISTANT_MODES, SPOILER_LEVELS
 
 
 def _run(coro):
@@ -131,22 +130,22 @@ class TestConversationIntents(unittest.TestCase):
 
     def test_set_mode_opponent(self):
         entity, coord = _make_entity()
-        result = _process(entity, "change mode to opponent")
+        _process(entity, "change mode to opponent")
         coord.set_assistant_mode.assert_called_once_with("opponent")
 
     def test_set_mode_coplay(self):
         entity, coord = _make_entity()
-        result = _process(entity, "set mode to co-player")
+        _process(entity, "set mode to co-player")
         coord.set_assistant_mode.assert_called_once_with("coplay")
 
     def test_set_mode_german(self):
         entity, coord = _make_entity()
-        result = _process(entity, "wechsel modus auf gegner")
+        _process(entity, "wechsel modus auf gegner")
         coord.set_assistant_mode.assert_called_once_with("opponent")
 
     def test_set_mode_analyst(self):
         entity, coord = _make_entity()
-        result = _process(entity, "switch mode to analyst")
+        _process(entity, "switch mode to analyst")
         coord.set_assistant_mode.assert_called_once_with("analyst")
 
     def test_set_spoiler_none(self):
@@ -157,12 +156,12 @@ class TestConversationIntents(unittest.TestCase):
 
     def test_set_spoiler_high(self):
         entity, coord = _make_entity()
-        result = _process(entity, "change spoiler to high")
+        _process(entity, "change spoiler to high")
         coord.set_default_spoiler_level.assert_called_once_with("high")
 
     def test_set_spoiler_german(self):
         entity, coord = _make_entity()
-        result = _process(entity, "ändere spoiler level auf niedrig")
+        _process(entity, "ändere spoiler level auf niedrig")
         coord.set_default_spoiler_level.assert_called_once_with("low")
 
     def test_start(self):
@@ -183,7 +182,7 @@ class TestConversationIntents(unittest.TestCase):
 
     def test_stop_german(self):
         entity, coord = _make_entity()
-        result = _process(entity, "stoppe")
+        _process(entity, "stoppe")
         coord.hass.services.async_call.assert_called_once_with(
             "gaming_assistant", "stop", {}
         )
@@ -225,7 +224,7 @@ class TestConversationIntents(unittest.TestCase):
 
     def test_analyze_screenshot(self):
         entity, coord = _make_entity()
-        result = _process(entity, "screenshot")
+        _process(entity, "screenshot")
         coord.hass.services.async_call.assert_called_once_with(
             "gaming_assistant", "analyze", {}
         )

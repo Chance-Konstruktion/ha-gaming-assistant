@@ -5,7 +5,7 @@ Statusangaben werden bei jeder Release aktualisiert; abgehakte Tasks
 bleiben als Beleg im Dokument stehen, damit nachvollziehbar ist, was
 ausgeliefert wurde.
 
-**Aktueller Stand:** v0.13.0 (April 2026).
+**Aktueller Stand:** 260619.
 Detaillierte Versionshistorie: `CHANGELOG.md`.
 
 Statusmarker:
@@ -35,7 +35,7 @@ Game-spezifischer Prompt-Logik.
 
 ---
 
-## 2) Architektur (Stand v0.13.0)
+## 2) Architektur (Stand 260619)
 
 ```text
 Capture Source (PC / Android / Android TV / IP Webcam / HDMI-Bridge)
@@ -101,12 +101,13 @@ Detailliertes Diagramm: `docs/architecture.md`.
 
 ### Prompt Packs — ✅
 - Externe Community-Repo:
-  [`chance-konstruktion/ha-gaming-assistant-prompts`](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant-prompts).
+  [`Chance-Konstruktion/ha-gaming-assistant-prompts`](https://github.com/Chance-Konstruktion/ha-gaming-assistant-prompts).
 - Auto-Download beim HA-Start, Cache hat Vorrang vor gebündelten
   Packs.
 - Manifest + Schema-Validator (`pack_manifest.json`, v0.13).
 - Hot-Reload-Service `gaming_assistant.refresh_prompt_packs` (v0.13).
-- 26+ gebündelte Packs (Action, RPG, Tabletop, Card).
+- 26+ Community-Packs (Action, RPG, Tabletop, Card), beim HA-Start
+  automatisch heruntergeladen und lokal gecacht (nicht im Repo gebündelt).
 
 ### Diagnose & UX — ✅
 - Sensoren: Tip, Status, Latency, Frames Processed, Error Count,
@@ -182,7 +183,24 @@ Detailliertes Diagramm: `docs/architecture.md`.
 |------|--------------|--------|
 | GA-LLM | Multi-LLM-Backend (Ollama / GPT / Gemini / DeepSeek / LM Studio / Groq) | ✅ v0.10 |
 | GA-YOL | YOLO-Worker für Object Detection (CUDA / NCNN / Hailo / TFLite) | ✅ v0.10 |
+| GA-OCR | HUD-OCR-Worker (`worker/ocr_agent.py`) – liest HP/Ammo/Score per OCR aus konfigurierten Regionen und speist sie als gemessene Tier-1-Signale ein | ✅ (unreleased) |
+| GA-AUD | Game-Audio-Worker (`worker/audio_agent.py`) – läuft **clientseitig auf dem Gaming-PC**, leitet Lautheit/Intensität/Onsets (Schüsse/Explosionen) lokal per DSP ab und schickt nur kompakte Tier-1-Signale; rohes Audio erreicht HA nie | ✅ (unreleased) |
+| GA-CHS | Schach-Grounding (`chess_grounding.py`) – läuft **in HA** (pure-Python `python-chess`, kein Zusatzserver/kein Stockfish), da Brettspiele am Tisch oft nur mit Cam und **ohne Client** laufen; validiert FEN, rechnet legale Züge/Material/Drohungen + besten Zug und speist alles als Tier-1-Signale ein | ✅ v260619 |
+| GA-BVW | Board-Vision-Worker (`worker/board_vision.py`) – Client-seitig: entzerrt das physische Brett aus 4 Eckpunkten, misst Belegung+Figurenfarbe und leitet den Zug per **Tracking** ab (keine Figuren-Typ-Klassifikation nötig) → publiziert FEN an `…/board`. Pixel-Schicht ist kalibrierbarer Best-Effort; Kern (Geometrie + Zug-Inferenz) voll getestet | ✅ (unreleased) |
 | GA-GST | Game-State-Engine + Trend Detection | ✅ v0.10 |
+
+### Phase 8 — Remote Device Control (RustDesk)
+
+Zusätzlicher, optionaler Steuerungskanal neben dem bestehenden Agent Mode (`vgamepad`). Ziel: geräteunabhängige Fernsteuerung (PC, macOS, Android) ohne eigene Client-App pro Plattform, z. B. für Player-2-Assist und Pause-Trigger auf dem Smartphone. Ersetzt **nicht** die bestehenden ADB-Capture-Agents oder den Gamepad-Executor — läuft parallel dazu.
+
+Wichtige Einschränkung (siehe `docs/rustdesk_control.md`): RustDesk hat keine scriptbare Input-API. Automatisierbar ist nur der Verbindungsauf-/-abbau der Session, nicht die Eingaben selbst.
+
+| Task | Beschreibung | Status |
+|------|--------------|--------|
+| GA-118 | Architektur-Doku RustDesk-Steuerungskanal (`docs/rustdesk_control.md`) | ✅ |
+| GA-119 | `worker/rustdesk_controller.py` — Wrapper um RustDesk-CLI (Session auf-/abbauen, ID/Passwort-Handling, kein Code-Import → MIT-Lizenz unberührt) | ⬜ |
+| GA-120 | HA-Service `gaming_assistant.open_remote_session` (Zielgerät, optionaler Auto-Trigger bei Pause/Coplay) | ⬜ |
+| GA-121 | Optionaler Companion-Listener pro Zielgerät für scriptbare Pause-Aktionen (MQTT → lokale Medientaste/Shortcut), ergänzt RustDesk um automatisierbare Kommandos | ⬜ |
 
 ### Begleit-Apps & Test-Infrastruktur
 
@@ -226,7 +244,7 @@ docs_update:
 Empfohlener Workflow je Task:
 1. Relevante Dateien lesen, Diff-Plan erzeugen.
 2. Minimalen funktionsfähigen Patch erstellen.
-3. Tests + Lint ausführen (`python -m unittest discover -s tests`).
+3. Tests + Lint ausführen (`pytest`).
 4. Doku aktualisieren (`README.md`, `docs/`, `CHANGELOG.md`).
 5. PR mit klarer Risk/Impact-Section.
 
@@ -249,7 +267,7 @@ Empfohlener Workflow je Task:
 ### Geplante neue Dateien
 - `worker/agent_executor.py` (vgamepad Executor — GA-109) ✅ implementiert
 - `worker/requirements-player2.txt` enthält jetzt `vgamepad` + `paho-mqtt`
-- `docs/agent_mode.md` (Sicherheitsleitplanken-Doku — GA-AUD)
+- `docs/agent_mode.md` (Sicherheitsleitplanken-Doku — GA-AUD) ✅ vorhanden
 
 ### Häufig zu ändernde Dateien
 - `custom_components/gaming_assistant/coordinator.py`

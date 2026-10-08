@@ -296,6 +296,7 @@ class YOLOWorker:
             sys.exit(1)
 
         self._client = mqtt_client.Client(
+            mqtt_client.CallbackAPIVersion.VERSION1,
             client_id=self.worker_id,
             protocol=mqtt_client.MQTTv311,
         )

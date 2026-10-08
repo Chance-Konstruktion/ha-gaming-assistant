@@ -4,6 +4,152 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Blocking disk I/O off the event loop** (#123): spoiler profiles and prompt
+  packs are no longer read from disk inside the coordinator's `__init__` (which
+  runs on the HA event loop) — setup now loads both in the executor before
+  entities are created. Prompt-pack reloads after a background download and
+  spoiler profile writes (services + default-level select) also run in the
+  executor. `SpoilerManager.set_level` gained a `persist` flag so callers on
+  the loop can defer the file write.
+- **`strings.json`**: added the missing `entity.switch.auto_summary.name` key
+  (was already present in all translation files).
+
+## [260619] - 2026-06-19 — "Tiered Cognition, Edge Perception & Chess"
+
+The assistant goes from a flat fixed-interval LLM loop to a **tiered cognition
+stack** with **edge perception workers**, an **in-HA chess engine**, and a
+**reliability layer** — while keeping Home Assistant runnable on modest
+hardware (no high-end server).
+
+### Tiered cognition (perception → tactics → strategy)
+
+- **Added — Tier 1 (perception, `perception.py`):** cheap per-frame measurement
+  (scene-change magnitude, motion class) with **event-driven escalation** — the
+  vision LLM (Tier 2) now runs only on a significant change or a heartbeat, not
+  every frame. Skipped frames still update measured state (`frames_skipped`).
+- **Added — Tier 3 (strategy, `strategy.py`):** a session-level **strategic
+  focus** distilled from game-state trends, fed back down into Tier 2 prompts.
+  Optional periodic **LLM reflection** upgrades the deterministic baseline, with
+  graceful fallback; toggleable at runtime via
+  `switch.gaming_assistant_strategy_reflection`.
+- **Changed:** perception now **measures first** and hands signals to the LLM;
+  on a key collision the measured value wins over tip-scraped guesses.
+- **Added:** diagnostic sensors (scene-change/motion/frames-skipped, strategy
+  focus) and dashboard cards.
+
+### Edge perception workers (heavy compute stays on the client)
+
+- **Added — HUD OCR worker (`worker/ocr_agent.py`):** reads HP/ammo/score from
+  configured screen regions and publishes them as **measured Tier-1 numbers**.
+- **Added — game-audio worker (`worker/audio_agent.py`):** runs **on the gaming
+  PC**, derives loudness / intensity / onsets (gunshots, explosions) with plain
+  DSP — no model, no GPU — and publishes only compact events. Raw audio never
+  reaches HA.
+
+### Chess grounding (engine runs *in* Home Assistant)
+
+- **Added — `chess_grounding.py`:** because board games are often played at a
+  table with just a camera and **no client**, the chess engine runs in HA.
+  Pure-Python `python-chess` (no Stockfish binary, no extra server) validates a
+  FEN and computes legal moves, material, threats and a suggested move (small
+  evaluator + shallow alpha-beta), episodically and off the event loop.
+- **Added:** `gaming_assistant/{id}/board` topic, `gaming_assistant.analyze_board`
+  service, and `sensor.gaming_assistant_chess`.
+
+### Reliability & workflow
+
+- **Added — output-quality gate (`tip_filter.py`):** rejects degenerate model
+  output (empty/refusals) and suppresses re-announcing a repeated tip, so the
+  coach doesn't surface garbage or talk over itself.
+- **Added — pipeline-health binary sensor** (`binary_sensor.gaming_assistant_healthy`,
+  PROBLEM device class): one-glance "is it working?" (MQTT up + LLM path not in a
+  sustained failure streak), with diagnostics in the attributes.
+
+### Tooling & cleanup
+
+- **Changed:** CI now also lints `worker/`, so the growing set of edge workers
+  can't silently rot.
+- **Changed:** the Windows GUI launcher now shares capture/game-detection with
+  `capture_agent.py` (single `KNOWN_GAMES` source of truth) and gains
+  Last-Will/Testament presence, matching the CLI agent.
+
+### Agent Mode (Player 2) hardening
+
+- **Added:** `AgentActionGovernor` (`agent_governor.py`) — a pure, unit-tested
+  safety gate for autonomous play:
+  - **Rate limiting** — at most one published action per
+    `AGENT_ACTION_MIN_INTERVAL` seconds (no input flooding).
+  - **Dead-man switch** — Agent Mode auto-disables after
+    `AGENT_MAX_CONSECUTIVE_FAILURES` consecutive action failures, so a broken
+    pipeline never keeps the AI "driving".
+- **Added:** HA-native audit — a `Gaming Assistant Agent Action` sensor
+  (state = last decision status; attributes = full action, published/failed
+  counters, active whitelist) and a `gaming_assistant_agent_action` event
+  fired for every decision (`published` / `no_op` / `error` / `auto_disabled`).
+- **Added:** 15 tests — behavioural coverage of the governor and the audit
+  sensor, plus a wiring contract test.
+
+### Test coverage
+
+- **Raised core test coverage from 52% to 80%** and the CI gate from 50 → 70.
+  New behavioural harnesses make the previously-untestable core real-testable:
+  - `test_coordinator_behavior.py` — instantiates a real coordinator against a
+    stubbed HA surface and exercises properties, setters, the worker/client
+    registry, YOLO ingestion, session tracking, state persistence, the
+    `_process_image` / `ask` pipelines, and the Agent Mode safety wiring
+    (`coordinator.py` 20% → 69%).
+  - `test_init_services.py` — drives `async_setup_entry`/`async_unload_entry`
+    and invokes the registered service handlers (`__init__.py` 5% → 59%).
+  - `test_image_processor_pipeline.py` — runs `process()`/`ask()` end-to-end
+    with real managers and a mocked backend (`image_processor.py` 41% → 74%).
+
+## [260618] - 2026-06-18 — "Hardening, Pipeline Fixes & Cleanup"
+
+A repo-wide quality pass. Fixes real wiring bugs, removes dead code, moves
+blocking work off the event loop, adds linting + real entity tests, and
+corrects documentation drift. (Switched to date-based versioning: `YYMMDD`.)
+
+- **Fixed (pipeline):** the per-client status topic
+  `gaming_assistant/{id}/status` carries both plain-text capture-agent
+  presence (`online`/`offline`) and JSON YOLO-worker status. The handler now
+  tolerates both shapes — previously every capture-agent connect/disconnect
+  hit a JSON parser and logged a warning, and agent presence was never
+  recorded.
+- **Fixed (pipeline):** Game State persistence is now wired up. State is
+  lazily loaded from disk per game and saved on session end and shutdown, so
+  structured per-game state survives restarts. (`save()`/`load()` existed but
+  were never called.) All disk work runs in the executor.
+- **Fixed:** `async_set_model` now reuses the configured provider id
+  (e.g. `deepseek`, `gemini`) instead of the backend class, so switching
+  models no longer collapses a provider back onto the OpenAI preset or flips
+  `allow_images`.
+- **Added:** `gaming_assistant.send_yolo_command` service — sends `status`,
+  `restart`, `set_confidence`, or `set_max_fps` to external YOLO workers
+  (wires up the previously dead command channel).
+- **Performance:** moved blocking file I/O (`history.py`) and Pillow
+  decode/resize work (`image_processor.py`) off the Home Assistant event loop
+  into the executor.
+- **Fixed:** `manifest.json` now declares its `Pillow` dependency (used for
+  perceptual-hash dedup and image downscaling).
+- **Changed (workers):** every MQTT client now passes an explicit paho
+  `CallbackAPIVersion`, and capture agents derive a unique connection
+  client-id from `--client-id` to avoid broker reconnect storms.
+- **Removed:** dead constants (`CONF_SPOILER_SETTINGS`, `ATTR_LAST_TIP`,
+  `ATTR_GAMING_MODE`, `CONF_AGENT_MODE`, `OLLAMA_RETRY_DELAY`), a write-only
+  `_processing` flag, unused imports, and a no-op self-assignment.
+  `worker/legacy/*` is now clearly marked deprecated; orphaned dev mockups
+  (`Preview.html`, `tweaks-panel.jsx`) moved to `dev/`.
+- **Tests/CI:** added ruff linting to CI (which caught a real `NameError` in
+  the MQTT setup), added behavioral tests for the switch/binary_sensor/image
+  platforms (previously 0% coverage), and raised the coverage gate 45 → 50.
+- **Docs:** corrected the version label, a broken `_template.json` link, the
+  "26 packs included" claim (they are auto-downloaded, not bundled), and
+  game-count typos; removed a stale internal handoff doc.
+
+The two items below shipped in this release (previously under *Unreleased*):
+
 - **Added:** `worker/agent_executor.py` (GA-109) — the Agent Mode / Player 2
   executor. An optional worker that subscribes to
   `gaming_assistant/{client_id}/action`, validates each action against the

@@ -1,4 +1,13 @@
 """
+==============================================================================
+DEPRECATED – DO NOT USE FOR NEW DEPLOYMENTS
+==============================================================================
+This module is kept only as historical reference. The fat-client logic it
+contains (screen capture + Vision LLM analysis + tip publishing) now lives in
+the Home Assistant integration under ``custom_components/``. This file is no
+longer maintained and may be removed in a future release.
+==============================================================================
+
 Gaming Assistant – Android Worker
 ==================================
 Captures screenshots from an Android device via ADB, analyzes them with a
@@ -218,7 +227,11 @@ def analyze_screenshot(
 # ---------------------------------------------------------------------------
 def build_mqtt_client(broker: str, port: int, username: str, password: str):
     """Create and connect the MQTT client."""
-    client = mqtt.Client(client_id="gaming_assistant_android", clean_session=True)
+    client = mqtt.Client(
+        mqtt.CallbackAPIVersion.VERSION1,
+        client_id="gaming_assistant_android",
+        clean_session=True,
+    )
 
     if username:
         client.username_pw_set(username, password)

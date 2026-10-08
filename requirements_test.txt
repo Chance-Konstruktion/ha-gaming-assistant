@@ -1,16 +1,5 @@
-# Abhaengigkeiten der Testsuite.
-#
-# Die CI-Vorlage installiert diese Datei, wenn es sie gibt -- sonst faellt
-# sie auf eine Standardliste ohne aiohttp/Pillow/numpy zurueck, und die
-# Sammelphase bricht ab, bevor ein Test gelaufen ist.
-pytest
+# Die CI-Vorlage im GitLab installiert genau diese Datei (requirements_test.txt).
+# Die eigentliche Liste fuehrt requirements-test.txt (GitHub-CI) -- eine Quelle,
+# zwei Namen. pytest-asyncio braucht die Vorlage zusaetzlich.
+-r requirements-test.txt
 pytest-asyncio
-aiohttp>=3.9.0
-Pillow>=10.0.0
-numpy
-paho-mqtt>=2.1.0
-mss>=10.2.0
-requests
-# chess-Brettlogik fuer chess_grounding. Ohne dieses Paket ueberspringen
-# sich die 21 Tests dazu stumm -- ein gruener Lauf, der nichts geprueft hat.
-chess>=1.10.0

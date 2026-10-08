@@ -4,10 +4,8 @@ import asyncio
 import json
 import sys
 import tempfile
-import time
 import unittest
 from datetime import datetime, timedelta
-from pathlib import Path
 from unittest.mock import MagicMock
 
 # Stub homeassistant before importing our modules
@@ -32,10 +30,7 @@ from custom_components.gaming_assistant.history import HistoryManager
 
 def _run(coro):
     """Helper to run async code in tests."""
-    # asyncio.run statt get_event_loop(): letzteres holt ab Python 3.12
-    # keine Schleife mehr, wenn keine laeuft, und wirft ab 3.14 einen
-    # RuntimeError -- alle elf Tests dieser Datei brachen daran ab.
-    return asyncio.run(coro)
+    return asyncio.get_event_loop().run_until_complete(coro)
 
 
 class TestHistoryJSONL(unittest.TestCase):

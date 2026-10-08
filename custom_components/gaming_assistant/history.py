@@ -7,6 +7,7 @@ Append-only for normal writes; full rewrite only during cleanup.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -63,9 +64,10 @@ class HistoryManager:
         self._cache[key] = entries
         return entries
 
-    async def add_entry(
+    def _add_entry_sync(
         self, game: str, client_id: str, image_hash: str, tip: str
     ) -> None:
+        """Blocking implementation of add_entry (runs in the executor)."""
         key = game or client_id
         entries = self._load(key)
         now = datetime.now().isoformat(timespec="seconds")
@@ -99,12 +101,23 @@ class HistoryManager:
             except OSError as err:
                 _LOGGER.error("Failed to append history %s: %s", path, err)
 
+    async def add_entry(
+        self, game: str, client_id: str, image_hash: str, tip: str
+    ) -> None:
+        await asyncio.get_running_loop().run_in_executor(
+            None, self._add_entry_sync, game, client_id, image_hash, tip
+        )
+
     async def get_recent(self, key: str, count: int = 5) -> list[dict]:
-        entries = self._load(key)
+        entries = await asyncio.get_running_loop().run_in_executor(
+            None, self._load, key
+        )
         return entries[-count:]
 
-    async def is_duplicate_image(self, image_hash: str, key: str | None = None) -> bool:
-        """Check if the same image was processed within the dedup window."""
+    def _is_duplicate_image_sync(
+        self, image_hash: str, key: str | None = None
+    ) -> bool:
+        """Blocking implementation of is_duplicate_image."""
         now = time.time()
         keys = [key] if key else list(self._cache.keys())
 
@@ -121,8 +134,14 @@ class HistoryManager:
                     break  # Only check most recent match per key
         return False
 
-    async def cleanup(self, max_age_days: int | None = None) -> int:
-        """Remove entries older than max_age_days. Returns number of removed entries."""
+    async def is_duplicate_image(self, image_hash: str, key: str | None = None) -> bool:
+        """Check if the same image was processed within the dedup window."""
+        return await asyncio.get_running_loop().run_in_executor(
+            None, self._is_duplicate_image_sync, image_hash, key
+        )
+
+    def _cleanup_sync(self, max_age_days: int | None = None) -> int:
+        """Blocking implementation of cleanup (runs in the executor)."""
         max_age = max_age_days if max_age_days is not None else self._max_age_days
         cutoff = time.time() - max_age * 86400
         total_removed = 0
@@ -168,7 +187,14 @@ class HistoryManager:
 
         return total_removed
 
-    async def clear(self, key: str | None = None) -> None:
+    async def cleanup(self, max_age_days: int | None = None) -> int:
+        """Remove entries older than max_age_days. Returns number removed."""
+        return await asyncio.get_running_loop().run_in_executor(
+            None, self._cleanup_sync, max_age_days
+        )
+
+    def _clear_sync(self, key: str | None = None) -> None:
+        """Blocking implementation of clear (runs in the executor)."""
         if key:
             self._cache.pop(key, None)
             path = self._file_path(key)
@@ -179,6 +205,11 @@ class HistoryManager:
             if self._base_path.exists():
                 for f in self._base_path.glob("*.jsonl"):
                     f.unlink()
+
+    async def clear(self, key: str | None = None) -> None:
+        await asyncio.get_running_loop().run_in_executor(
+            None, self._clear_sync, key
+        )
 
     @staticmethod
     def format_for_prompt(entries: list[dict]) -> str:

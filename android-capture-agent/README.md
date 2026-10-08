@@ -21,10 +21,7 @@ Native Android (Kotlin) capture app for Home Assistant Gaming Assistant.
    - **Build → Generate Signed Bundle / APK**.
 
 ### CI Build Artifact
-- No CI job builds the APK on GitLab yet: the shared pipeline template is
-  identical across all repositories and is checked against its source, so a
-  one-off Gradle job cannot live in it. Build locally with
-  `./gradlew :app:assembleDebug`.
+- GitHub Actions workflow `Android Capture Build` builds `:app:assembleDebug` for PRs that touch `android-capture-agent/**`.
 - The debug APK is uploaded as artifact `ga-android-capture-debug-apk`.
 - If a PR reports merge conflicts, resolve them first and re-run this workflow to get a fresh APK artifact.
 

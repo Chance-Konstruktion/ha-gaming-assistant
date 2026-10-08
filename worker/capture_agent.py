@@ -60,12 +60,19 @@ TOPIC_CMD = "gaming_assistant/command"
 
 # ---------------------------------------------------------------------------
 # Known games for window title detection (extend as needed)
+#
+# This is the single source of truth for PC game detection — the Windows GUI
+# launcher (gaming_assistant_gui.py) imports this list and the helpers below
+# instead of keeping its own copy, so the two never drift apart.
 # ---------------------------------------------------------------------------
 KNOWN_GAMES = [
     "Wolfenstein", "Doom", "Cyberpunk", "Elden Ring",
     "Dark Souls", "Minecraft", "Counter-Strike", "Valorant",
     "Overwatch", "Baldur's Gate", "Starfield", "The Witcher",
     "Hogwarts Legacy", "Diablo", "Path of Exile", "Fortnite",
+    "Zelda", "God of War", "Horizon", "Resident Evil",
+    "Final Fantasy", "Assassin's Creed", "Red Dead",
+    "Civilization", "Age of Empires", "Total War",
 ]
 
 
@@ -178,7 +185,10 @@ def build_mqtt_client(
     broker: str, port: int, username: str, password: str, client_id: str = ""
 ):
     """Create and connect the MQTT client with Last Will (LWT)."""
-    client = mqtt.Client(client_id="gaming_assistant_capture", clean_session=True)
+    conn_id = f"ga_{client_id}" if client_id else "gaming_assistant_capture"
+    client = mqtt.Client(
+        mqtt.CallbackAPIVersion.VERSION1, client_id=conn_id, clean_session=True
+    )
 
     if username:
         client.username_pw_set(username, password)

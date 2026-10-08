@@ -11,6 +11,11 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.selector import (
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
 from .const import (
     CONF_AUTO_ANNOUNCE,
@@ -221,7 +226,10 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required(CONF_OLLAMA_HOST, default=self._ollama_host): str,
         }
         if needs_key:
-            schema_fields[vol.Required(CONF_LLM_API_KEY, default="")] = str
+            # Mask the API key in the UI so it isn't shown in plaintext.
+            schema_fields[vol.Required(CONF_LLM_API_KEY, default="")] = TextSelector(
+                TextSelectorConfig(type=TextSelectorType.PASSWORD)
+            )
 
         return self.async_show_form(
             step_id="connection",

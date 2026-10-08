@@ -17,7 +17,7 @@ from .const import (
 )
 from .game_state import GameStateManager, extract_observations_from_tip
 from .history import HistoryManager
-from .llm_backend import LLMBackend, OllamaBackend, create_backend
+from .llm_backend import LLMBackend, OllamaBackend
 from .prompt_builder import PromptBuilder
 from .spoiler import SpoilerManager
 
@@ -249,13 +249,31 @@ class ImageProcessor:
         image_bytes: bytes,
         client_id: str,
         metadata: dict | None = None,
+        measured: dict | None = None,
+        strategy_note: str = "",
     ) -> str:
-        """Run the full image processing pipeline. Returns the tip string."""
-        metadata = metadata or {}
+        """Run the full image processing pipeline. Returns the tip string.
 
-        # 1. Compute hashes
+        ``measured`` carries Tier 1 (perception) signals for this frame
+        (e.g. ``scene_change``, ``frame_motion``). They are shown to the
+        LLM as live input and merged into the single per-frame game-state
+        snapshot, so structured state is *measured* first rather than only
+        scraped back out of the model's prose.
+
+        ``strategy_note`` is the Tier 3 strategic focus fed back down into
+        the tactical prompt, so per-frame tips reason under the session's
+        higher-level frame.
+        """
+        metadata = metadata or {}
+        measured = measured or {}
+
+        # 1. Compute hashes. The perceptual hash decodes the image with PIL,
+        # so run it in the executor to keep the event loop responsive.
+        loop = asyncio.get_running_loop()
         image_hash = hashlib.md5(image_bytes).hexdigest()
-        image_phash = self._compute_phash(image_bytes)
+        image_phash = await loop.run_in_executor(
+            None, self._compute_phash, image_bytes
+        )
 
         # 2. Extract game info from metadata
         game = metadata.get("window_title", "") or metadata.get("game", "")
@@ -290,12 +308,23 @@ class ImageProcessor:
         recent = await self._history.get_recent(key, HISTORY_CONTEXT_SIZE)
         history_context = HistoryManager.format_for_prompt(recent)
 
-        # 7b. Game state context
-        state_context = ""
+        # 7b/7c. Assemble the layered context shown to the LLM, top-down:
+        #   Tier 3 strategic focus (frames everything) →
+        #   Tier 1 live measured signals →
+        #   the rolling game-state block (current state, changes, trends).
+        context_parts: list[str] = []
+        if strategy_note:
+            context_parts.append(f"Strategic focus: {strategy_note}")
+        if measured:
+            signal_str = ", ".join(f"{k}: {v}" for k, v in measured.items())
+            context_parts.append(f"Live signals: {signal_str}")
         if self._game_state and game:
-            state_context = self._game_state.format_for_prompt(
+            state_block = self._game_state.format_for_prompt(
                 game, compact=self._compact
             )
+            if state_block:
+                context_parts.append(state_block)
+        state_context = "\n".join(context_parts)
 
         # 8. Build prompt
         prompt = PromptBuilder.build(
@@ -310,8 +339,10 @@ class ImageProcessor:
             state_context=state_context,
         )
 
-        # 9. Downscale + compress image
-        llm_image = self._downscale_image(image_bytes)
+        # 9. Downscale + compress image (PIL work → executor)
+        llm_image = await loop.run_in_executor(
+            None, self._downscale_image, image_bytes
+        )
 
         # 10. Call LLM backend
         image_b64 = base64.b64encode(llm_image).decode("utf-8")
@@ -327,11 +358,12 @@ class ImageProcessor:
         await self._history.add_entry(game, client_id, image_hash, tip)
         self._update_cache(game, tip, image_phash)
 
-        # 12. Extract and store game state observations
+        # 12. Store game state observations. Tip-scraped values are the weak
+        # layer; Tier 1 *measured* signals override them on any key collision
+        # (measured beats guessed), all merged into one snapshot per frame.
         if self._game_state and game:
-            observations = extract_observations_from_tip(
-                tip, game, prompt_pack
-            )
+            observations = extract_observations_from_tip(tip, game, prompt_pack)
+            observations.update(measured)
             if observations:
                 self._game_state.update(
                     game, observations, tip=tip, source=client_id
@@ -364,7 +396,10 @@ class ImageProcessor:
             compact=self._compact,
         )
 
-        llm_image = self._downscale_image(image_bytes)
+        loop = asyncio.get_running_loop()
+        llm_image = await loop.run_in_executor(
+            None, self._downscale_image, image_bytes
+        )
         image_b64 = base64.b64encode(llm_image).decode("utf-8")
         response = await self._backend.generate(
             prompt, image_b64, max_tokens=OLLAMA_NUM_PREDICT
@@ -428,7 +463,10 @@ class ImageProcessor:
         )
 
         if image_bytes:
-            llm_image = self._downscale_image(image_bytes)
+            loop = asyncio.get_running_loop()
+            llm_image = await loop.run_in_executor(
+                None, self._downscale_image, image_bytes
+            )
             image_b64 = base64.b64encode(llm_image).decode("utf-8")
             response = await self._backend.generate(
                 prompt, image_b64, max_tokens=OLLAMA_NUM_PREDICT

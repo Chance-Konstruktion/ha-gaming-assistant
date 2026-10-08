@@ -6,7 +6,7 @@ a specific game — they tune the system prompt, anti-spoiler rules, and
 optional metadata for one title.
 
 Community packs live in a separate repository:
-[**chance-konstruktion/ha-gaming-assistant-prompts**](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant-prompts).
+[**Chance-Konstruktion/ha-gaming-assistant-prompts**](https://github.com/Chance-Konstruktion/ha-gaming-assistant-prompts).
 Every Home Assistant install pulls the latest packs from there at
 startup and after the `gaming_assistant.refresh_prompt_packs` service
 is called.
@@ -222,7 +222,7 @@ For unit-test-style checks, the integration ships fixtures under
 (`tests/test_prompt_packs.py::TestPackValidation`). Run:
 
 ```bash
-python -m unittest tests.test_prompt_packs
+pytest tests/test_prompt_packs.py
 ```
 
 after dropping a copy of your pack into `tests/fixtures/prompt_packs/`
@@ -232,13 +232,13 @@ to confirm it parses.
 
 ## 9. Submitting to the community repo
 
-1. Fork [`ha-gaming-assistant-prompts`](https://gitlab.schanz.ipv64.net/chance-konstruktion/ha-gaming-assistant-prompts).
+1. Fork [`ha-gaming-assistant-prompts`](https://github.com/Chance-Konstruktion/ha-gaming-assistant-prompts).
 2. Add your pack under `packs/base/<id>.json` (or another category).
 3. Run any local validation you can:
    ```bash
    python -c "import json, sys; json.loads(open(sys.argv[1]).read())" packs/base/your_pack.json
    ```
-4. Open a merge request. Include:
+4. Open a PR. Include:
    - Game title and platforms covered.
    - Why the pack is useful (which knowledge isn't already in a
      general coach).

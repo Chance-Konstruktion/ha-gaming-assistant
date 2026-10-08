@@ -28,7 +28,7 @@ Thumbs.db
 htmlcov/
 .coverage
 
-# Binary releases (use GitLab Releases instead)
+# Binary releases (use GitHub Releases instead)
 *.apk
 *.exe
 

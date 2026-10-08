@@ -34,6 +34,10 @@ async def async_setup_entry(
         GamingAssistantActiveWatchersSensor(coordinator),
         GamingAssistantRegisteredWorkersSensor(coordinator),
         GamingAssistantSessionSummarySensor(coordinator),
+        GamingAssistantAgentActionSensor(coordinator),
+        GamingAssistantPerceptionSensor(coordinator),
+        GamingAssistantStrategySensor(coordinator),
+        GamingAssistantChessSensor(coordinator),
     ])
 
 
@@ -85,7 +89,9 @@ class GamingAssistantStatusSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        # Vor dem ersten Refresh ist coordinator.data None.
+        # A pure-push DataUpdateCoordinator leaves `.data` as None until the
+        # first MQTT update arrives, and entities are read (initial state write)
+        # before that — so guard against None rather than assuming a dict.
         data = self._coordinator.data or {}
         return {
             "assistant_mode": self._coordinator.assistant_mode,
@@ -292,4 +298,147 @@ class GamingAssistantSessionSummarySensor(CoordinatorEntity, SensorEntity):
             "full_summary": self._coordinator.last_summary,
             "game": self._coordinator.last_summary_game,
             "timestamp": self._coordinator.last_summary_timestamp,
+        }
+
+
+class GamingAssistantAgentActionSensor(CoordinatorEntity, SensorEntity):
+    """Audit sensor for Agent Mode (Player 2) autonomous actions.
+
+    State is the last decision status (``idle`` / ``published`` / ``no_op`` /
+    ``error`` / ``auto_disabled``); attributes carry the full action, the
+    published/failed counters, and the active button whitelist so autonomous
+    play can be monitored and automated against from Home Assistant.
+    """
+
+    _attr_name = "Gaming Assistant Agent Action"
+    _attr_unique_id = "gaming_assistant_agent_action"
+    _attr_icon = "mdi:robot-outline"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def native_value(self) -> str:
+        return self._coordinator.agent_last_action_status or "idle"
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {
+            "agent_mode": self._coordinator.agent_mode,
+            "last_action": self._coordinator.agent_last_action,
+            "timestamp": self._coordinator.agent_last_action_timestamp,
+            "actions_published": self._coordinator.agent_actions_published,
+            "actions_failed": self._coordinator.agent_actions_failed,
+            "allowed_buttons": self._coordinator.agent_allowed_buttons or "all",
+        }
+
+
+class GamingAssistantPerceptionSensor(CoordinatorEntity, SensorEntity):
+    """Tier 1 readout: scene-change magnitude of the last measured frame.
+
+    State is the 0..1 scene-change value; attributes carry the coarse motion
+    class and the count of frames the perception tier let skip the LLM, so
+    the event-driven savings are visible from Home Assistant.
+    """
+
+    _attr_name = "Gaming Assistant Scene Change"
+    _attr_unique_id = "gaming_assistant_scene_change"
+    _attr_icon = "mdi:motion-sensor"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def native_value(self) -> float:
+        return self._coordinator.scene_change
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {
+            "frame_motion": self._coordinator.frame_motion,
+            "frames_skipped": self._coordinator.frames_skipped,
+            "frames_processed": self._coordinator.frames_processed,
+        }
+
+
+class GamingAssistantStrategySensor(CoordinatorEntity, SensorEntity):
+    """Tier 3 readout: the current session-level strategic focus.
+
+    State is the strategic note fed back down into the tactical prompts
+    (``No focus yet`` when none); the full text and game are in attributes.
+    """
+
+    _attr_name = "Gaming Assistant Strategy"
+    _attr_unique_id = "gaming_assistant_strategy"
+    _attr_icon = "mdi:chess-queen"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def native_value(self) -> str:
+        note = self._coordinator.strategy_note
+        if not note:
+            return "No focus yet"
+        if len(note) > 250:
+            return note[:247] + "..."
+        return note
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {
+            "full_strategy": self._coordinator.strategy_note,
+            "game": self._coordinator.current_game,
+        }
+
+
+class GamingAssistantChessSensor(CoordinatorEntity, SensorEntity):
+    """Chess grounding readout: the suggested best move for the last board.
+
+    State is the suggested move in SAN (``No board yet`` when none); the
+    full grounded facts (material, eval, threats, flags) are in attributes.
+    The engine runs inside Home Assistant — no extra server.
+    """
+
+    _attr_name = "Gaming Assistant Chess"
+    _attr_unique_id = "gaming_assistant_chess"
+    _attr_icon = "mdi:chess-king"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def native_value(self) -> str:
+        grounding = self._coordinator.chess_grounding
+        if not grounding.get("valid"):
+            return "No board yet"
+        return grounding.get("best_move") or grounding.get("summary", "—")
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        g = self._coordinator.chess_grounding
+        return {
+            "available": g.get("available", False),
+            "valid": g.get("valid", False),
+            "summary": g.get("summary", ""),
+            "side_to_move": g.get("side_to_move"),
+            "best_move": g.get("best_move"),
+            "eval_white_cp": g.get("eval_white_cp"),
+            "material_cp": g.get("material_cp"),
+            "phase": g.get("phase"),
+            "legal_moves": g.get("legal_moves"),
+            "is_check": g.get("is_check"),
+            "is_checkmate": g.get("is_checkmate"),
+            "captures": g.get("captures"),
+            "checks": g.get("checks"),
+            "fen": g.get("fen"),
+            "error": g.get("error"),
         }

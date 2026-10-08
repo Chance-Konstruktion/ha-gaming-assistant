@@ -32,44 +32,44 @@ from .const import (
     CONF_INTERVAL,
     CONF_MODEL,
     CONF_OLLAMA_HOST,
+    CONF_STRATEGY_REFLECTION,
     CONF_TIMEOUT,
     CONF_TTS_ENTITY,
     CONF_TTS_TARGET,
     AGENT_VALID_BUTTONS,
+    AGENT_ACTION_MIN_INTERVAL,
+    AGENT_MAX_CONSECUTIVE_FAILURES,
     DEFAULT_AGENT_MODE,
     DEFAULT_ASSISTANT_MODE,
     DEFAULT_AUTO_ANNOUNCE,
     DEFAULT_AUTO_SUMMARY,
     DEFAULT_INTERVAL,
+    DEFAULT_STRATEGY_REFLECTION,
     DEFAULT_SPOILER_LEVEL,
     DEFAULT_TIMEOUT,
     DOMAIN,
     EVENT_NEW_TIP,
-    EVENT_SESSION_ENDED,
-    MQTT_IMAGE_TOPIC,
-    MQTT_META_TOPIC,
-    MQTT_MODE_TOPIC,
-    MQTT_STATUS_TOPIC,
-    MQTT_TIP_TOPIC,
-    MQTT_DETECTIONS_TOPIC,
-    MQTT_WORKER_REGISTER_TOPIC,
+    HEALTH_MAX_FAILURE_STREAK,
     MQTT_ACTION_TOPIC,
     MQTT_YOLO_COMMAND_TOPIC,
-    MQTT_YOLO_STATUS_TOPIC,
-    SESSION_END_DELAY,
 )
+from .agent_governor import AgentActionGovernor
 from .game_state import GameStateManager
 from .history import HistoryManager
 from .image_processor import ImageProcessor
-from .llm_backend import LLMBackend, create_backend, PROVIDER_PRESETS
-from .prompt_builder import PromptBuilder
-from .prompt_packs import PromptPackLoader, download_prompt_packs
+from .llm_backend import LLMBackend, create_backend
+from .camera_watcher import CameraWatcher
+from .client_registry import ClientRegistry
+from .mqtt_router import MqttRouter
+from . import chess_grounding
+from .perception import PerceptionTier
+from .pipeline import AnalysisPipeline
+from .prompt_packs import PromptPackLoader
+from .session_tracker import SessionTracker
 from .spoiler import SpoilerManager
+from .strategy import StrategyTier
 
 _LOGGER = logging.getLogger(__name__)
-
-MQTT_RETRY_ATTEMPTS = 5
-MQTT_RETRY_BASE_DELAY = 3  # seconds, doubles each attempt
 
 
 class GamingAssistantCoordinator(DataUpdateCoordinator):
@@ -88,8 +88,6 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._tip: str = "Waiting for tips..."
         self._gaming_mode: bool = False
         self._status: str = "idle"
-        self._unsubscribe_callbacks: list = []
-        self._mqtt_connected: bool = False
 
         # v0.4 Thin Client components
         self._current_game: str = ""
@@ -97,16 +95,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._recent_tips: list[dict] = []
         self._tip_count: int = 0
         self._client_metadata: dict[str, dict] = {}
-        self._processing: bool = False
-        self._process_lock = asyncio.Lock()
-        self._image_queue: asyncio.Queue[tuple[str, bytes]] = asyncio.Queue(maxsize=3)
-        self._image_worker_task: asyncio.Task | None = None
         self._last_image_bytes: bytes | None = None
         self._last_image_client_id: str = ""
         self._last_image_timestamp: str = ""
-        self._client_inactivity_timers: dict[str, asyncio.TimerHandle] = {}
-        self._active_client_id: str = ""
-        self._clients: dict[str, dict[str, Any]] = {}
 
         # Configurable interval & timeout
         self._analysis_interval: int = config.get(CONF_INTERVAL, DEFAULT_INTERVAL)
@@ -118,6 +109,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         # Agent Mode / Player 2 — opt-in, runtime-only (resets to OFF on restart).
         self._agent_mode: bool = DEFAULT_AGENT_MODE
         self._agent_allowed_buttons: list[str] = []
+        # Safety governor: rate limit + failure auto-disable + audit counters.
+        self._agent_governor = AgentActionGovernor(
+            AGENT_ACTION_MIN_INTERVAL, AGENT_MAX_CONSECUTIVE_FAILURES
+        )
 
         # Persistent game hint – used by camera watchers when no auto-detection
         self._default_game_hint: str = ""
@@ -125,17 +120,49 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         # Source type: auto, console, tabletop
         self._source_type: str = DEFAULT_SOURCE_TYPE
 
-        # Camera watchers: entity_id → {task, cancel_event, game_hint, client_type, interval}
-        self._camera_watchers: dict[str, dict[str, Any]] = {}
+        # Camera watchers: continuous capture from HA camera entities.
+        self._camera_watcher = CameraWatcher(self)
 
-        # Registered workers: client_id → {name, type, platform, last_seen, ...}
-        self._registered_workers: dict[str, dict[str, Any]] = {}
-        self._yolo_workers: dict[str, dict[str, Any]] = {}
+        # Worker/client registry + per-client inactivity timers.
+        self._client_registry = ClientRegistry(self)
+
+        # MQTT subscription routing + connection state + YOLO worker status.
+        self._mqtt_router = MqttRouter(self)
+
+        # Analysis pipeline — bounded image queue + sequential worker, the
+        # per-frame Tier 1→2→3 orchestration, and Agent Mode action publishing.
+        self._pipeline = AnalysisPipeline(self)
+
+        # Tier 1 — cheap per-frame perception (scene change, motion) that
+        # feeds measured signals into Tier 2 instead of scraping them back
+        # out of the LLM's prose afterwards.
+        self._perception = PerceptionTier(self)
+
+        # Tier 3 — slow session-level strategy that distils a focus from
+        # game-state trends and feeds it back down into the Tier 2 prompt.
+        self._strategy = StrategyTier(
+            self,
+            config.get(CONF_STRATEGY_REFLECTION, DEFAULT_STRATEGY_REFLECTION),
+        )
 
         # Runtime metrics
         self._latency: float = 0.0
         self._error_count: int = 0
+        # Consecutive LLM analysis failures (reset on success) — feeds the
+        # pipeline-health binary sensor. Plus output-quality-gate counters.
+        self._llm_failure_streak: int = 0
+        self._tips_rejected: int = 0
+        self._announces_suppressed: int = 0
         self._frames_processed: int = 0
+        # Tier 2 escalation: monotonic timestamp of the last LLM analysis
+        # attempt (None = never) + count of frames handled by Tier 1 only.
+        self._last_tier2_ts: float | None = None
+        self._frames_skipped: int = 0
+        # Tier 1 perception readout (last measured frame).
+        self._last_scene_change: float = 0.0
+        self._last_frame_motion: str = ""
+        # Chess grounding: last analysed board (per the current game/source).
+        self._chess_grounding: dict[str, Any] = {}
         self._last_analysis: str = ""
         self._last_error_message: str = ""
         self._last_error_type: str = ""
@@ -148,27 +175,23 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         )
         default_spoiler = config.get(CONF_DEFAULT_SPOILER, DEFAULT_SPOILER_LEVEL)
         self._spoiler.initialize(default_spoiler)
-        self._spoiler.load()
         self._packs_cache_dir = Path(
             hass.config.config_dir
         ) / "gaming_assistant" / "prompt_packs"
         self._pack_loader = PromptPackLoader(cache_dir=self._packs_cache_dir)
-        self._pack_loader.load_all()
         self._game_state = GameStateManager(hass.config.config_dir)
+        # Games whose persisted state has already been loaded from disk
+        # (lazy load-once tracking so we don't hit the filesystem per frame).
+        self._loaded_state_games: set[str] = set()
         # TTS / Announce
         self._tts_entity: str = config.get(CONF_TTS_ENTITY, "")
         self._tts_target: str = config.get(CONF_TTS_TARGET, "")
         self._auto_announce: bool = config.get(CONF_AUTO_ANNOUNCE, DEFAULT_AUTO_ANNOUNCE)
 
-        # Session tracking
-        self._session_start: float | None = None
-        self._session_game: str = ""
-        self._session_tips: list[str] = []
-        self._session_end_timer: asyncio.TimerHandle | None = None
-        self._auto_summary: bool = config.get(CONF_AUTO_SUMMARY, DEFAULT_AUTO_SUMMARY)
-        self._last_summary: str = ""
-        self._last_summary_game: str = ""
-        self._last_summary_timestamp: str = ""
+        # Session tracking + summary (debounced end, recap generation).
+        self._session_tracker = SessionTracker(
+            self, config.get(CONF_AUTO_SUMMARY, DEFAULT_AUTO_SUMMARY)
+        )
 
         # Daily history cleanup (managed via async_track_time_interval)
         self._cleanup_unsub: callback | None = None
@@ -179,9 +202,12 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         # Resolve language from HA config (e.g. "de", "en", "fr")
         self._language = self._resolve_language(hass)
 
-        # Create LLM backend
+        # Create LLM backend. Remember the configured provider id so a later
+        # model switch reconstructs the SAME provider (preset host, rate limit,
+        # image policy) instead of collapsing to the generic backend class.
+        self._provider = config.get(CONF_LLM_BACKEND, DEFAULT_LLM_BACKEND)
         self._llm_backend = create_backend(
-            provider=config.get(CONF_LLM_BACKEND, DEFAULT_LLM_BACKEND),
+            provider=self._provider,
             host=config.get(CONF_OLLAMA_HOST, "http://localhost:11434"),
             model=config.get(CONF_MODEL, "qwen2.5vl"),
             timeout=self._analysis_timeout,
@@ -200,6 +226,29 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             game_state_manager=self._game_state,
             llm_backend=self._llm_backend,
         )
+
+        # Seed an initial snapshot so `.data` is never None. This coordinator is
+        # pure-push (no polling) and platforms are forwarded before the first
+        # MQTT update, so entities read their initial state before any
+        # `async_set_updated_data` call. Without a seed, `.data.get(...)` in the
+        # entities raises AttributeError on 'NoneType' during add_to_platform.
+        self.data = self._build_data()
+
+    async def async_load_stored_data(self) -> None:
+        """Load spoiler profiles and prompt packs from disk, off the event loop.
+
+        Must run once during setup, before entities read pack/spoiler state —
+        both loads hit the filesystem, which is not allowed on the loop.
+        """
+        await self.hass.async_add_executor_job(self._load_stored_data_sync)
+
+    def _load_stored_data_sync(self) -> None:
+        self._spoiler.load()
+        self._pack_loader.load_all()
+
+    async def _async_save_spoiler(self) -> None:
+        """Persist spoiler profiles in the executor (disk write)."""
+        await self.hass.async_add_executor_job(self._spoiler.save)
 
     # -- language resolution --------------------------------------------------
 
@@ -237,7 +286,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             name="Gaming Assistant",
             manufacturer="Chance-Konstruktion",
             model=self.config.get(CONF_MODEL, "qwen2.5vl"),
-            sw_version="0.13.0",
+            sw_version="260619",
             configuration_url=self.config.get(CONF_OLLAMA_HOST, ""),
         )
 
@@ -255,7 +304,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
     @property
     def mqtt_connected(self) -> bool:
-        return self._mqtt_connected
+        return self._mqtt_router.connected
 
     @property
     def current_game(self) -> str:
@@ -296,7 +345,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     @property
     def yolo_workers(self) -> dict[str, dict[str, Any]]:
         """Return status of connected YOLO workers."""
-        return self._yolo_workers
+        return self._mqtt_router.yolo_workers
 
     async def async_send_yolo_command(self, command: str, **kwargs: Any) -> None:
         """Send a command to YOLO workers via MQTT."""
@@ -346,15 +395,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._gaming_mode = False
         if self._status != "error":
             self._status = "idle"
-        for handle in self._client_inactivity_timers.values():
-            handle.cancel()
-        self._client_inactivity_timers.clear()
-        while not self._image_queue.empty():
-            try:
-                self._image_queue.get_nowait()
-                self._image_queue.task_done()
-            except asyncio.QueueEmpty:
-                break
+        self._client_registry.cancel_timers()
+        self._pipeline.drain_queue()
         self.async_set_updated_data(self._build_data())
 
     async def async_clear_history(self, game: str | None = None) -> None:
@@ -367,12 +409,17 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self.async_set_updated_data(self._build_data())
 
     async def async_set_model(self, model: str) -> None:
-        """Switch active model for both backend and image processor."""
+        """Switch active model for both backend and image processor.
+
+        Reuses the configured provider id (e.g. ``deepseek``/``gemini``) so the
+        provider's preset – host, rate limit, and image policy – is preserved.
+        Using ``backend_type`` here would map every OpenAI-compatible provider
+        back to the generic ``openai`` preset and silently flip ``allow_images``.
+        """
         if not model:
             return
-        backend_type = self._llm_backend.backend_type
         self._llm_backend = create_backend(
-            provider=backend_type,
+            provider=self._provider,
             host=self.config.get(CONF_OLLAMA_HOST, "http://localhost:11434"),
             model=model,
             timeout=self._analysis_timeout,
@@ -415,7 +462,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         if level not in SPOILER_LEVELS:
             _LOGGER.warning("Unknown spoiler level '%s'", level)
             return
-        self._spoiler.set_level("all", level)
+        self._spoiler.set_level("all", level, persist=False)
+        self.hass.async_create_task(self._async_save_spoiler())
         _LOGGER.info("Default spoiler level set to: %s", level)
         self.async_set_updated_data(self._build_data())
 
@@ -468,123 +516,23 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
     @property
     def registered_workers(self) -> dict[str, dict[str, Any]]:
-        return self._registered_workers
+        return self._client_registry.registered_workers
 
-    def _register_worker(self, client_id: str, info: dict[str, Any] | None = None) -> None:
-        """Register or update a worker. Called automatically on MQTT activity."""
-        now = time.strftime("%Y-%m-%dT%H:%M:%S")
-        self._active_client_id = client_id
-        if client_id in self._registered_workers:
-            self._registered_workers[client_id]["last_seen"] = now
-            if info:
-                self._registered_workers[client_id].update(info)
-        else:
-            worker_info = {
-                "name": info.get("name", client_id) if info else client_id,
-                "type": info.get("type", "unknown") if info else "unknown",
-                "platform": info.get("platform", "") if info else "",
-                "version": info.get("version", "") if info else "",
-                "first_seen": now,
-                "last_seen": now,
-            }
-            if info:
-                worker_info.update({k: v for k, v in info.items() if k not in worker_info})
-            self._registered_workers[client_id] = worker_info
-            _LOGGER.info("New worker registered: %s (%s)", client_id, worker_info.get("type"))
-        self._touch_client(client_id, info)
-        self.async_set_updated_data(self._build_data())
+    def _register_worker(
+        self, client_id: str, info: dict[str, Any] | None = None
+    ) -> None:
+        """Register or update a worker (delegated to ClientRegistry)."""
+        self._client_registry.register_worker(client_id, info)
 
-    def _touch_client(self, client_id: str, metadata: dict[str, Any] | None = None) -> None:
-        """Update per-client runtime state and inactivity timer."""
-        now_ts = time.time()
-        now_iso = time.strftime("%Y-%m-%dT%H:%M:%S")
-        current = self._clients.get(client_id, {})
-        meta = dict(current.get("meta", {}))
-        if metadata:
-            meta.update(metadata)
-        client_state: dict[str, Any] = {
-            "client_id": client_id,
-            "last_seen": now_iso,
-            "last_seen_ts": now_ts,
-            "meta": meta,
-            "last_game": current.get("last_game", ""),
-        }
-        # Backward compatibility: keep selected metadata mirrored at top-level
-        # so older dashboards/templates continue to work after merge updates.
-        client_state.update(meta)
-
-        game = (meta.get("window_title") or meta.get("game") or "").strip()
-        if game:
-            client_state["last_game"] = game
-            self._current_game = game
-        self._clients[client_id] = client_state
-        self._current_client_id = client_id
-        self._active_client_id = client_id
-        self._schedule_client_inactivity(client_id)
-
-    def _schedule_client_inactivity(self, client_id: str) -> None:
-        """Reset the inactivity timer for a client."""
-        handle = self._client_inactivity_timers.pop(client_id, None)
-        if handle:
-            handle.cancel()
-        timeout = max(self._analysis_interval * 3, 30)
-        self._client_inactivity_timers[client_id] = self.hass.loop.call_later(
-            timeout,
-            lambda: self.hass.async_create_task(self._handle_client_inactive(client_id)),
-        )
-
-    async def _handle_client_inactive(self, client_id: str) -> None:
-        """Mark client as inactive when no frames arrive for a while."""
-        self._client_inactivity_timers.pop(client_id, None)
-        client = self._clients.get(client_id)
-        if client:
-            age = time.time() - float(client.get("last_seen_ts", 0))
-            if age < 30:
-                return
-        if self._active_client_id != client_id:
-            return
-        if self._camera_watchers:
-            return
-        self._gaming_mode = False
-        if self._status != "error":
-            self._status = "idle"
-        _LOGGER.info("Client %s inactive – switching gaming mode off", client_id)
-        self.async_set_updated_data(self._build_data())
-
-    def _ensure_image_worker(self) -> None:
-        """Ensure the image queue worker is running."""
-        if self._image_worker_task and not self._image_worker_task.done():
-            return
-        self._image_worker_task = self.hass.async_create_task(self._image_worker_loop())
+    def _touch_client(
+        self, client_id: str, metadata: dict[str, Any] | None = None
+    ) -> None:
+        """Update per-client runtime state (delegated to ClientRegistry)."""
+        self._client_registry.touch_client(client_id, metadata)
 
     async def _enqueue_image(self, client_id: str, image_bytes: bytes) -> None:
-        """Enqueue image with bounded backpressure (drop oldest when full)."""
-        self._ensure_image_worker()
-        if self._image_queue.full():
-            try:
-                dropped_client, _ = self._image_queue.get_nowait()
-                self._image_queue.task_done()
-                _LOGGER.debug("Image queue full. Dropped oldest frame from %s", dropped_client)
-            except asyncio.QueueEmpty:
-                pass
-        await self._image_queue.put((client_id, image_bytes))
-
-    async def _image_worker_loop(self) -> None:
-        """Sequentially process images from queue."""
-        while True:
-            client_id, image_bytes = await self._image_queue.get()
-            _LOGGER.debug(
-                "Image worker: processing %s (queue=%d/%d)",
-                client_id, self._image_queue.qsize(), self._image_queue.maxsize,
-            )
-            try:
-                await self._process_image(client_id, image_bytes)
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                _LOGGER.debug("Image worker: item failed, continuing", exc_info=True)
-            finally:
-                self._image_queue.task_done()
+        """Enqueue a frame for analysis (delegated to AnalysisPipeline)."""
+        await self._pipeline._enqueue_image(client_id, image_bytes)
 
     # -- TTS / Announce properties ---------------------------------------------
 
@@ -614,6 +562,26 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     def agent_allowed_buttons(self) -> list[str]:
         return list(self._agent_allowed_buttons)
 
+    @property
+    def agent_actions_published(self) -> int:
+        return self._agent_governor.published
+
+    @property
+    def agent_actions_failed(self) -> int:
+        return self._agent_governor.failed
+
+    @property
+    def agent_last_action(self) -> dict | None:
+        return self._agent_governor.last_action
+
+    @property
+    def agent_last_action_status(self) -> str:
+        return self._agent_governor.last_status
+
+    @property
+    def agent_last_action_timestamp(self) -> str:
+        return self._agent_governor.last_timestamp
+
     def set_agent_mode(
         self, enabled: bool, allowed_buttons: list[str] | None = None
     ) -> None:
@@ -623,6 +591,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         controller action published to ``gaming_assistant/{client_id}/action``.
         Runtime-only by design: it always resets to OFF on restart.
         """
+        if enabled and not self._agent_mode:
+            # Fresh enable: clear any stale failure streak from a prior run.
+            self._agent_governor.reset_failures()
         self._agent_mode = bool(enabled)
         if allowed_buttons is not None:
             valid = {b.upper() for b in AGENT_VALID_BUTTONS}
@@ -682,128 +653,46 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         except HomeAssistantError as err:
             _LOGGER.error("TTS announce failed: %s", err)
 
-    # -- Session tracking / summary ------------------------------------------
+    # -- Session tracking / summary (delegated to SessionTracker) ------------
+
+    @property
+    def session_tracker(self) -> SessionTracker:
+        return self._session_tracker
 
     @property
     def auto_summary(self) -> bool:
-        return self._auto_summary
+        return self._session_tracker.auto_summary
 
     def set_auto_summary(self, enabled: bool) -> None:
         """Toggle automatic session summaries on/off."""
-        self._auto_summary = enabled
-        _LOGGER.info("Auto-summary set to: %s", enabled)
-        self.async_set_updated_data(self._build_data())
+        self._session_tracker.set_auto_summary(enabled)
+
+    @property
+    def strategy_reflection(self) -> bool:
+        """Whether Tier 3 upgrades its focus with an LLM reflection."""
+        return self._strategy.reflection_enabled
+
+    def set_strategy_reflection(self, enabled: bool) -> None:
+        """Toggle the Tier 3 LLM reflection (deterministic focus stays)."""
+        self._strategy.set_reflection_enabled(enabled)
 
     @property
     def last_summary(self) -> str:
-        return self._last_summary
+        return self._session_tracker.last_summary
 
     @property
     def last_summary_game(self) -> str:
-        return self._last_summary_game
+        return self._session_tracker.last_summary_game
 
     @property
     def last_summary_timestamp(self) -> str:
-        return self._last_summary_timestamp
-
-    def _session_track_tip(self, tip: str, game: str) -> None:
-        """Track a tip for the current session."""
-        now = time.monotonic()
-
-        # Start a new session if none is active or game changed
-        if self._session_start is None or (game and game != self._session_game):
-            self._session_start = now
-            self._session_game = game
-            self._session_tips = []
-            _LOGGER.debug("New session started for game: %s", game or "unknown")
-
-        self._session_tips.append(tip)
-
-        # Reset the session-end timer
-        if self._session_end_timer is not None:
-            self._session_end_timer.cancel()
-        loop = self.hass.loop
-        self._session_end_timer = loop.call_later(
-            SESSION_END_DELAY, lambda: self.hass.async_create_task(self._end_session())
-        )
-
-    async def _end_session(self) -> None:
-        """End the current session and optionally generate a summary."""
-        if not self._session_tips or not self._session_start:
-            self._session_start = None
-            self._session_end_timer = None
-            return
-
-        game = self._session_game or "Unknown"
-        tip_count = len(self._session_tips)
-        tips = list(self._session_tips)
-
-        _LOGGER.info(
-            "Session ended for %s (%d tips in session)", game, tip_count
-        )
-
-        summary = ""
-        if self._auto_summary and tip_count >= 3:
-            summary = await self.async_summarize_session(game, tips)
-
-        # Fire session-ended event
-        self.hass.bus.async_fire(
-            EVENT_SESSION_ENDED,
-            {
-                "game": game,
-                "tip_count": tip_count,
-                "summary": summary,
-            },
-        )
-
-        # Reset session state
-        self._session_start = None
-        self._session_game = ""
-        self._session_tips = []
-        self._session_end_timer = None
-        self.async_set_updated_data(self._build_data())
+        return self._session_tracker.last_summary_timestamp
 
     async def async_summarize_session(
         self, game: str = "", tips: list[str] | None = None
     ) -> str:
-        """Generate a summary of the current or provided session tips.
-
-        If *tips* is not provided, uses the tips from the current session
-        or falls back to recent history.
-        """
-        game = game or self._session_game or self._current_game or "Unknown"
-
-        if tips is None:
-            if self._session_tips:
-                tips = list(self._session_tips)
-            else:
-                # Fall back to recent history
-                entries = await self._history.get_recent(game, 20)
-                tips = [e["tip"] for e in entries if "tip" in e]
-
-        if not tips:
-            return "No tips found for this game."
-
-        compact = PromptBuilder.is_small_model(
-            self.config.get(CONF_MODEL, "qwen2.5vl")
-        )
-        prompt = PromptBuilder.build_summary(
-            game=game,
-            tips=tips,
-            language=self._language,
-            compact=compact,
-        )
-
-        summary = await self._image_processor._call_ollama_text(prompt)
-
-        if summary:
-            self._last_summary = summary
-            self._last_summary_game = game
-            self._last_summary_timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
-            _LOGGER.info("Session summary generated for %s", game)
-            self.async_set_updated_data(self._build_data())
-
-        return summary or "Could not generate summary."
+        """Generate a summary of the current or provided session tips."""
+        return await self._session_tracker.async_summarize(game, tips)
 
     def _fire_new_tip_event(self, tip: str, game: str, client_id: str) -> None:
         """Fire an event so automations can react to new tips."""
@@ -835,6 +724,59 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         return self._frames_processed
 
     @property
+    def frames_skipped(self) -> int:
+        """Frames handled by Tier 1 only (no LLM call)."""
+        return self._frames_skipped
+
+    @property
+    def scene_change(self) -> float:
+        """Tier 1 scene-change magnitude of the last measured frame (0..1)."""
+        return self._last_scene_change
+
+    @property
+    def frame_motion(self) -> str:
+        """Tier 1 motion class of the last measured frame."""
+        return self._last_frame_motion
+
+    @property
+    def chess_grounding(self) -> dict[str, Any]:
+        """Last grounded chess board (empty until a FEN is analysed)."""
+        return self._chess_grounding
+
+    @property
+    def pipeline_healthy(self) -> bool:
+        """Whether the core pipeline is operational.
+
+        Healthy = MQTT subscriptions are up and the LLM analysis path is not
+        in a sustained failure streak. It reflects infrastructure health, not
+        whether you are actively gaming (an idle scene is still healthy).
+        """
+        return (
+            self.mqtt_connected
+            and self._llm_failure_streak < HEALTH_MAX_FAILURE_STREAK
+        )
+
+    @property
+    def health_detail(self) -> dict[str, Any]:
+        """Diagnostics behind the health verdict (binary-sensor attributes)."""
+        return {
+            "mqtt_connected": self.mqtt_connected,
+            "llm_failure_streak": self._llm_failure_streak,
+            "error_count": self._error_count,
+            "last_error_message": self._last_error_message,
+            "last_error_timestamp": self._last_error_timestamp,
+            "last_analysis": self._last_analysis,
+            "frames_processed": self._frames_processed,
+            "tips_rejected": self._tips_rejected,
+            "announces_suppressed": self._announces_suppressed,
+        }
+
+    @property
+    def strategy_note(self) -> str:
+        """Tier 3 strategic focus for the current game (empty if none)."""
+        return self._strategy.note(self._current_game)
+
+    @property
     def last_analysis(self) -> str:
         return self._last_analysis
 
@@ -853,6 +795,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     def _record_error(self, err: BaseException) -> None:
         """Record an error for the diagnostics sensors."""
         self._error_count += 1
+        self._llm_failure_streak += 1
         self._last_error_message = str(err) or err.__class__.__name__
         self._last_error_type = err.__class__.__name__
         self._last_error_timestamp = time.strftime(
@@ -871,6 +814,12 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     def last_image_timestamp(self) -> str:
         return self._last_image_timestamp
 
+    def _record_last_image(self, client_id: str, image_bytes: bytes) -> None:
+        """Remember the most recent frame for the image entity / diagnostics."""
+        self._last_image_bytes = image_bytes
+        self._last_image_client_id = client_id
+        self._last_image_timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
+
     # -- MQTT setup with retry -----------------------------------------------
 
     async def async_fetch_available_models(self) -> list[str]:
@@ -881,334 +830,99 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         return models
 
     async def async_setup_mqtt(self) -> None:
-        """Subscribe to MQTT topics with exponential-backoff retry."""
-        delay = MQTT_RETRY_BASE_DELAY
-
-        for attempt in range(1, MQTT_RETRY_ATTEMPTS + 1):
-            try:
-                await self._subscribe_topics()
-                self._mqtt_connected = True
-                _LOGGER.info(
-                    "MQTT subscriptions active (attempt %d/%d)",
-                    attempt, MQTT_RETRY_ATTEMPTS,
-                )
-                return
-            except HomeAssistantError as err:
-                _LOGGER.warning(
-                    "MQTT subscribe attempt %d/%d failed: %s – retrying in %ds",
-                    attempt, MQTT_RETRY_ATTEMPTS, err, delay,
-                )
-                if attempt < MQTT_RETRY_ATTEMPTS:
-                    await asyncio.sleep(delay)
-                    delay = min(delay * 2, 60)
-
-        _LOGGER.error(
-            "Could not subscribe to MQTT after %d attempts. "
-            "Verify that the MQTT integration is configured and the broker is reachable. "
-            "Reload this integration to retry.",
-            MQTT_RETRY_ATTEMPTS,
-        )
+        """Subscribe to MQTT topics with retry (delegated to MqttRouter)."""
+        await self._mqtt_router.async_setup()
 
     async def _subscribe_topics(self) -> None:
-        """Subscribe to all Gaming Assistant MQTT topics."""
-
-        # -- Legacy topics (v0.2/v0.3 compatibility) -------------------------
-
-        @callback
-        def tip_received(msg) -> None:
-            payload = msg.payload
-            if isinstance(payload, bytes):
-                payload = payload.decode("utf-8")
-            self._tip = payload
-            _LOGGER.debug("New tip received (legacy): %s", payload)
-            self.async_set_updated_data(self._build_data())
-
-        @callback
-        def mode_received(msg) -> None:
-            payload = msg.payload
-            if isinstance(payload, bytes):
-                payload = payload.decode("utf-8")
-            self._gaming_mode = payload.strip().lower() in ("on", "true", "1")
-            _LOGGER.debug("Gaming mode changed: %s", self._gaming_mode)
-            self.async_set_updated_data(self._build_data())
-
-        @callback
-        def status_received(msg) -> None:
-            payload = msg.payload
-            if isinstance(payload, bytes):
-                payload = payload.decode("utf-8")
-            self._status = payload.strip().lower()
-            self.async_set_updated_data(self._build_data())
-
-        # -- New topics (v0.4 Thin Client) -----------------------------------
-
-        @callback
-        def image_received(msg) -> None:
-            """Handle incoming image from a capture agent."""
-            client_id = msg.topic.split("/")[1]
-            _LOGGER.debug("Image received from client: %s", client_id)
-            self._last_image_bytes = msg.payload
-            self._last_image_client_id = client_id
-            self._last_image_timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
-            self._register_worker(client_id)
-            self.hass.async_create_task(self._enqueue_image(client_id, msg.payload))
-
-        @callback
-        def meta_received(msg) -> None:
-            """Handle incoming metadata from a capture agent."""
-            client_id = msg.topic.split("/")[1]
-            try:
-                payload = msg.payload
-                if isinstance(payload, bytes):
-                    payload = payload.decode("utf-8")
-                metadata = json.loads(payload)
-                self._client_metadata[client_id] = metadata
-                self._touch_client(client_id, metadata)
-                self._register_worker(client_id, metadata)
-                _LOGGER.debug("Metadata from %s: %s", client_id, metadata)
-            except (json.JSONDecodeError, UnicodeDecodeError) as err:
-                _LOGGER.warning("Invalid metadata from %s: %s", client_id, err)
-
-        @callback
-        def worker_register_received(msg) -> None:
-            """Handle explicit worker registration."""
-            client_id = msg.topic.split("/")[1]
-            try:
-                payload = msg.payload
-                if isinstance(payload, bytes):
-                    payload = payload.decode("utf-8")
-                info = json.loads(payload)
-                self._register_worker(client_id, info)
-                _LOGGER.info("Worker registered via MQTT: %s", client_id)
-            except (json.JSONDecodeError, UnicodeDecodeError) as err:
-                _LOGGER.warning("Invalid register payload from %s: %s", client_id, err)
-
-        @callback
-        def detections_received(msg) -> None:
-            """Handle YOLO detections from external worker."""
-            client_id = msg.topic.split("/")[1]
-            try:
-                payload = msg.payload
-                if isinstance(payload, bytes):
-                    payload = payload.decode("utf-8")
-                data = json.loads(payload)
-                self._handle_yolo_detections(client_id, data)
-            except (json.JSONDecodeError, UnicodeDecodeError) as err:
-                _LOGGER.warning("Invalid detections from %s: %s", client_id, err)
-
-        @callback
-        def yolo_status_received(msg) -> None:
-            """Handle YOLO worker status updates."""
-            worker_id = msg.topic.split("/")[1]
-            try:
-                payload = msg.payload
-                if isinstance(payload, bytes):
-                    payload = payload.decode("utf-8")
-                data = json.loads(payload)
-                status = data.get("status", "unknown")
-                self._yolo_workers[worker_id] = data
-                _LOGGER.info(
-                    "YOLO worker %s: %s (model=%s, backend=%s)",
-                    worker_id, status,
-                    data.get("model", "?"), data.get("backend", "?"),
-                )
-            except (json.JSONDecodeError, UnicodeDecodeError) as err:
-                _LOGGER.warning("Invalid YOLO status from %s: %s", worker_id, err)
-
-        unsub_tip = await mqtt.async_subscribe(
-            self.hass, MQTT_TIP_TOPIC, tip_received, 0
-        )
-        unsub_mode = await mqtt.async_subscribe(
-            self.hass, MQTT_MODE_TOPIC, mode_received, 0
-        )
-        unsub_status = await mqtt.async_subscribe(
-            self.hass, MQTT_STATUS_TOPIC, status_received, 0
-        )
-        unsub_image = await mqtt.async_subscribe(
-            self.hass, MQTT_IMAGE_TOPIC, image_received, 0, encoding=None
-        )
-        unsub_meta = await mqtt.async_subscribe(
-            self.hass, MQTT_META_TOPIC, meta_received, 0
-        )
-        unsub_register = await mqtt.async_subscribe(
-            self.hass, MQTT_WORKER_REGISTER_TOPIC, worker_register_received, 0
-        )
-        unsub_detections = await mqtt.async_subscribe(
-            self.hass, MQTT_DETECTIONS_TOPIC, detections_received, 0
-        )
-        unsub_yolo_status = await mqtt.async_subscribe(
-            self.hass, MQTT_YOLO_STATUS_TOPIC, yolo_status_received, 0
-        )
-
-        self._unsubscribe_callbacks = [
-            unsub_tip, unsub_mode, unsub_status, unsub_image, unsub_meta,
-            unsub_register, unsub_detections, unsub_yolo_status,
-        ]
-
-    # -- YOLO detection handling -----------------------------------------------
+        """Subscribe to all Gaming Assistant MQTT topics (delegated)."""
+        await self._mqtt_router.subscribe_topics()
 
     def _handle_yolo_detections(
         self, client_id: str, data: dict[str, Any]
     ) -> None:
-        """Process structured detections from the YOLO worker.
+        """Feed YOLO detections into the game state (delegated to MqttRouter)."""
+        self._mqtt_router.handle_yolo_detections(client_id, data)
 
-        Detections are fed into the game state engine as observations
-        so the LLM can use them for context.
+    def _handle_audio(self, client_id: str, data: dict[str, Any]) -> None:
+        """Feed game-audio signals into the game state (delegated)."""
+        self._mqtt_router.handle_audio(client_id, data)
+
+    # -- Chess grounding -----------------------------------------------------
+
+    async def _process_board(self, client_id: str, fen: str) -> dict[str, Any]:
+        """Ground a chess position (FEN) and feed the facts into the state.
+
+        The engine is pure-Python and episodic, so it runs *in* Home Assistant
+        (off the event loop in the executor). Its grounded facts — material,
+        threats, a suggested move — become Tier 1 measured signals, exactly
+        like HUD numbers or audio cues. Never raises; bad FEN is recorded as a
+        structured error.
         """
-        detections = data.get("detections", [])
-        if not detections:
+        result = await self.hass.async_add_executor_job(
+            chess_grounding.analyze_fen, fen
+        )
+        result["client_id"] = client_id
+        self._chess_grounding = result
+
+        measured = chess_grounding.measured_signals(result)
+        if measured:
+            game = self._current_game or "unknown"
+            self._game_state.update(game, measured, source=f"chess:{client_id}")
+        elif not result.get("available"):
+            _LOGGER.debug(
+                "Chess grounding unavailable (python-chess not installed)"
+            )
+        elif not result.get("valid"):
+            _LOGGER.debug(
+                "Chess board from %s invalid: %s",
+                client_id, result.get("error", "?"),
+            )
+        self._notify_update()
+        return result
+
+    def _handle_board(self, client_id: str, data: dict[str, Any]) -> None:
+        """Feed a board FEN into chess grounding (delegated to MqttRouter)."""
+        self._mqtt_router.handle_board(client_id, data)
+
+    # -- Game-state persistence ----------------------------------------------
+
+    async def _ensure_state_loaded(self, game: str) -> None:
+        """Load a game's persisted state from disk once, off the event loop."""
+        if not game or game in self._loaded_state_games:
             return
+        self._loaded_state_games.add(game)
+        try:
+            await self.hass.async_add_executor_job(self._game_state.load, game)
+        except Exception as err:  # noqa: BLE001 - persistence must never break analysis
+            _LOGGER.debug("Could not load persisted state for %s: %s", game, err)
 
-        game = self._current_game or "unknown"
-        inference_ms = data.get("inference_ms", 0)
-
-        # Build observations from detections
-        observations: dict[str, Any] = {
-            "yolo_objects": [d["class"] for d in detections[:10]],
-            "yolo_count": len(detections),
-            "yolo_inference_ms": inference_ms,
-        }
-
-        # Extract prominent objects by confidence
-        if detections:
-            top = max(detections, key=lambda d: d.get("confidence", 0))
-            observations["yolo_top_object"] = top["class"]
-            observations["yolo_top_confidence"] = top.get("confidence", 0)
-
-        # Feed into game state engine
-        self._game_state.update(
-            game, observations, source=f"yolo:{client_id}"
-        )
-
-        _LOGGER.debug(
-            "YOLO detections from %s: %d objects (%.0fms)",
-            client_id,
-            len(detections),
-            inference_ms,
-        )
+    async def _persist_game_state(self, game: str) -> None:
+        """Persist a game's state snapshots to disk, off the event loop."""
+        if not game:
+            return
+        try:
+            await self.hass.async_add_executor_job(self._game_state.save, game)
+        except Exception as err:  # noqa: BLE001 - persistence must never break shutdown
+            _LOGGER.debug("Could not persist state for %s: %s", game, err)
 
     # -- Image processing pipeline -------------------------------------------
 
     async def _process_image(self, client_id: str, image_bytes: bytes) -> None:
-        """Run the image processing pipeline for a received image."""
-        async with self._process_lock:
-            self._processing = True
-            self._status = "analyzing"
-            self._current_client_id = client_id
-            self._active_client_id = client_id
-            self._gaming_mode = True
-            self._touch_client(client_id, self._client_metadata.get(client_id, {}))
-            self.async_set_updated_data(self._build_data())
-
-            try:
-                metadata = self._client_metadata.get(client_id, {})
-                metadata["assistant_mode"] = self._assistant_mode
-
-                game = metadata.get("window_title", "")
-                if game:
-                    self._current_game = game
-
-                start = time.monotonic()
-                tip = await asyncio.wait_for(
-                    self._image_processor.process(image_bytes, client_id, metadata),
-                    timeout=self._analysis_timeout + 5,
-                )
-                self._latency = round(time.monotonic() - start, 3)
-
-                if tip:
-                    self._tip = tip
-                    self._tip_count += 1
-                    self._frames_processed += 1
-                    self._last_analysis = (
-                        time.strftime("%Y-%m-%dT%H:%M:%S")
-                    )
-                    self._recent_tips.append({
-                        "tip": tip,
-                        "game": self._current_game,
-                        "client_id": client_id,
-                    })
-                    if len(self._recent_tips) > 5:
-                        self._recent_tips = self._recent_tips[-5:]
-                    self._status = "idle"
-                    _LOGGER.info("New tip generated: %s", tip[:80])
-
-                    # Track tip for session summary
-                    self._session_track_tip(tip, self._current_game)
-
-                    # Fire event for automations
-                    self._fire_new_tip_event(tip, self._current_game, client_id)
-
-                    # Auto-announce via TTS if enabled
-                    if self._auto_announce and self._tts_entity:
-                        self.hass.async_create_task(self.async_announce(tip))
-
-                    # Agent Mode: also produce + publish a controller action.
-                    if self._agent_mode:
-                        await self._maybe_publish_agent_action(
-                            client_id, image_bytes, self._current_game
-                        )
-                else:
-                    self._frames_processed += 1
-                    self._status = "idle"
-
-            except (TimeoutError, asyncio.TimeoutError) as err:
-                _LOGGER.warning(
-                    "Image processing timed out after %ds for client %s",
-                    self._analysis_timeout + 5, client_id
-                )
-                self._record_error(
-                    err
-                    if str(err)
-                    else TimeoutError(
-                        f"timeout after {self._analysis_timeout + 5}s"
-                    )
-                )
-                self._status = "error"
-            except (OSError, json.JSONDecodeError, ValueError) as err:
-                _LOGGER.error("Image processing failed: %s", err)
-                self._record_error(err)
-                self._status = "error"
-            finally:
-                self._processing = False
-                self.async_set_updated_data(self._build_data())
+        """Run the per-frame analysis pipeline (delegated to AnalysisPipeline)."""
+        await self._pipeline._process_image(client_id, image_bytes)
 
     async def _maybe_publish_agent_action(
         self, client_id: str, image_bytes: bytes, game: str
     ) -> None:
-        """Generate one controller action from the frame and publish it.
+        """Produce + publish one Agent Mode action (delegated to AnalysisPipeline)."""
+        await self._pipeline._maybe_publish_agent_action(client_id, image_bytes, game)
 
-        Fully isolated: any failure here must never disrupt the tip pipeline,
-        so all exceptions are caught and logged.
-        """
-        try:
-            action = await asyncio.wait_for(
-                self._image_processor.generate_action(
-                    image_bytes,
-                    game,
-                    allowed_buttons=self._agent_allowed_buttons or None,
-                ),
-                timeout=self._analysis_timeout + 5,
-            )
-        except Exception as err:  # noqa: BLE001 - never break analysis on action errors
-            _LOGGER.warning("Agent action generation failed: %s", err)
-            return
-
-        if action:
-            await self.async_publish_action(client_id, action)
-
-    # -- Camera watcher ------------------------------------------------------
+    # -- Camera watcher (delegated to CameraWatcher) -------------------------
 
     @property
     def active_camera_watchers(self) -> dict[str, dict]:
         """Return info about all active camera watchers."""
-        return {
-            entity_id: {
-                "game_hint": info["game_hint"],
-                "client_type": info["client_type"],
-                "interval": info["interval"],
-            }
-            for entity_id, info in self._camera_watchers.items()
-        }
+        return self._camera_watcher.active_camera_watchers
 
     async def async_watch_camera(
         self,
@@ -1217,131 +931,14 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         client_type: str = "console",
         interval: int = 0,
     ) -> None:
-        """Start continuous capture from a HA camera entity.
-
-        Uses the configured analysis interval if *interval* is 0.
-        """
-        if interval <= 0:
-            interval = self._analysis_interval
-
-        # Stop existing watcher for this entity if running
-        if entity_id in self._camera_watchers:
-            await self.async_stop_watch_camera(entity_id)
-
-        cancel_event = asyncio.Event()
-        task = self.hass.async_create_task(
-            self._camera_watch_loop(entity_id, game_hint, client_type, interval, cancel_event)
+        """Start continuous capture from a HA camera entity."""
+        await self._camera_watcher.async_watch(
+            entity_id, game_hint, client_type, interval
         )
-
-        self._camera_watchers[entity_id] = {
-            "task": task,
-            "cancel_event": cancel_event,
-            "game_hint": game_hint,
-            "client_type": client_type,
-            "interval": interval,
-        }
-        self._gaming_mode = True
-        _LOGGER.info(
-            "Camera watcher started: %s (game=%s, interval=%ds)",
-            entity_id, game_hint or "auto", interval,
-        )
-        self.async_set_updated_data(self._build_data())
 
     async def async_stop_watch_camera(self, entity_id: str = "") -> None:
         """Stop camera watcher(s). Empty entity_id stops all."""
-        targets = [entity_id] if entity_id else list(self._camera_watchers.keys())
-
-        for eid in targets:
-            watcher = self._camera_watchers.pop(eid, None)
-            if watcher:
-                watcher["cancel_event"].set()
-                watcher["task"].cancel()
-                _LOGGER.info("Camera watcher stopped: %s", eid)
-
-        if not self._camera_watchers:
-            self._gaming_mode = False
-
-        self.async_set_updated_data(self._build_data())
-
-    async def _camera_watch_loop(
-        self,
-        entity_id: str,
-        game_hint: str,
-        client_type: str,
-        interval: int,
-        cancel_event: asyncio.Event,
-    ) -> None:
-        """Periodically grab snapshots from a HA camera entity."""
-        from homeassistant.components.camera import async_get_image
-
-        consecutive_errors = 0
-        max_errors = 10
-
-        while not cancel_event.is_set():
-            try:
-                image = await async_get_image(self.hass, entity_id)
-                image_bytes = image.content
-                consecutive_errors = 0
-
-                # Use dynamic game hint: explicit param > persistent default
-                effective_hint = game_hint or self._default_game_hint
-
-                # Resolve client_type based on source_type setting:
-                # - "console": always treat as digital game on screen
-                # - "tabletop": always treat as physical game on table
-                # - "auto": use prompt pack match to decide
-                if self._source_type == "auto":
-                    effective_type = client_type
-                    if effective_type == "console" and effective_hint:
-                        pack = self._pack_loader.find_by_keyword(effective_hint)
-                        if not pack:
-                            effective_type = "tabletop"
-                else:
-                    effective_type = self._source_type
-
-                metadata = {
-                    "client_type": effective_type,
-                    "source": entity_id,
-                }
-                if effective_hint:
-                    metadata["window_title"] = effective_hint
-
-                # Use entity_id as client_id (sanitise dots → underscores)
-                client_id = entity_id.replace(".", "_")
-                self._client_metadata[client_id] = metadata
-
-                self._last_image_bytes = image_bytes
-                self._last_image_client_id = client_id
-                self._last_image_timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
-                await self._enqueue_image(client_id, image_bytes)
-
-            except asyncio.CancelledError:
-                return
-            except Exception as err:
-                consecutive_errors += 1
-                _LOGGER.warning(
-                    "Camera watcher %s error (%d/%d): %s",
-                    entity_id, consecutive_errors, max_errors, err,
-                )
-                if consecutive_errors >= max_errors:
-                    _LOGGER.error(
-                        "Camera watcher %s stopped after %d consecutive errors",
-                        entity_id, max_errors,
-                    )
-                    self._camera_watchers.pop(entity_id, None)
-                    if not self._camera_watchers:
-                        self._gaming_mode = False
-                    self.async_set_updated_data(self._build_data())
-                    return
-
-            # Wait for interval or cancellation (read current interval each time
-            # so changes via the number entity take effect immediately)
-            current_interval = self._analysis_interval
-            try:
-                await asyncio.wait_for(cancel_event.wait(), timeout=current_interval)
-                return  # cancel_event was set
-            except asyncio.TimeoutError:
-                pass  # interval elapsed, loop again
+        await self._camera_watcher.async_stop(entity_id)
 
     # -- Public methods for services -----------------------------------------
 
@@ -1393,7 +990,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                     self._recent_tips = self._recent_tips[-5:]
 
                 # Track tip for session summary
-                self._session_track_tip(answer, self._current_game)
+                self._session_tracker.track_tip(answer, self._current_game)
 
                 # Fire event for automations
                 self._fire_new_tip_event(answer, self._current_game, "ask")
@@ -1441,35 +1038,33 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
     async def async_shutdown(self) -> None:
         """Stop all camera watchers, cancel timers, and unsubscribe MQTT."""
+        # Persist the current game's state before tearing down.
+        for game in self._game_state.tracked_games:
+            await self._persist_game_state(game)
         if self._cleanup_unsub is not None:
             self._cleanup_unsub()
             self._cleanup_unsub = None
-        if self._session_end_timer is not None:
-            self._session_end_timer.cancel()
-            self._session_end_timer = None
-        for handle in self._client_inactivity_timers.values():
-            handle.cancel()
-        self._client_inactivity_timers.clear()
-        if self._image_worker_task and not self._image_worker_task.done():
-            self._image_worker_task.cancel()
-            try:
-                await self._image_worker_task
-            except asyncio.CancelledError:
-                pass
-            self._image_worker_task = None
+        self._session_tracker.cancel_timer()
+        self._client_registry.cancel_timers()
+        await self._pipeline.cancel_worker()
         await self.async_stop_watch_camera()  # stops all
         self.async_unsubscribe()
         # Close LLM backend HTTP session
         await self._llm_backend.close()
 
     def async_unsubscribe(self) -> None:
-        """Unsubscribe from all MQTT topics."""
-        for unsub in self._unsubscribe_callbacks:
-            unsub()
-        self._unsubscribe_callbacks.clear()
-        self._mqtt_connected = False
+        """Unsubscribe from all MQTT topics (delegated to MqttRouter)."""
+        self._mqtt_router.unsubscribe()
 
     # -- data helpers --------------------------------------------------------
+
+    def _notify_update(self) -> None:
+        """Push the latest coordinator snapshot to all entities.
+
+        Shared refresh hook used by the coordinator and its collaborators
+        (session tracker, …) so a state change shows up immediately.
+        """
+        self.async_set_updated_data(self._build_data())
 
     def _build_data(self) -> dict:
         return {
@@ -1484,10 +1079,17 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "assistant_mode": self._assistant_mode,
             "analysis_interval": self._analysis_interval,
             "analysis_timeout": self._analysis_timeout,
+            "frames_skipped": self._frames_skipped,
+            "scene_change": self._last_scene_change,
+            "frame_motion": self._last_frame_motion,
+            "strategy_note": self._strategy.note(self._current_game),
+            "strategy_reflection": self._strategy.reflection_enabled,
+            "chess_summary": self._chess_grounding.get("summary", ""),
+            "chess_best_move": self._chess_grounding.get("best_move", ""),
             "spoiler_level": self._spoiler.default_level,
-            "registered_workers": self._registered_workers,
-            "clients": self._clients,
-            "active_client_id": self._active_client_id,
+            "registered_workers": self._client_registry.registered_workers,
+            "clients": self._client_registry.clients,
+            "active_client_id": self._client_registry.active_client_id,
             "default_game_hint": self._default_game_hint,
             "source_type": self._source_type,
             "available_models": self._available_models,
@@ -1495,6 +1097,13 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "last_error_message": self._last_error_message,
             "last_error_type": self._last_error_type,
             "last_error_timestamp": self._last_error_timestamp,
+            "agent_mode": self._agent_mode,
+            "agent_allowed_buttons": self._agent_allowed_buttons,
+            "agent_actions_published": self._agent_governor.published,
+            "agent_actions_failed": self._agent_governor.failed,
+            "agent_last_action": self._agent_governor.last_action,
+            "agent_last_action_status": self._agent_governor.last_status,
+            "agent_last_action_timestamp": self._agent_governor.last_timestamp,
         }
 
     async def _async_update_data(self) -> dict:

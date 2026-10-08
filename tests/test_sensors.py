@@ -63,11 +63,14 @@ if "custom_components.gaming_assistant.sensor" in sys.modules:
     del sys.modules["custom_components.gaming_assistant.sensor"]
 
 from custom_components.gaming_assistant.sensor import (
-    GamingAssistantStatusSensor,
     GamingAssistantLatencySensor,
     GamingAssistantErrorCountSensor,
     GamingAssistantFramesProcessedSensor,
     GamingAssistantLastAnalysisSensor,
+    GamingAssistantAgentActionSensor,
+    GamingAssistantPerceptionSensor,
+    GamingAssistantStrategySensor,
+    GamingAssistantChessSensor,
 )
 
 
@@ -126,38 +129,133 @@ class TestDiagnosticSensors(unittest.TestCase):
                     GamingAssistantFramesProcessedSensor, GamingAssistantLastAnalysisSensor):
             self.assertIsNone(getattr(cls, "_attr_entity_category", None))
 
-class TestStatusSensorAttributes(unittest.TestCase):
-    """Der Statussensor darf auch ohne ersten Refresh Attribute liefern."""
 
-    def _coordinator(self, data):
+class TestAgentActionSensor(unittest.TestCase):
+    """Verify the Agent Mode audit sensor surfaces governor state."""
+
+    def _coord(self, status="", action=None, published=0, failed=0,
+               mode=False, buttons=None):
         coord = MagicMock()
-        coord.data = data
-        coord.assistant_mode = "coach"
-        coord.default_game_hint = ""
-        coord.available_game_packs = []
-        coord.active_model = "llava"
-        coord.status = "idle"
+        coord.agent_last_action_status = status
+        coord.agent_last_action = action
+        coord.agent_last_action_timestamp = "2026-06-18T12:00:00"
+        coord.agent_actions_published = published
+        coord.agent_actions_failed = failed
+        coord.agent_mode = mode
+        coord.agent_allowed_buttons = buttons if buttons is not None else []
         return coord
 
-    def test_attributes_without_data(self):
-        """coordinator.data ist None, bis der erste Refresh gelaufen ist."""
-        sensor = GamingAssistantStatusSensor(self._coordinator(None))
-        attrs = sensor.extra_state_attributes
-        self.assertEqual(attrs["available_models"], [])
-        self.assertEqual(attrs["active_client_id"], "")
-        self.assertEqual(attrs["clients"], {})
-        self.assertEqual(attrs["assistant_mode"], "coach")
+    def test_idle_when_no_action(self):
+        sensor = GamingAssistantAgentActionSensor(self._coord(status=""))
+        self.assertEqual(sensor.native_value, "idle")
 
-    def test_attributes_with_data(self):
-        coord = self._coordinator({
-            "available_models": ["llava"],
-            "active_client_id": "pc-1",
-            "clients": {"pc-1": {"type": "pc"}},
-        })
-        attrs = GamingAssistantStatusSensor(coord).extra_state_attributes
-        self.assertEqual(attrs["available_models"], ["llava"])
-        self.assertEqual(attrs["active_client_id"], "pc-1")
-        self.assertEqual(attrs["clients"], {"pc-1": {"type": "pc"}})
+    def test_reflects_status(self):
+        sensor = GamingAssistantAgentActionSensor(self._coord(status="published"))
+        self.assertEqual(sensor.native_value, "published")
+
+    def test_attributes(self):
+        sensor = GamingAssistantAgentActionSensor(self._coord(
+            status="published",
+            action={"action": "button", "button": "A"},
+            published=3, failed=1, mode=True, buttons=["A", "B"],
+        ))
+        attrs = sensor.extra_state_attributes
+        self.assertEqual(attrs["actions_published"], 3)
+        self.assertEqual(attrs["actions_failed"], 1)
+        self.assertTrue(attrs["agent_mode"])
+        self.assertEqual(attrs["allowed_buttons"], ["A", "B"])
+        self.assertEqual(attrs["last_action"], {"action": "button", "button": "A"})
+
+    def test_allowed_buttons_all_when_empty(self):
+        sensor = GamingAssistantAgentActionSensor(self._coord(buttons=[]))
+        self.assertEqual(sensor.extra_state_attributes["allowed_buttons"], "all")
+
+    def test_unique_id(self):
+        self.assertEqual(
+            GamingAssistantAgentActionSensor._attr_unique_id,
+            "gaming_assistant_agent_action",
+        )
+
+
+class TestTierSensors(unittest.TestCase):
+    """Verify the Tier 1 perception and Tier 3 strategy readout sensors."""
+
+    def test_perception_sensor_value_and_attrs(self):
+        coord = MagicMock()
+        coord.scene_change = 0.42
+        coord.frame_motion = "high"
+        coord.frames_skipped = 7
+        coord.frames_processed = 30
+        sensor = GamingAssistantPerceptionSensor(coord)
+        self.assertEqual(sensor.native_value, 0.42)
+        attrs = sensor.extra_state_attributes
+        self.assertEqual(attrs["frame_motion"], "high")
+        self.assertEqual(attrs["frames_skipped"], 7)
+        self.assertEqual(attrs["frames_processed"], 30)
+        self.assertEqual(
+            GamingAssistantPerceptionSensor._attr_unique_id,
+            "gaming_assistant_scene_change",
+        )
+
+    def test_strategy_sensor_with_note(self):
+        coord = MagicMock()
+        coord.strategy_note = "Play defensively."
+        coord.current_game = "Doom"
+        sensor = GamingAssistantStrategySensor(coord)
+        self.assertEqual(sensor.native_value, "Play defensively.")
+        self.assertEqual(
+            sensor.extra_state_attributes["full_strategy"], "Play defensively."
+        )
+        self.assertEqual(sensor.extra_state_attributes["game"], "Doom")
+
+    def test_strategy_sensor_empty_is_placeholder(self):
+        coord = MagicMock()
+        coord.strategy_note = ""
+        coord.current_game = ""
+        sensor = GamingAssistantStrategySensor(coord)
+        self.assertEqual(sensor.native_value, "No focus yet")
+
+    def test_strategy_sensor_truncates_long_note(self):
+        coord = MagicMock()
+        coord.strategy_note = "x" * 300
+        coord.current_game = "Doom"
+        sensor = GamingAssistantStrategySensor(coord)
+        self.assertTrue(sensor.native_value.endswith("..."))
+        self.assertLessEqual(len(sensor.native_value), 250)
+
+    def test_chess_sensor_placeholder_when_no_board(self):
+        coord = MagicMock()
+        coord.chess_grounding = {}
+        sensor = GamingAssistantChessSensor(coord)
+        self.assertEqual(sensor.native_value, "No board yet")
+        self.assertEqual(
+            GamingAssistantChessSensor._attr_unique_id, "gaming_assistant_chess"
+        )
+
+    def test_chess_sensor_shows_best_move_and_attrs(self):
+        coord = MagicMock()
+        coord.chess_grounding = {
+            "available": True,
+            "valid": True,
+            "best_move": "e4",
+            "summary": "white to move, best e4",
+            "side_to_move": "white",
+            "eval_white_cp": 30,
+            "material_cp": 0,
+            "phase": "opening",
+            "legal_moves": 20,
+            "is_check": False,
+            "is_checkmate": False,
+            "captures": [],
+            "checks": [],
+            "fen": "startpos",
+        }
+        sensor = GamingAssistantChessSensor(coord)
+        self.assertEqual(sensor.native_value, "e4")
+        attrs = sensor.extra_state_attributes
+        self.assertEqual(attrs["side_to_move"], "white")
+        self.assertEqual(attrs["eval_white_cp"], 30)
+        self.assertEqual(attrs["phase"], "opening")
 
 
 if __name__ == "__main__":

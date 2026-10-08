@@ -3,7 +3,6 @@ Unit tests for Gaming Assistant HA components (prompt_builder, spoiler).
 Uses sys.modules mocking to avoid requiring homeassistant.
 """
 
-import json
 import sys
 import tempfile
 import unittest

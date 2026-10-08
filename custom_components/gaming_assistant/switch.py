@@ -26,6 +26,7 @@ async def async_setup_entry(
         AutoAnnounceSwitch(coordinator),
         AutoSummarySwitch(coordinator),
         AgentModeSwitch(coordinator),
+        StrategyReflectionSwitch(coordinator),
     ])
 
 
@@ -103,3 +104,32 @@ class AgentModeSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs) -> None:
         self._coordinator.set_agent_mode(False)
+
+
+class StrategyReflectionSwitch(CoordinatorEntity, SwitchEntity):
+    """Toggle the Tier 3 LLM reflection that refines the strategic focus.
+
+    When off, the strategic focus still updates from the deterministic
+    trend analysis — only the extra periodic text-LLM call is skipped,
+    which is handy on small or rate-limited models.
+    """
+
+    _attr_name = "Gaming Assistant Strategy Reflection"
+    _attr_unique_id = "gaming_assistant_strategy_reflection"
+    _attr_icon = "mdi:lightbulb-on"
+    _attr_translation_key = "strategy_reflection"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def is_on(self) -> bool:
+        return self._coordinator.strategy_reflection
+
+    async def async_turn_on(self, **kwargs) -> None:
+        self._coordinator.set_strategy_reflection(True)
+
+    async def async_turn_off(self, **kwargs) -> None:
+        self._coordinator.set_strategy_reflection(False)

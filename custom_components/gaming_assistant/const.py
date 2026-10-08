@@ -27,13 +27,13 @@ MQTT_IMAGE_TOPIC = "gaming_assistant/+/image"  # + = client_id wildcard
 MQTT_META_TOPIC = "gaming_assistant/+/meta"
 MQTT_WORKER_REGISTER_TOPIC = "gaming_assistant/+/register"
 MQTT_DETECTIONS_TOPIC = "gaming_assistant/+/detections"
-# Die drei Themen der Wahrnehmungs-Arbeiter: OCR liest Zahlen aus dem HUD,
-# der Ton-Arbeiter meldet Lautheit und Einsaetze, das Brett kommt als FEN.
-# Sie hoeren dieselbe Client-Wildcard wie die uebrigen Themen.
 MQTT_HUD_TOPIC = "gaming_assistant/+/hud"  # OCR'd HUD numbers (health/ammo/…)
 MQTT_AUDIO_TOPIC = "gaming_assistant/+/audio"  # game-audio signals (loudness/onsets)
 MQTT_BOARD_TOPIC = "gaming_assistant/+/board"  # board state as FEN for chess grounding
 MQTT_YOLO_COMMAND_TOPIC = "gaming_assistant/yolo/command"
+# Per-client status topic. Carries BOTH plain-text capture-agent presence
+# ("online"/"offline" via LWT) and JSON YOLO-worker status on the same
+# 3-segment pattern, so the handler must tolerate both payload shapes.
 MQTT_YOLO_STATUS_TOPIC = "gaming_assistant/+/status"
 
 # Agent Mode action topic (publish): {client_id} is the target capture client.
@@ -50,13 +50,8 @@ DEFAULT_HISTORY_SIZE = 50
 HISTORY_CONTEXT_SIZE = 5  # Last N tips included in prompt
 
 # Config Keys
-CONF_SPOILER_SETTINGS = "spoiler_settings"
 CONF_DEFAULT_SPOILER = "default_spoiler_level"
 DEFAULT_SPOILER_LEVEL = "medium"
-
-# Attributes
-ATTR_LAST_TIP = "last_tip"
-ATTR_GAMING_MODE = "gaming_mode"
 
 # Assistant Modes
 ASSISTANT_MODES = ["coach", "coplay", "opponent", "analyst"]
@@ -69,7 +64,6 @@ DEFAULT_SOURCE_TYPE = "auto"
 # Agent Mode / Player 2 — opt-in autonomous controller actions.
 # Runtime-only by design: always starts OFF and resets to OFF on restart,
 # so the AI never controls inputs unless deliberately re-enabled.
-CONF_AGENT_MODE = "agent_mode"
 DEFAULT_AGENT_MODE = False
 # Valid Xbox buttons the AI may use (matches PromptBuilder.ACTION_SCHEMA).
 # An empty whitelist means "all of these".
@@ -77,6 +71,17 @@ AGENT_VALID_BUTTONS = [
     "A", "B", "X", "Y", "LB", "RB", "LT", "RT",
     "DPAD_UP", "DPAD_DOWN", "DPAD_LEFT", "DPAD_RIGHT", "START", "BACK",
 ]
+# Agent Mode safety rails.
+# Minimum seconds between two published controller actions (rate limit) so the
+# AI can never flood the executor with inputs.
+AGENT_ACTION_MIN_INTERVAL = 1.0
+# Auto-disable Agent Mode after this many consecutive action-generation
+# failures (e.g. backend down / timeouts) so a broken pipeline never keeps
+# the AI "driving" blindly.
+AGENT_MAX_CONSECUTIVE_FAILURES = 5
+# Event fired for every Agent Mode action decision (published / no_op /
+# error / auto_disabled) so automations can audit autonomous play.
+EVENT_AGENT_ACTION = "gaming_assistant_agent_action"
 
 # TTS / Announce
 CONF_TTS_ENTITY = "tts_entity"
@@ -90,14 +95,21 @@ EVENT_NEW_TIP = "gaming_assistant_new_tip"
 # Event fired when a gaming session ends
 EVENT_SESSION_ENDED = "gaming_assistant_session_ended"
 
-# Event fired for every Agent Mode action decision (published / no_op /
-# error / auto_disabled) so automations can audit autonomous play.
-EVENT_AGENT_ACTION = "gaming_assistant_agent_action"
-
 # Session Summary
 CONF_AUTO_SUMMARY = "auto_summary"
 DEFAULT_AUTO_SUMMARY = False
 SESSION_END_DELAY = 300  # 5 minutes of inactivity before session ends
+
+# Tier 3 strategy: whether to upgrade the deterministic focus with an LLM
+# reflection (extra text-LLM call every few tips). On by default; turn off
+# to save calls on small/local models (deterministic focus still applies).
+CONF_STRATEGY_REFLECTION = "strategy_reflection"
+DEFAULT_STRATEGY_REFLECTION = True
+
+# Pipeline health: the assistant is considered unhealthy once the LLM analysis
+# path has failed this many times in a row (reset on the next success). Surfaced
+# via the Gaming Assistant Healthy binary sensor.
+HEALTH_MAX_FAILURE_STREAK = 3
 
 # Image Processing
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB hard limit for base64-decoded images
@@ -105,5 +117,4 @@ IMAGE_DEDUP_WINDOW_SECONDS = 60
 IMAGE_MAX_DIMENSION = 1280  # Max width/height before sending to LLM
 IMAGE_DOWNSCALE_QUALITY = 85  # JPEG quality for downscaled images
 OLLAMA_TIMEOUT = 60
-OLLAMA_RETRY_DELAY = 5
 OLLAMA_NUM_PREDICT = 200

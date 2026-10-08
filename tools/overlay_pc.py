@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import threading
 import tkinter as tk
 from tkinter import font as tkfont
@@ -124,7 +125,11 @@ def start_mqtt(
     password: str,
 ) -> mqtt.Client:
     """Background MQTT client that feeds incoming tips into the overlay."""
-    client = mqtt.Client(client_id="gaming_assistant_overlay", clean_session=True)
+    client = mqtt.Client(
+        mqtt.CallbackAPIVersion.VERSION1,
+        client_id=f"gaming_assistant_overlay_{os.getpid()}",
+        clean_session=True,
+    )
 
     if username:
         client.username_pw_set(username, password)

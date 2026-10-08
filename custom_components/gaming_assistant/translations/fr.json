@@ -113,6 +113,9 @@
       },
       "agent_mode": {
         "name": "Mode Agent (Joueur 2)"
+      },
+      "strategy_reflection": {
+        "name": "Réflexion LLM de stratégie"
       }
     }
   }
