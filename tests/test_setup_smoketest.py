@@ -21,6 +21,12 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
+# Braucht ein echtes Home Assistant. Die GitHub-CI faehrt das im eigenen
+# Job "smoketest"; der GitLab-Job pytest hat nur die Attrappe aus conftest.py
+# und ueberspringt die Datei deshalb hier.
+pytest.importorskip("homeassistant.setup", reason="braucht ein echtes Home Assistant (Smoketest-Job)")
+
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
