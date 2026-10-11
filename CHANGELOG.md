@@ -88,6 +88,14 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ### Fixed
 
+- **Settings from Configure took no effect.** What was saved under Settings →
+  Devices & services → Gaming Assistant → Configure (model, camera, TTS
+  entity, speaker, auto-announce) and the TTS/model choices saved by the
+  panel were stored but never used: the integration read only the values from
+  the initial setup, so a changed model or speaker was ignored now and after
+  a restart. Saved settings now override the setup values, also when cleared,
+  and apply immediately without a restart; a setting switched at runtime (such
+  as the auto-announce switch) is left alone when something else is saved.
 - **Minimum Home Assistant version** (`hacs.json`, README): raised from
   2024.1 to 2024.12. The options flow relies on `OptionsFlow.config_entry`
   (Home Assistant 2024.11+), and 2024.12.5 is the version the load smoketest

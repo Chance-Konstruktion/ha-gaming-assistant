@@ -289,11 +289,11 @@ Empfohlener Workflow je Task:
 - Unit-Tests für Spoiler, History, Prompt Builder, Pack-Validator.
 - Integrationstests mit gemocktem MQTT + Ollama API.
 - Regressionstests für Legacy-Topics.
-- Aktueller Stand (11.10.2026): **681 Tests**. 668 Unit-Tests in `tests/`
-  stubben Home Assistant weg; die 13 Tests in `tests_ha/` booten ein echtes
+- Aktueller Stand (11.10.2026): **687 Tests**. 672 Unit-Tests in `tests/`
+  stubben Home Assistant weg; die 15 Tests in `tests_ha/` booten ein echtes
   Home Assistant, laden die Integration und spielen die Agent-Bestätigung,
-  den Schach-Bot, Sprachfragen mit Bild und die Fernsteuer-Services durch
-  (`pytest -c pytest-ha.ini`).
+  den Schach-Bot, Sprachfragen mit Bild, die Fernsteuer-Services und den
+  Konfigurieren-Dialog durch (`pytest -c pytest-ha.ini`).
 - In beiden CIs gilt `STRICT_NO_SKIP`: Ein übersprungener Test ist ein
   Fehler.
   - **GitLab** (Merge-Tor): Unit-Tests auf Python 3.13; der Ladetest

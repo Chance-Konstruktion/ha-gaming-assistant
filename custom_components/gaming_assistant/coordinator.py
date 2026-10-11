@@ -618,6 +618,38 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     def auto_announce(self) -> bool:
         return self._auto_announce
 
+    async def async_apply_options(self, config: dict[str, Any]) -> None:
+        """Apply changed settings at runtime (Configure dialog, panel).
+
+        *config* is the merged setup data and options. Only settings whose
+        stored value changed are applied, so saving one setting never resets
+        another that was switched at runtime (e.g. the auto-announce switch).
+        A new model swaps the backend; a new configured camera replaces the
+        old configured watcher (watchers started by ``watch_camera`` stay).
+        """
+        previous = self.config
+        self.config = {**previous, **config}
+
+        def changed(key: str) -> bool:
+            return self.config.get(key) != previous.get(key)
+
+        model = self.config.get(CONF_MODEL)
+        if changed(CONF_MODEL) and model and model != self.active_model:
+            await self.async_set_model(model)
+        if changed(CONF_TTS_ENTITY):
+            self._tts_entity = self.config.get(CONF_TTS_ENTITY) or ""
+        if changed(CONF_TTS_TARGET):
+            self._tts_target = self.config.get(CONF_TTS_TARGET) or ""
+        if changed(CONF_AUTO_ANNOUNCE):
+            self._auto_announce = bool(self.config.get(CONF_AUTO_ANNOUNCE))
+        if changed(CONF_CAMERA_ENTITY):
+            old_camera = previous.get(CONF_CAMERA_ENTITY) or ""
+            if old_camera in self.active_camera_watchers:
+                await self.async_stop_watch_camera(old_camera)
+            if self.configured_camera:
+                await self.async_watch_camera(self.configured_camera)
+        self._notify_update()
+
     def set_auto_announce(self, enabled: bool) -> None:
         """Toggle auto-announce on/off."""
         self._auto_announce = enabled
