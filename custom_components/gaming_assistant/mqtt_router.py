@@ -114,6 +114,8 @@ class MqttRouter:
             payload = msg.payload
             if isinstance(payload, bytes):
                 payload = payload.decode("utf-8")
+            if payload == coord._tip:
+                return  # our own tip, published for the overlays
             coord._tip = payload
             _LOGGER.debug("New tip received (legacy): %s", payload)
             coord._notify_update()

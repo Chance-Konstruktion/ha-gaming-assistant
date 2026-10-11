@@ -11,6 +11,13 @@ Native Android (Kotlin) capture app for Home Assistant Gaming Assistant.
   - `gaming_assistant/{client_id}/meta`
   - status LWT + online/offline on `gaming_assistant/{client_id}/status`
 - Settings in SharedPreferences.
+- **Tips on top of the game** (optional, GA-112): with "Tipps über dem Spiel
+  anzeigen" the app subscribes to `gaming_assistant/{client_id}/tip` and shows
+  each new tip in a small box over the running game. Drag it to move it, tap
+  it to dismiss it; it also hides itself after 12 s. While a screenshot is
+  taken the box is invisible for a moment, so the AI never reads its own tip
+  back. Needs Android's "Display over other apps" permission (the app opens
+  the settings page); "Overlay testen" shows a sample tip.
 
 ## Build APK
 1. Open `android-capture-agent/` in Android Studio (Ladybug+ recommended).

@@ -482,6 +482,8 @@ python capture_agent_bridge.py --broker 192.168.1.10 --device /dev/video0
 
 A systemd unit ships at `worker/systemd/gaming-assistant-bridge.service` — adjust broker IP, device path, and user before enabling.
 
+**Android overlay:** the Android capture app can show each new tip on top of the game ("Tipps über dem Spiel anzeigen"); see [`android-capture-agent/README.md`](android-capture-agent/README.md).
+
 **PC Overlay HUD (`tools/overlay_pc.py`):** Subscribes to `gaming_assistant/tip` and shows the latest tip in an always-on-top transparent window. **F8** to toggle, **Esc** to quit. See [`tools/README.md`](tools/README.md).
 
 </details>

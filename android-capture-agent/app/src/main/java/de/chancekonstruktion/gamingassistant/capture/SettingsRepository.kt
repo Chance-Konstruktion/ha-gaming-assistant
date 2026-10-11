@@ -17,6 +17,7 @@ class SettingsRepository(context: Context) {
             intervalSeconds = prefs.getInt("intervalSeconds", 5),
             jpegQuality = prefs.getInt("jpegQuality", 70),
             gameHint = prefs.getString("gameHint", "") ?: "",
+            showTipOverlay = prefs.getBoolean("showTipOverlay", false),
         )
     }
 
@@ -30,6 +31,7 @@ class SettingsRepository(context: Context) {
             .putInt("intervalSeconds", config.intervalSeconds)
             .putInt("jpegQuality", config.jpegQuality)
             .putString("gameHint", config.gameHint)
+            .putBoolean("showTipOverlay", config.showTipOverlay)
             .apply()
     }
 }

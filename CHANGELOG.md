@@ -6,6 +6,12 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ### Added
 
+- **Android: tips on top of the game** (GA-112). The Android capture app can
+  show every new tip in a small, draggable box over the running game
+  ("Tipps über dem Spiel anzeigen", needs "Display over other apps"). A tap
+  dismisses it, it hides itself after 12 s, and it is invisible while a
+  screenshot is taken, so the AI never reads its own advice back.
+
 - **Several devices, each with its own settings** (GA-114). The new
   `sensor.gaming_assistant_clients` lists every capture client and worker
   with online status, type, game, last seen and its latest tip, and the
@@ -115,6 +121,11 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ### Fixed
 
+- **The PC overlay never showed a tip.** `tools/overlay_pc.py` listens on
+  `gaming_assistant/tip`, but Home Assistant only ever *subscribed* to that
+  topic (for very old workers) and never published there. Every new tip is now
+  published, retained, to `gaming_assistant/tip` and to the capturing
+  client's `gaming_assistant/{client_id}/tip`.
 - **Settings from Configure took no effect.** What was saved under Settings →
   Devices & services → Gaming Assistant → Configure (model, camera, TTS
   entity, speaker, auto-announce) and the TTS/model choices saved by the
