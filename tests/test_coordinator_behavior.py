@@ -1152,6 +1152,13 @@ class TestAgentModeWiring(unittest.TestCase):
         # Second call is within the min interval -> still only one published.
         self.assertEqual(self.coord.agent_actions_published, 1)
 
+    def test_client_controls_are_passed_on(self):
+        self.coord._client_metadata["rig1"] = {"window_title": "Doom", "controls": "RT fires"}
+        self.coord._image_processor.generate_action = AsyncMock(return_value=None)
+        _run(self.coord._maybe_publish_agent_action("rig1", b"f", "Doom"))
+        kwargs = self.coord._image_processor.generate_action.await_args.kwargs
+        self.assertEqual(kwargs["controls"], "RT fires")
+
     def test_no_op_records_status(self):
         self.coord._image_processor.generate_action = AsyncMock(return_value=None)
         _run(self.coord._maybe_publish_agent_action("rig1", b"f", "Doom"))

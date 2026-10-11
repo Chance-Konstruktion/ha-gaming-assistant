@@ -29,11 +29,29 @@ All notable changes to the Gaming Assistant for Home Assistant.
 - **Voice questions see the screen** (GA-IMV). A question to the Assist
   conversation agent now goes to the LLM together with the latest captured
   frame (if it is at most 2 minutes old and the model takes images), the
-  current game and its source type, and the tip the player heard last. "How do I beat this boss?" is
-  answered about the boss on screen. Without a recent frame the question is
+  current game and its source type, and the tip the player heard last.
+  "How do I beat this boss?" is answered about the boss on screen. Without a recent frame the question is
   answered from text as before. The `gaming_assistant.ask` service gains
   `use_last_frame` to do the same; an image or game hint passed explicitly
   still wins.
+
+- **ViZDoom hybrid agent** (GA-111, experimental): `worker/vizdoom_agent.py`
+  plays Doom inside ViZDoom with two layers. Local reflexes read ViZDoom's
+  labels every tic (35 per second), turn toward the biggest monster on screen
+  and fire once the crosshair is on it; corpses and items are ignored. Home
+  Assistant's Agent Mode is the strategy layer: the worker sends frames, HUD
+  numbers (health, armor, ammo, kills) and its controls, and plays the
+  controller actions that come back (walk, turn, use, switch weapons) for a
+  moment each. While a monster is in view the reflexes aim and the strategy
+  keeps moving; otherwise the strategy steers or the agent looks around. Same
+  rails as the gamepad executor (whitelist, audit log, `stop`/`start`), and
+  nothing leaves the game process. `--offline` runs the reflexes alone,
+  `--no-reflexes` the LLM alone. Dependencies in
+  `worker/requirements-vizdoom.txt`.
+- **Agent Mode knows the controls:** a capture client can describe its button
+  layout in its `meta` payload (`controls`, up to 400 characters); Agent Mode
+  puts it into the action prompt, so the LLM no longer has to guess what `RT`
+  does in this game.
 
 - **Chess bot — play a real game against Home Assistant** (GA-110). Turn on
   `switch.gaming_assistant_chess_bot` (or call the new

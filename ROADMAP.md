@@ -169,7 +169,7 @@ Detailliertes Diagramm: `docs/architecture.md`.
 | GA-ACT | Action-Output-Format im PromptBuilder (JSON-Schema + Whitelist-Parser) | ✅ v0.13 |
 | GA-109 | `vgamepad`-Executor-Worker (`worker/agent_executor.py`, MQTT `gaming_assistant/{client_id}/action`, Whitelist + Audit-Log) | ✅ v260618 — Worker + Whitelist + Dry-Run + Not-Aus + Audit-Log. |
 | GA-110 | Schach-Bot-Prototyp auf Action-Mode (TTS-Ansage für physisches Schach + optional vgamepad für PC-Schach) | ✅ (unreleased) — `chess_bot.py` spielt eine Seite auf der In-HA-Engine, Stärke 1–4 = Suchtiefe. Auf seinem Zug sagt er ihn per TTS in der HA-Sprache an (DE/EN, ganze Sätze inkl. Schlagen, Rochade, en passant, Umwandlung, Schach/Matt), feuert `gaming_assistant_chess_move` und schickt den Zug als JSON auf `gaming_assistant/{client_id}/chess_move`. Schalter, Farb-Select, Stärke-Number, Service `set_chess_bot` mit `new_game` (setzt den Brett-Worker zurück). PC-Schach läuft über dieses MQTT-Topic statt über vgamepad, weil ein Schachzug eine Von-nach-Anweisung ist und kein Controller-Input. Offen: ein PC-Helfer, der den Zug in einer Schach-App ausführt; der bräuchte Maussteuerung statt Gamepad (Entscheidung bei Chris). |
-| GA-111 | ViZDoom-Hybrid: Reflex-Agent + LLM-Strategie | 🧪 |
+| GA-111 | ViZDoom-Hybrid: Reflex-Agent + LLM-Strategie | 🧪 (unreleased) — `worker/vizdoom_agent.py`: Reflexe im Worker (ViZDoom-Labels, jeder Tic: auf das größte Monster drehen, schießen, sobald das Fadenkreuz drauf ist; Leichen und Gegenstände zählen nicht), Strategie aus dem Agent-Modus (Bild, HUD-Zahlen und Tastenbelegung gehen an HA, die Controller-Aktion kommt zurück und wird kurz gehalten). Gleiche Leitplanken wie der Gamepad-Executor, nichts verlässt den Spielprozess. Neu in HA: Clients beschreiben ihre Tasten in `meta.controls`, der Aktions-Prompt übernimmt das. Gegen das echte ViZDoom 1.3.1 geprüft (11.10.2026): in `defend_the_center` 22 Abschüsse pro Runde mit Reflexen, 0 ohne; gehaltene Aktionen bewegen den Spieler; Leichen tauchen nicht mehr in den Labels auf. Offen: ein Lauf mit Vision-LLM über HA. |
 | GA-AUD | Audit-Log + konfigurierbare Bestätigung pro Aktion | ✅ — Action-Publishing (`set_agent_mode`, Switch, Whitelist, Audit, Reset-on-restart) seit v260618; Governor mit Drosselung, Totmannschalter, Audit-Sensor und -Event seit v260619. Optionale Bestätigung pro Aktion (unreleased): Schalter, zwei Buttons, Services `confirm_agent_action`/`reject_agent_action`, Ablauf nach 30 s, Beispiel für Handy-Benachrichtigung; standardmäßig aus (Abschnitt 10). |
 
 ### Phase 6 — Community & Ökosystem
@@ -289,7 +289,7 @@ Empfohlener Workflow je Task:
 - Unit-Tests für Spoiler, History, Prompt Builder, Pack-Validator.
 - Integrationstests mit gemocktem MQTT + Ollama API.
 - Regressionstests für Legacy-Topics.
-- Aktueller Stand (11.10.2026): **697 Tests**. 680 Unit-Tests in `tests/`
+- Aktueller Stand (11.10.2026): **736 Tests**. 719 Unit-Tests in `tests/`
   stubben Home Assistant weg; die 17 Tests in `tests_ha/` booten ein echtes
   Home Assistant, laden die Integration und spielen die Agent-Bestätigung,
   den Schach-Bot, Sprachfragen mit Bild, die Fernsteuer-Services, den

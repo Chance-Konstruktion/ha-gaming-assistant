@@ -376,12 +376,14 @@ class ImageProcessor:
         image_bytes: bytes,
         game: str = "",
         allowed_buttons: list[str] | None = None,
+        controls: str = "",
     ) -> dict | None:
         """Ask the LLM for ONE controller action and return it validated.
 
-        Used by Agent Mode (Player 2). Returns a sanitized action dict, or
-        ``None`` if the model declined (``no_op``) or its output failed
-        schema/whitelist validation. Never raises on bad model output.
+        Used by Agent Mode (Player 2). ``controls`` describes the game's
+        button layout as the client reported it. Returns a sanitized action
+        dict, or ``None`` if the model declined (``no_op``) or its output
+        failed schema/whitelist validation. Never raises on bad model output.
         """
         state_context = ""
         if self._game_state and game:
@@ -394,6 +396,7 @@ class ImageProcessor:
             allowed_buttons=allowed_buttons,
             state_context=state_context,
             compact=self._compact,
+            controls=controls,
         )
 
         loop = asyncio.get_running_loop()

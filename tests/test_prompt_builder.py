@@ -35,7 +35,10 @@ const_mod.Platform = types.SimpleNamespace(
 )
 sys.modules["homeassistant.const"] = const_mod
 
-from custom_components.gaming_assistant.prompt_builder import PromptBuilder
+from custom_components.gaming_assistant.prompt_builder import (  # noqa: E402
+    CONTROLS_MAX_CHARS,
+    PromptBuilder,
+)
 
 
 class TestPromptBuilderDedicated(unittest.TestCase):
@@ -99,6 +102,17 @@ class TestActionMode(unittest.TestCase):
         prompt = PromptBuilder.build(game="Doom", last_tip="Reload.", live_screen=True)
         self.assertNotIn("Reload.", prompt)
         self.assertNotIn("screen right now", prompt)
+
+    def test_build_action_includes_the_clients_controls(self):
+        prompt = PromptBuilder.build_action(game="Doom", controls="RT fires,\n  A opens doors")
+        self.assertIn("Controls: RT fires, A opens doors", prompt)
+        self.assertNotIn("Controls:", PromptBuilder.build_action(game="Doom"))
+
+    def test_build_action_caps_the_controls(self):
+        prompt = PromptBuilder.build_action(controls="x" * 1000)
+        self.assertIn("x" * CONTROLS_MAX_CHARS, prompt)
+        self.assertNotIn("x" * (CONTROLS_MAX_CHARS + 1), prompt)
+        self.assertNotIn("Controls:", PromptBuilder.build_action(controls=["RT"]))
 
     def test_build_action_compact(self):
         prompt = PromptBuilder.build_action(game="Chess", compact=True)

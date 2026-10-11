@@ -101,6 +101,12 @@ class TestGenerateAction(unittest.TestCase):
         self.assertIn("button", action)
         self.assertNotIn("evil", action)
 
+    def test_controls_reach_the_prompt(self):
+        proc = self._make_processor('{"action": "no_op"}')
+        _run(proc.generate_action(b"frame", "Doom", controls="RT fires"))
+        prompt = proc._backend.generate.await_args.args[0]
+        self.assertIn("Controls: RT fires", prompt)
+
     def test_move_stick_action(self):
         proc = self._make_processor(
             '{"action": "move_stick", "stick": "left", "x": 0.5, "y": -0.2}'

@@ -1,0 +1,11 @@
+# ViZDoom hybrid agent (worker/vizdoom_agent.py, GA-111) -- an optional
+# research setup: the AI plays Doom inside ViZDoom, nothing outside it.
+
+# Doom engine + Python API, with Freedoom; wheels for Windows, Linux, macOS.
+vizdoom>=1.3.1
+
+# Link to Home Assistant (not needed with --offline).
+paho-mqtt>=2.1.0
+
+# JPEG frames for Home Assistant.
+Pillow>=12.3.0

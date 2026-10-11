@@ -5,6 +5,10 @@ import json
 import re
 
 # Extra context injected when the source is a console game captured via camera.
+# Longest controls description a client may put into the action prompt
+# (meta "controls"); anything longer is cut, whitespace is collapsed.
+CONTROLS_MAX_CHARS = 400
+
 _CONSOLE_CONTEXT = (
     "The game is running on a console or handheld (e.g. Switch, Wii, "
     "PlayStation, Dreamcast, Game Boy) and is captured by a camera pointed "
@@ -265,8 +269,12 @@ class PromptBuilder:
         history_context: str = "",
         state_context: str = "",
         compact: bool = False,
+        controls: str = "",
     ) -> str:
         """Build a prompt that asks the LLM for a structured controller action.
+
+        ``controls`` is the client's own description of what the buttons do
+        in this game (capture meta ``controls``), e.g. from the ViZDoom agent.
 
         The caller is expected to validate the resulting JSON against
         :attr:`ACTION_SCHEMA` *before* forwarding it to any executor.
@@ -276,6 +284,10 @@ class PromptBuilder:
 
         if game:
             parts.append(f"Game: {game}.")
+
+        controls = " ".join(controls.split()) if isinstance(controls, str) else ""
+        if controls:
+            parts.append(f"Controls: {controls[:CONTROLS_MAX_CHARS]}")
 
         if allowed_buttons:
             allowed = ", ".join(sorted(set(allowed_buttons)))
