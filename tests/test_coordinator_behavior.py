@@ -16,7 +16,7 @@ import time
 import types
 import unittest
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 
 # ---------------------------------------------------------------------------
@@ -587,6 +587,49 @@ class TestChessBot(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Camera watcher capture loop
 # ---------------------------------------------------------------------------
+
+class TestApplyOptions(unittest.TestCase):
+    """Settings saved under Configure reach the running coordinator."""
+
+    def setUp(self):
+        self.coord, self.hass = _make_coord()
+
+    def _apply(self, **changes):
+        _run(self.coord.async_apply_options({**self.coord.config, **changes}))
+
+    def test_only_changed_settings_are_applied(self):
+        self.coord.set_auto_announce(True)  # switched on at runtime, not saved
+        self._apply(tts_entity="tts.piper", tts_target="media_player.kitchen")
+        self.assertEqual(self.coord.tts_entity, "tts.piper")
+        self.assertEqual(self.coord.tts_target, "media_player.kitchen")
+        self.assertTrue(self.coord.auto_announce)  # untouched by an unrelated save
+        self._apply(auto_announce=False)
+        self.assertFalse(self.coord.auto_announce)
+
+    def test_new_model_swaps_the_backend(self):
+        with patch.object(self.coord, "async_set_model", AsyncMock()) as set_model:
+            self._apply(model="qwen2.5vl:7b")
+            set_model.assert_awaited_once_with("qwen2.5vl:7b")
+            set_model.reset_mock()
+            self._apply()  # nothing new
+            set_model.assert_not_awaited()
+
+    def test_configured_camera_is_replaced_other_watchers_stay(self):
+        self.coord.config["camera_entity"] = "camera.old"
+        watchers = {"camera.old": {}, "camera.manual": {}}
+        with patch.object(self.coord, "async_watch_camera", AsyncMock()) as watch,                 patch.object(self.coord, "async_stop_watch_camera", AsyncMock()) as stop,                 patch.object(type(self.coord), "active_camera_watchers",
+                             new_callable=PropertyMock, return_value=watchers):
+            self._apply(camera_entity="camera.new")
+            stop.assert_awaited_once_with("camera.old")
+            watch.assert_awaited_once_with("camera.new")
+            stop.reset_mock()
+            watch.reset_mock()
+            watchers.pop("camera.old")
+            watchers["camera.new"] = {}  # what the started watcher looks like
+            self._apply(camera_entity="")  # cleared: stop it, start nothing
+            stop.assert_awaited_once_with("camera.new")
+            watch.assert_not_awaited()
+
 
 class TestCameraLoop(unittest.TestCase):
     def setUp(self):

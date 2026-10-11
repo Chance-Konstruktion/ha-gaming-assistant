@@ -173,7 +173,10 @@ class _FakeHass:
 def _setup():
     tmp = tempfile.mkdtemp()
     hass = _FakeHass(tmp)
-    entry = SimpleNamespace(entry_id="e1", data={}, options={})
+    entry = SimpleNamespace(
+        entry_id="e1", data={}, options={},
+        async_on_unload=MagicMock(), add_update_listener=MagicMock(return_value=MagicMock()),
+    )
     hass.config_entries.entry = entry
     ok = _run(async_setup_entry(hass, entry))
     coord = hass.data[integration.DOMAIN]["e1"]
@@ -193,6 +196,27 @@ class TestSetupAndRegistration(unittest.TestCase):
         self.assertTrue(hass.http.async_register_static_paths.await_count >= 1)
         # MQTT setup is deferred to HA-start (is_running False).
         self.assertEqual(len(hass.bus.listeners), 1)
+
+    def test_options_override_setup_data_and_are_listened_to(self):
+        tmp = tempfile.mkdtemp()
+        hass = _FakeHass(tmp)
+        entry = SimpleNamespace(
+            entry_id="e2", data={"tts_target": "media_player.old", "auto_announce": True},
+            options={"tts_target": "media_player.kitchen", "auto_announce": False},
+            async_on_unload=MagicMock(), add_update_listener=MagicMock(return_value="unsub"),
+        )
+        hass.config_entries.entry = entry
+        self.assertTrue(_run(async_setup_entry(hass, entry)))
+        coord = hass.data[integration.DOMAIN]["e2"]
+        self.assertEqual(coord.tts_target, "media_player.kitchen")
+        self.assertFalse(coord.auto_announce)
+        listener = entry.add_update_listener.call_args.args[0]
+        entry.async_on_unload.assert_any_call("unsub")
+        # Saving new options reaches the running coordinator.
+        entry.options = {"tts_target": "media_player.office", "auto_announce": True}
+        _run(listener(hass, entry))
+        self.assertEqual(coord.tts_target, "media_player.office")
+        self.assertTrue(coord.auto_announce)
 
     def test_unload_removes_services(self):
         hass, entry, coord, _ = _setup()

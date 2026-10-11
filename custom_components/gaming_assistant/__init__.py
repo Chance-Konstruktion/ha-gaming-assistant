@@ -49,13 +49,23 @@ _ALL_SERVICES = (
 )
 
 
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Apply settings saved under Configure (or by the panel) right away."""
+    coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if isinstance(coordinator, GamingAssistantCoordinator):
+        await coordinator.async_apply_options({**entry.data, **entry.options})
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Gaming Assistant from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    coordinator = GamingAssistantCoordinator(hass, dict(entry.data))
+    # What was saved under Configure (entry.options) overrides the values
+    # from the initial setup (entry.data) — also when an option was cleared.
+    coordinator = GamingAssistantCoordinator(hass, {**entry.data, **entry.options})
     coordinator._config_entry_id = entry.entry_id
     hass.data[DOMAIN][entry.entry_id] = coordinator
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
     # Load spoiler profiles + prompt packs from disk before entities read them
     # (executor-backed — file I/O is not allowed on the event loop).
@@ -124,9 +134,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator.start_cleanup_task()
 
         # Auto-start camera watcher if configured
-        camera_entity = entry.data.get(CONF_CAMERA_ENTITY, "") or entry.options.get(
-            CONF_CAMERA_ENTITY, ""
-        )
+        camera_entity = coordinator.configured_camera
         if camera_entity:
             try:
                 await coordinator.async_watch_camera(camera_entity)
@@ -600,6 +608,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 cfg_entry = hass.config_entries.async_get_entry(
                     coord._config_entry_id
                 )
+                if camera is not None:
+                    coord.config[CONF_CAMERA_ENTITY] = camera
                 if cfg_entry:
                     new_options = dict(cfg_entry.options)
                     if camera is not None:
