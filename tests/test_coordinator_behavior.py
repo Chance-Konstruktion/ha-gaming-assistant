@@ -631,6 +631,36 @@ class TestApplyOptions(unittest.TestCase):
             watch.assert_not_awaited()
 
 
+class TestTipPublishing(unittest.TestCase):
+    """New tips go out over MQTT for the overlays (PC and Android, GA-112)."""
+
+    def setUp(self):
+        self.coord, self.hass = _make_coord()
+        _MQTT.async_publish.reset_mock()
+
+    def _published(self):
+        return [(c.args[1], c.args[2], c.kwargs.get("retain"))
+                for c in _MQTT.async_publish.await_args_list]
+
+    def test_overall_and_client_topic_retained(self):
+        _run(self.coord._async_publish_tip("Reload behind cover.", "phone"))
+        self.assertEqual(self._published(), [
+            ("gaming_assistant/tip", "Reload behind cover.", True),
+            ("gaming_assistant/phone/tip", "Reload behind cover.", True),
+        ])
+
+    def test_no_client_topic_for_odd_ids(self):
+        _run(self.coord._async_publish_tip("tip", "ask/+"))
+        self.assertEqual([t for t, _, _ in self._published()], ["gaming_assistant/tip"])
+
+    def test_event_schedules_the_publish(self):
+        self.hass.async_create_task = MagicMock()
+        self.coord._fire_new_tip_event("tip", "Doom", "phone")
+        scheduled = self.hass.async_create_task.call_args.args[0]
+        self.assertEqual(scheduled.cr_code.co_name, "_async_publish_tip")
+        scheduled.close()
+
+
 class TestClientOptions(unittest.TestCase):
     """Per-client settings (GA-114): mode, speaker and game hint per client."""
 

@@ -14,7 +14,9 @@ import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.DisplayMetrics
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
@@ -25,9 +27,12 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.eclipse.paho.client.mqttv3.IMqttActionListener
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken
 import org.eclipse.paho.client.mqttv3.IMqttToken
 import org.eclipse.paho.client.mqttv3.MqttAsyncClient
+import org.eclipse.paho.client.mqttv3.MqttCallbackExtended
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions
 import org.eclipse.paho.client.mqttv3.MqttMessage
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
@@ -45,6 +50,10 @@ class CaptureService : Service() {
     private var mqttClient: MqttAsyncClient? = null
     private var config: CaptureConfig = CaptureConfig()
     private var sentFrames = 0
+
+    // Tips from Home Assistant on top of the game (GA-112); main thread only.
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var tipOverlay: TipOverlay? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -82,6 +91,7 @@ class CaptureService : Service() {
             intervalSeconds = intent.getIntExtra(EXTRA_INTERVAL_SECONDS, 5),
             jpegQuality = intent.getIntExtra(EXTRA_JPEG_QUALITY, 70),
             gameHint = intent.getStringExtra(EXTRA_GAME_HINT).orEmpty(),
+            showTipOverlay = intent.getBooleanExtra(EXTRA_SHOW_TIPS, false),
         )
 
         if (config.brokerHost.isBlank() || config.clientId.isBlank()) {
@@ -90,6 +100,9 @@ class CaptureService : Service() {
             return
         }
 
+        if (config.showTipOverlay && TipOverlay.canDraw(this)) {
+            tipOverlay = TipOverlay(this)
+        }
         setupProjection(resultCode, resultData)
         setupMqtt()
         startCaptureLoop()
@@ -139,6 +152,25 @@ class CaptureService : Service() {
             setWill(statusTopic, "offline".toByteArray(), 1, true)
         }
 
+        // Called for the first connect and every automatic reconnect: a clean
+        // session forgets subscriptions, so subscribe to the tips each time.
+        mqttClient?.setCallback(object : MqttCallbackExtended {
+            override fun connectComplete(reconnect: Boolean, serverURI: String?) {
+                subscribeTips()
+            }
+
+            override fun connectionLost(cause: Throwable?) {
+                CaptureStatusBus.update { it.copy(mqttConnected = false) }
+            }
+
+            override fun messageArrived(topic: String?, message: MqttMessage?) {
+                val text = message?.payload?.toString(Charsets.UTF_8)?.trim().orEmpty()
+                if (text.isNotEmpty()) mainHandler.post { tipOverlay?.show(text) }
+            }
+
+            override fun deliveryComplete(token: IMqttDeliveryToken?) = Unit
+        })
+
         mqttClient?.connect(options, null, object : IMqttActionListener {
             override fun onSuccess(asyncActionToken: IMqttToken?) {
                 publishStatus("online")
@@ -152,12 +184,28 @@ class CaptureService : Service() {
         })
     }
 
+    private fun subscribeTips() {
+        if (tipOverlay == null) return
+        // Home Assistant publishes each tip retained on the client's own topic.
+        runCatching { mqttClient?.subscribe("gaming_assistant/${config.clientId}/tip", 0) }
+            .onFailure { pushError("Tip subscription failed: ${it.message}") }
+    }
+
     private fun startCaptureLoop() {
         captureJob?.cancel()
         captureJob = serviceScope.launch {
             while (isActive) {
+                // Keep a visible tip out of the screenshot, so the AI never
+                // reads its own advice back off the screen.
+                val hidden = withContext(Dispatchers.Main) {
+                    val overlay = tipOverlay?.takeIf { it.isShowing }
+                    overlay?.setHiddenForCapture(true)
+                    overlay != null
+                }
+                if (hidden) delay(OVERLAY_HIDE_MS)
                 runCatching { captureAndPublishFrame() }
                     .onFailure { pushError("Capture failed: ${it.message}") }
+                if (hidden) withContext(Dispatchers.Main) { tipOverlay?.setHiddenForCapture(false) }
                 delay(config.intervalSeconds.coerceAtLeast(1) * 1000L)
             }
         }
@@ -235,6 +283,9 @@ class CaptureService : Service() {
         captureJob?.cancel()
         captureJob = null
 
+        tipOverlay?.dismiss()
+        tipOverlay = null
+
         runCatching { publishStatus("offline") }
 
         virtualDisplay?.release()
@@ -311,6 +362,10 @@ class CaptureService : Service() {
         const val EXTRA_INTERVAL_SECONDS = "extra_interval_seconds"
         const val EXTRA_JPEG_QUALITY = "extra_jpeg_quality"
         const val EXTRA_GAME_HINT = "extra_game_hint"
+        const val EXTRA_SHOW_TIPS = "extra_show_tips"
+
+        // Long enough for the hidden overlay to leave the mirrored screen.
+        private const val OVERLAY_HIDE_MS = 150L
 
         private const val CHANNEL_ID = "ga_capture_channel"
         private const val NOTIF_ID = 42001

@@ -4,8 +4,10 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -20,6 +22,7 @@ import kotlinx.coroutines.launch
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
+    private var previewOverlay: TipOverlay? = null
 
     private val projectionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -39,6 +42,20 @@ class MainActivity : AppCompatActivity() {
         bindInputs()
         bindButtons()
         observeState()
+    }
+
+    override fun onDestroy() {
+        previewOverlay?.dismiss()
+        previewOverlay = null
+        super.onDestroy()
+    }
+
+    /** Opens Android's "Display over other apps" page for this app. */
+    private fun requestOverlayPermission() {
+        Toast.makeText(this, "Bitte \"Über anderen Apps einblenden\" erlauben", Toast.LENGTH_LONG).show()
+        startActivity(
+            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+        )
     }
 
     private fun bindInputs() {
@@ -69,12 +86,25 @@ class MainActivity : AppCompatActivity() {
         binding.etGameHint.doAfterTextChanged {
             viewModel.updateConfig { cfg -> cfg.copy(gameHint = it.toString()) }
         }
+        binding.cbShowTips.setOnCheckedChangeListener { _, checked ->
+            viewModel.updateConfig { cfg -> cfg.copy(showTipOverlay = checked) }
+            if (checked && !TipOverlay.canDraw(this)) requestOverlayPermission()
+        }
     }
 
     private fun bindButtons() {
         binding.btnStart.setOnClickListener {
             val mgr = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             projectionLauncher.launch(mgr.createScreenCaptureIntent())
+        }
+
+        binding.btnTestOverlay.setOnClickListener {
+            if (!TipOverlay.canDraw(this)) {
+                requestOverlayPermission()
+                return@setOnClickListener
+            }
+            val overlay = previewOverlay ?: TipOverlay(applicationContext).also { previewOverlay = it }
+            overlay.show("So sehen Tipps aus: verschieben mit dem Finger, antippen zum Ausblenden.", 6_000L)
         }
 
         binding.btnStop.setOnClickListener {
@@ -98,6 +128,7 @@ class MainActivity : AppCompatActivity() {
                         if (binding.etInterval.text.toString() != config.intervalSeconds.toString()) binding.etInterval.setText(config.intervalSeconds.toString())
                         if (binding.etQuality.text.toString() != config.jpegQuality.toString()) binding.etQuality.setText(config.jpegQuality.toString())
                         if (binding.etGameHint.text.toString() != config.gameHint) binding.etGameHint.setText(config.gameHint)
+                        if (binding.cbShowTips.isChecked != config.showTipOverlay) binding.cbShowTips.isChecked = config.showTipOverlay
                     }
                 }
                 launch {
@@ -125,6 +156,7 @@ class MainActivity : AppCompatActivity() {
             putExtra(CaptureService.EXTRA_INTERVAL_SECONDS, cfg.intervalSeconds)
             putExtra(CaptureService.EXTRA_JPEG_QUALITY, cfg.jpegQuality)
             putExtra(CaptureService.EXTRA_GAME_HINT, cfg.gameHint)
+            putExtra(CaptureService.EXTRA_SHOW_TIPS, cfg.showTipOverlay)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)

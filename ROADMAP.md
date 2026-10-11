@@ -211,7 +211,7 @@ Wichtige Einschränkung (siehe `docs/rustdesk_control.md`): RustDesk hat keine s
 | Task | Beschreibung | Status |
 |------|--------------|--------|
 | GA-AND | Android Capture Agent (eigene App, Foreground-Service, CI-Build) | ✅ v0.11/v0.12 |
-| GA-112 | Android Draw-Over-Apps Overlay (Kotlin Begleit-App) | ⬜ |
+| GA-112 | Android Draw-Over-Apps Overlay (Kotlin Begleit-App) | ✅ (unreleased) — in der Capture-App statt einer eigenen App: Option „Tipps über dem Spiel anzeigen“, Box zum Verschieben/Antippen, beim Screenshot unsichtbar. HA veröffentlicht dafür jeden Tipp auf `gaming_assistant/{client_id}/tip` (und `gaming_assistant/tip`, was auch das PC-Overlay repariert). Lokal gebaut und im Emulator (Android 14) geprüft; MQTT-Empfang nicht, mangels Broker. |
 | GA-117 | Test-Harness mit Beispielbildern für reproduzierbare E2E | ✅ v0.13 (`tests/fixtures/`) |
 
 ---
@@ -289,8 +289,8 @@ Empfohlener Workflow je Task:
 - Unit-Tests für Spoiler, History, Prompt Builder, Pack-Validator.
 - Integrationstests mit gemocktem MQTT + Ollama API.
 - Regressionstests für Legacy-Topics.
-- Aktueller Stand (11.10.2026): **736 Tests**. 719 Unit-Tests in `tests/`
-  stubben Home Assistant weg; die 17 Tests in `tests_ha/` booten ein echtes
+- Aktueller Stand (11.10.2026): **740 Tests**. 722 Unit-Tests in `tests/`
+  stubben Home Assistant weg; die 18 Tests in `tests_ha/` booten ein echtes
   Home Assistant, laden die Integration und spielen die Agent-Bestätigung,
   den Schach-Bot, Sprachfragen mit Bild, die Fernsteuer-Services, den
   Konfigurieren-Dialog und die Geräte-Einstellungen durch

@@ -9,4 +9,6 @@ data class CaptureConfig(
     val intervalSeconds: Int = 5,
     val jpegQuality: Int = 70,
     val gameHint: String = "",
+    /** Show tips from Home Assistant on top of the game (GA-112). */
+    val showTipOverlay: Boolean = false,
 )

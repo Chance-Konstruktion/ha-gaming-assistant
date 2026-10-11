@@ -19,6 +19,9 @@ DEFAULT_TIMEOUT = 60
 
 # Legacy MQTT Topics (v0.2/v0.3 compatibility)
 MQTT_TIP_TOPIC = "gaming_assistant/tip"
+# Every new tip is also published per client (retained), for overlays on the
+# device that captured the frame (tools/overlay_pc.py, the Android app).
+MQTT_CLIENT_TIP_TOPIC = "gaming_assistant/{client_id}/tip"
 MQTT_MODE_TOPIC = "gaming_assistant/gaming_mode"
 MQTT_STATUS_TOPIC = "gaming_assistant/status"
 

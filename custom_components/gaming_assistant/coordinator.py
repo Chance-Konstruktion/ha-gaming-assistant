@@ -44,6 +44,8 @@ from .const import (
     EVENT_CHESS_MOVE,
     MQTT_BOARD_COMMAND_TOPIC,
     MQTT_CHESS_MOVE_TOPIC,
+    MQTT_CLIENT_TIP_TOPIC,
+    MQTT_TIP_TOPIC,
     MQTT_COMPANION_TOPIC,
     MQTT_REMOTE_TOPIC,
     REMOTE_SESSION_MODES,
@@ -1043,9 +1045,22 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 "tip": tip,
                 "game": game,
                 "client_id": client_id,
-                "assistant_mode": self._assistant_mode,
+                "assistant_mode": self.effective_mode(client_id),
             },
         )
+        # Overlays (tools/overlay_pc.py, the Android app) show tips from MQTT.
+        self.hass.async_create_task(self._async_publish_tip(tip, client_id))
+
+    async def _async_publish_tip(self, tip: str, client_id: str) -> None:
+        """Publish a tip, retained, to the overall and the client's tip topic."""
+        topics = [MQTT_TIP_TOPIC]
+        if client_id and _TOPIC_SEGMENT.fullmatch(client_id):
+            topics.append(MQTT_CLIENT_TIP_TOPIC.format(client_id=client_id))
+        for topic in topics:
+            try:
+                await mqtt.async_publish(self.hass, topic, tip, qos=0, retain=True)
+            except HomeAssistantError as err:
+                _LOGGER.debug("Could not publish tip to %s: %s", topic, err)
 
     @property
     def configured_camera(self) -> str:
