@@ -179,7 +179,8 @@ def ms_to_tics(ms: float) -> int:
 def is_enemy(label: Any, names: frozenset[str] | None = None) -> bool:
     """Whether a ViZDoom label is a living enemy.
 
-    ViZDoom renames dead actors to "Dead<Class>", so corpses never count. With
+    Killed monsters drop out of ViZDoom's labels (checked with 1.3.1); should a
+    release label them, it names them "Dead<Class>", so corpses never count. With
     *names* given, only those classes are enemies; otherwise the label's
     category decides ("Monster"), falling back to the built-in list on
     ViZDoom releases without categories.

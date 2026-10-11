@@ -177,6 +177,12 @@ python worker/vizdoom_agent.py --offline --show --scenario defend_the_center
 python worker/vizdoom_agent.py --broker 192.168.1.10 --client-id doom --show
 ```
 
+Measured with ViZDoom 1.3.1, `--offline --scenario defend_the_center --seed 1`,
+three episodes: the reflexes score 22 kills per episode on average (the
+scenario hands out 26 rounds), turning on the spot without them scores none.
+In `deathmatch` the reflexes alone get about 5 kills: standing still in a big
+arena is where the strategy from Home Assistant has to come in.
+
 `--no-reflexes` lets only the LLM play, for comparison. `--scenario` picks one of
 ViZDoom's bundled scenarios (`deathmatch` by default; `defend_the_center`,
 `basic`, `my_way_home`, `health_gathering`, `freedoom2` for a whole Freedoom
