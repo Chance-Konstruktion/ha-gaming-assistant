@@ -631,6 +631,103 @@ class TestApplyOptions(unittest.TestCase):
             watch.assert_not_awaited()
 
 
+class TestClientOptions(unittest.TestCase):
+    """Per-client settings (GA-114): mode, speaker and game hint per client."""
+
+    def setUp(self):
+        self.coord, self.hass = _make_coord()
+        self.entry = SimpleNamespace(options={"model": "llava"})
+        self.hass.config_entries = MagicMock()
+        self.hass.config_entries.async_get_entry.return_value = self.entry
+
+    def _saved(self):
+        return self.hass.config_entries.async_update_entry.call_args.kwargs["options"]
+
+    def test_set_and_clear(self):
+        _run(self.coord.async_set_client_options(
+            "tv", assistant_mode="opponent", tts_target="media_player.living_room"
+        ))
+        self.assertEqual(self.coord.effective_mode("tv"), "opponent")
+        self.assertEqual(self.coord.effective_mode("pc"), "coach")  # global
+        saved = self._saved()
+        self.assertEqual(saved["model"], "llava")  # other options kept
+        self.assertEqual(saved["client_options"]["tv"]["tts_target"], "media_player.living_room")
+        # "global" clears the mode; a field left out stays.
+        _run(self.coord.async_set_client_options("tv", assistant_mode="global"))
+        self.assertEqual(self.coord.client_options("tv"), {"tts_target": "media_player.living_room"})
+        _run(self.coord.async_set_client_options("tv", tts_target=""))
+        self.assertEqual(self.coord.client_options("tv"), {})
+        self.assertNotIn("tv", self._saved()["client_options"])
+
+    def test_bad_input(self):
+        # The error class of the coordinator's own module (other test modules
+        # swap the Home Assistant stubs in sys.modules).
+        error = GamingAssistantCoordinator.async_set_client_options.__globals__[
+            "HomeAssistantError"
+        ]
+        for client_id, mode in (("tv/+", "coach"), ("", "coach"), ("tv", "boss")):
+            with self.subTest(client_id=client_id, mode=mode), \
+                    self.assertRaises(error):
+                _run(self.coord.async_set_client_options(client_id, assistant_mode=mode))
+        self.hass.config_entries.async_update_entry.assert_not_called()
+
+    def test_loaded_from_config_and_cleaned(self):
+        coord = GamingAssistantCoordinator(self.hass, {"client_options": {
+            "tv": {"assistant_mode": "analyst", "junk": "x", "game_hint": ""},
+            "bad": "not a dict",
+        }})
+        self.assertEqual(coord.client_options("tv"), {"assistant_mode": "analyst"})
+        self.assertEqual(coord.client_options("bad"), {})
+
+    def test_overview_combines_everything(self):
+        self.coord._touch_client("tv", {"client_type": "android_tv", "window_title": "Zelda"})
+        self.coord._client_registry.register_worker("pc", {"name": "Gaming PC", "type": "pc"})
+        self.coord._client_registry.mark_presence("pc", True)
+        _run(self.coord.async_set_client_options("tablet", game_hint="Catan"))
+        self.coord._last_tip_by_client["tv"] = "x" * 300
+        overview = self.coord.client_overview()
+        self.assertEqual(sorted(overview), ["pc", "tablet", "tv"])
+        self.assertEqual(overview["tv"]["type"], "android_tv")
+        self.assertEqual(overview["tv"]["game"], "Zelda")
+        self.assertEqual(len(overview["tv"]["last_tip"]), 200)
+        self.assertEqual(overview["pc"]["name"], "Gaming PC")
+        self.assertTrue(overview["pc"]["online"])
+        self.assertTrue(overview["pc"]["active"])  # registered last
+        self.assertEqual(overview["tablet"]["options"], {"game_hint": "Catan"})
+
+    def test_pipeline_uses_the_clients_settings(self):
+        _run(self.coord.async_set_client_options(
+            "tv", assistant_mode="analyst", tts_target="media_player.kids", game_hint="Mario Kart"
+        ))
+        self.coord._tts_entity = "tts.piper"
+        self.coord.set_auto_announce(True)
+        self.coord._image_processor.process = AsyncMock(return_value="Drift through the turn.")
+        self.coord.async_announce = MagicMock(return_value=None)
+        self.coord._client_metadata["tv"] = {"client_type": "android_tv"}
+        _run(self.coord._process_image("tv", b"frame"))
+        metadata = self.coord._image_processor.process.call_args.args[2]
+        self.assertEqual(metadata["assistant_mode"], "analyst")
+        self.assertEqual(metadata["window_title"], "Mario Kart")  # no title of its own
+        self.coord.async_announce.assert_called_once_with(
+            "Drift through the turn.", media_player_entity_id="media_player.kids"
+        )
+        self.assertEqual(self.coord.client_overview()["tv"]["last_tip"], "Drift through the turn.")
+
+    def test_own_window_title_beats_the_hint(self):
+        _run(self.coord.async_set_client_options("pc", game_hint="Doom"))
+        self.coord._image_processor.process = AsyncMock(return_value="tip")
+        self.coord._client_metadata["pc"] = {"window_title": "Elden Ring"}
+        _run(self.coord._process_image("pc", b"frame"))
+        self.assertEqual(self.coord._image_processor.process.call_args.args[2]["window_title"],
+                         "Elden Ring")
+
+    def test_saved_options_reach_the_coordinator(self):
+        _run(self.coord.async_apply_options(
+            {**self.coord.config, "client_options": {"tv": {"assistant_mode": "coplay"}}}
+        ))
+        self.assertEqual(self.coord.effective_mode("tv"), "coplay")
+
+
 class TestCameraLoop(unittest.TestCase):
     def setUp(self):
         self.coord, self.hass = _make_coord()

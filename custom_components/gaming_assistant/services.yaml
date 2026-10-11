@@ -610,3 +610,43 @@ companion_command:
       example: "pause"
       selector:
         text:
+
+set_client_options:
+  name: Set client options
+  description: >
+    Give one capture client its own settings, overriding the global ones for
+    that client only. An empty value goes back to the global setting; a field
+    left out stays as it is. Saved, so it survives a restart.
+  fields:
+    client_id:
+      name: Client
+      description: Client ID, as shown in sensor.gaming_assistant_clients.
+      required: true
+      example: "living-room-tv"
+      selector:
+        text:
+    assistant_mode:
+      name: Assistant mode
+      description: Mode for this client; "global" (or empty) for the global mode.
+      required: false
+      selector:
+        select:
+          options:
+            - global
+            - coach
+            - coplay
+            - opponent
+            - analyst
+    tts_target:
+      name: Speaker
+      description: Media player for this client's announced tips; empty for the global one.
+      required: false
+      selector:
+        entity:
+          domain: media_player
+    game_hint:
+      name: Game hint
+      description: Game to assume when this client reports no window title.
+      required: false
+      selector:
+        text:

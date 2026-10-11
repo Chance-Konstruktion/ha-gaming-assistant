@@ -310,6 +310,16 @@ class TestServiceHandlers(unittest.TestCase):
                     _run(self.h[name](self._call(data)))
         _MQTT.async_publish.assert_not_awaited()
 
+    def test_set_client_options(self):
+        _run(self.h["set_client_options"](self._call(
+            {"client_id": "tv", "assistant_mode": "opponent", "tts_target": "media_player.tv"}
+        )))
+        self.assertEqual(self.coord.effective_mode("tv"), "opponent")
+        self.assertEqual(
+            self.entry.options["client_options"]["tv"],
+            {"assistant_mode": "opponent", "tts_target": "media_player.tv"},
+        )
+
     def test_send_yolo_command_publishes(self):
         _MQTT.async_publish.reset_mock()
         _run(self.h["send_yolo_command"](self._call(

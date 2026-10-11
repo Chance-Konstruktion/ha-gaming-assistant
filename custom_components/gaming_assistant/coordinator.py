@@ -21,6 +21,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import (
     ASK_FRAME_MAX_AGE,
     ASSISTANT_MODES,
+    CLIENT_OPTION_KEYS,
+    CONF_CLIENT_OPTIONS,
     CONF_AUTO_ANNOUNCE,
     CONF_LLM_ALLOW_IMAGES,
     CONF_LLM_API_KEY,
@@ -97,6 +99,20 @@ def _topic_segment(value: str, what: str) -> str:
     return value
 
 
+def _clean_client_options(raw: Any) -> dict[str, dict[str, str]]:
+    """Per-client settings as stored, without unknown keys or empty values."""
+    if not isinstance(raw, dict):
+        return {}
+    cleaned: dict[str, dict[str, str]] = {}
+    for client_id, options in raw.items():
+        if not isinstance(options, dict):
+            continue
+        kept = {k: str(v) for k, v in options.items() if k in CLIENT_OPTION_KEYS and v}
+        if kept:
+            cleaned[str(client_id)] = kept
+    return cleaned
+
+
 class GamingAssistantCoordinator(DataUpdateCoordinator):
     """Manages Gaming Assistant state via MQTT push updates."""
 
@@ -124,6 +140,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._last_image_client_id: str = ""
         self._last_image_timestamp: str = ""
         self._last_image_monotonic: float = 0.0
+        # Per-client settings (GA-114) and each client's latest tip.
+        self._client_options = _clean_client_options(config.get(CONF_CLIENT_OPTIONS))
+        self._last_tip_by_client: dict[str, str] = {}
 
         # Configurable interval & timeout
         self._analysis_interval: int = config.get(CONF_INTERVAL, DEFAULT_INTERVAL)
@@ -392,6 +411,83 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         except HomeAssistantError as err:
             _LOGGER.warning("Failed to send YOLO command: %s", err)
 
+    # -- Per-client settings (GA-114) ----------------------------------------
+
+    def client_options(self, client_id: str) -> dict[str, str]:
+        """The settings a client overrides (empty when it uses the global ones)."""
+        return dict(self._client_options.get(client_id, {}))
+
+    def effective_mode(self, client_id: str) -> str:
+        """Assistant mode for *client_id*: its own, else the global one."""
+        own = self._client_options.get(client_id, {}).get("assistant_mode")
+        return own or self._assistant_mode
+
+    async def async_set_client_options(self, client_id: str, **changes: Any) -> None:
+        """Set per-client settings; an empty string (or mode "global") goes back to global.
+
+        Keys are those in ``CLIENT_OPTION_KEYS``; a key left out (or None)
+        stays as it is. Saved in the config entry options, so they survive a
+        restart. Raises HomeAssistantError for a bad client ID or mode.
+        """
+        client_id = _topic_segment(client_id, "client_id")
+        if changes.get("assistant_mode") == "global":
+            changes["assistant_mode"] = ""
+        mode = changes.get("assistant_mode")
+        if mode and mode not in ASSISTANT_MODES:
+            raise HomeAssistantError(
+                f"assistant_mode must be one of {ASSISTANT_MODES} or 'global', got {mode!r}"
+            )
+        options = dict(self._client_options.get(client_id, {}))
+        for key in CLIENT_OPTION_KEYS:
+            value = changes.get(key)
+            if value is None:
+                continue
+            value = str(value).strip()
+            if value:
+                options[key] = value
+            else:
+                options.pop(key, None)
+        updated = {cid: dict(opts) for cid, opts in self._client_options.items()}
+        if options:
+            updated[client_id] = options
+        else:
+            updated.pop(client_id, None)
+        self._client_options = updated
+        # Keep config in step, so the options listener sees nothing new.
+        self.config = {**self.config, CONF_CLIENT_OPTIONS: updated}
+        entry = self.hass.config_entries.async_get_entry(self._config_entry_id)
+        if entry is not None:
+            self.hass.config_entries.async_update_entry(
+                entry, options={**entry.options, CONF_CLIENT_OPTIONS: updated}
+            )
+        _LOGGER.info("Client %s settings: %s", client_id, options or "global")
+        self._notify_update()
+
+    def client_overview(self) -> dict[str, dict[str, Any]]:
+        """Every known client: status, game, latest tip and its own settings."""
+        clients = self._client_registry.clients
+        workers = self._client_registry.registered_workers
+        overview: dict[str, dict[str, Any]] = {}
+        for client_id in sorted(set(clients) | set(workers) | set(self._client_options)):
+            client = clients.get(client_id, {})
+            worker = workers.get(client_id, {})
+            meta = client.get("meta", {})
+            kind = worker.get("type")
+            if not kind or kind == "unknown":
+                kind = meta.get("client_type", "unknown")
+            online = client.get("online", worker.get("online"))
+            overview[client_id] = {
+                "name": worker.get("name") or client_id,
+                "type": kind,
+                "online": online,
+                "active": client_id == self._client_registry.active_client_id,
+                "last_seen": client.get("last_seen") or worker.get("last_seen", ""),
+                "game": client.get("last_game", ""),
+                "last_tip": self._last_tip_by_client.get(client_id, "")[:200],
+                "options": dict(self._client_options.get(client_id, {})),
+            }
+        return overview
+
     async def async_open_remote_session(
         self, controller: str, peer: str, mode: str = "control"
     ) -> None:
@@ -642,6 +738,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             self._tts_target = self.config.get(CONF_TTS_TARGET) or ""
         if changed(CONF_AUTO_ANNOUNCE):
             self._auto_announce = bool(self.config.get(CONF_AUTO_ANNOUNCE))
+        if changed(CONF_CLIENT_OPTIONS):
+            self._client_options = _clean_client_options(self.config.get(CONF_CLIENT_OPTIONS))
         if changed(CONF_CAMERA_ENTITY):
             old_camera = previous.get(CONF_CAMERA_ENTITY) or ""
             if old_camera in self.active_camera_watchers:

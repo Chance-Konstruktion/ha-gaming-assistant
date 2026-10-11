@@ -114,7 +114,11 @@ class AnalysisPipeline:
             coord._touch_client(client_id, coord._client_metadata.get(client_id, {}))
 
             metadata = coord._client_metadata.get(client_id, {})
-            metadata["assistant_mode"] = coord._assistant_mode
+            # Per-client settings (GA-114) win over the global ones.
+            metadata["assistant_mode"] = coord.effective_mode(client_id)
+            game_hint = coord.client_options(client_id).get("game_hint")
+            if game_hint and not metadata.get("window_title"):
+                metadata["window_title"] = game_hint
 
             game = metadata.get("window_title", "")
             if game:
@@ -195,6 +199,7 @@ class AnalysisPipeline:
                     })
                     if len(coord._recent_tips) > 5:
                         coord._recent_tips = coord._recent_tips[-5:]
+                    coord._last_tip_by_client[client_id] = tip
                     coord._status = "idle"
                     _LOGGER.info("New tip generated: %s", tip[:80])
 
@@ -224,7 +229,11 @@ class AnalysisPipeline:
                         )
                         # Auto-announce via TTS if enabled
                         if coord._auto_announce and coord._tts_entity:
-                            coord.hass.async_create_task(coord.async_announce(tip))
+                            # A client may have its own speaker (GA-114).
+                            speaker = coord.client_options(client_id).get("tts_target", "")
+                            coord.hass.async_create_task(
+                                coord.async_announce(tip, media_player_entity_id=speaker)
+                            )
                     else:  # repeat
                         coord._announces_suppressed += 1
                         _LOGGER.debug("Repeat tip suppressed from announce")

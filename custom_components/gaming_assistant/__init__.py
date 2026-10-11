@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
+    CLIENT_OPTION_KEYS,
     CONF_CAMERA_ENTITY,
     CONF_MODEL,
     CONF_TTS_ENTITY,
@@ -46,6 +47,7 @@ _ALL_SERVICES = (
     "refresh_prompt_packs", "set_agent_mode", "send_yolo_command",
     "analyze_board", "confirm_agent_action", "reject_agent_action",
     "set_chess_bot", "open_remote_session", "companion_command",
+    "set_client_options",
 )
 
 
@@ -484,6 +486,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     )
                     break
 
+        async def handle_set_client_options(call: ServiceCall) -> None:
+            """Give one client its own mode, speaker or game hint (GA-114)."""
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_set_client_options(
+                        call.data.get("client_id", ""),
+                        **{k: call.data.get(k) for k in CLIENT_OPTION_KEYS},
+                    )
+                    break
+
         async def handle_open_remote_session(call: ServiceCall) -> None:
             """Open a RustDesk session via a RustDesk controller (GA-120)."""
             for coord in hass.data[DOMAIN].values():
@@ -649,6 +661,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             DOMAIN, "open_remote_session", handle_open_remote_session
         )
         hass.services.async_register(DOMAIN, "companion_command", handle_companion_command)
+        hass.services.async_register(DOMAIN, "set_client_options", handle_set_client_options)
         hass.services.async_register(
             DOMAIN, "confirm_agent_action", handle_confirm_agent_action
         )
