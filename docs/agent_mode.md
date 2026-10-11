@@ -132,6 +132,56 @@ Actions follow `PromptBuilder.ACTION_SCHEMA`:
 Anything outside this schema, or outside the executor whitelist, is rejected and
 audited — never forwarded.
 
+The LLM sees an Xbox controller and has to guess what the buttons do in your
+game. A capture client can tell it: a short `controls` text in the client's
+`meta` payload (up to 400 characters, e.g. `"RT fires, A opens doors"`) goes
+into the action prompt as is. The ViZDoom agent below sends one.
+
+---
+
+## ViZDoom hybrid: reflexes + LLM strategy
+
+`worker/vizdoom_agent.py` lets the assistant play Doom inside
+[ViZDoom](https://vizdoom.farama.org), a Doom engine built for AI research. An
+LLM is far too slow for a firefight, so the agent splits the work:
+
+| Layer | Runs | Does |
+| :--- | :--- | :--- |
+| Reflexes | in the worker, every tic (35 per second) | Reads ViZDoom's labels (what is on screen, with boxes), turns toward the biggest monster and fires once the crosshair is on it. Corpses and items are ignored. |
+| Strategy | Home Assistant's Agent Mode, every few seconds | Gets a frame, the HUD numbers and the controls, and answers with one controller action: walk, turn, open a door, switch weapons. |
+
+While a monster is in view, the reflexes aim and fire and the strategy keeps
+moving (strafing while shooting). With no monster in view, the strategy steers;
+with neither, the agent turns slowly to look around (`--idle scan`).
+
+The worker is executor and capture client in one: it publishes frames, HUD
+numbers (`health`, `armor`, `ammo`, `kills`) and its controls, and takes
+actions from `gaming_assistant/{client_id}/action`. Everything the AI does stays
+inside the ViZDoom process: no gamepad, no keyboard or mouse. The rails are the
+executor's: a button whitelist (`--allow-buttons`), the audit log
+(`--audit-log`), and `stop` / `start` on `gaming_assistant/command`, which cuts
+all input, reflexes included.
+
+Controller to Doom: the left stick walks and strafes, the right stick turns,
+`RT` fires, `A`/`X` use (doors, switches), `RB`/`Y` and `LB` switch weapons, `LT`
+runs, the D-pad walks and turns. `B`, `START` and `BACK` do nothing (no game
+menu).
+
+```bash
+pip install -r worker/requirements-vizdoom.txt
+
+# Reflexes alone, no Home Assistant (3 episodes, summary at the end):
+python worker/vizdoom_agent.py --offline --show --scenario defend_the_center
+
+# Hybrid: frames to Home Assistant, actions back. Then turn on Agent Mode.
+python worker/vizdoom_agent.py --broker 192.168.1.10 --client-id doom --show
+```
+
+`--no-reflexes` lets only the LLM play, for comparison. `--scenario` picks one of
+ViZDoom's bundled scenarios (`deathmatch` by default; `defend_the_center`,
+`basic`, `my_way_home`, `health_gathering`, `freedoom2` for a whole Freedoom
+level, …), `--config` your own `.cfg`. `--seed` makes runs repeatable.
+
 ---
 
 ## Performance note

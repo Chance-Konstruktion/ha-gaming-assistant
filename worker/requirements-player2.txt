@@ -8,5 +8,5 @@ vgamepad>=0.1.0
 # MQTT client — the executor subscribes to actions from Home Assistant.
 paho-mqtt>=2.1.0
 
-# Optional: for future ViZDoom integration
-# vizdoom>=1.2.0
+# Playing Doom inside ViZDoom instead of a real game needs no gamepad:
+# see requirements-vizdoom.txt (vizdoom_agent.py).

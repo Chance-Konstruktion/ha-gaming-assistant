@@ -671,6 +671,25 @@ data:
 
 </details>
 
+<details>
+<summary><b>ViZDoom hybrid</b> — reflexes in the worker, strategy from Home Assistant <i>(experimental)</i></summary>
+
+`worker/vizdoom_agent.py` plays Doom inside [ViZDoom](https://vizdoom.farama.org). An LLM is far too slow for a firefight, so local **reflexes** aim and fire at the monster on screen, 35 times a second, while Home Assistant's Agent Mode supplies the **strategy** every few seconds: walk, turn, open a door, switch weapons. The worker is capture client and executor in one: it sends frames, HUD numbers and a description of its controls, and everything the AI does stays inside the game.
+
+```bash
+pip install -r worker/requirements-vizdoom.txt
+
+# Reflexes alone, no Home Assistant:
+python worker/vizdoom_agent.py --offline --show --scenario defend_the_center
+
+# Hybrid: then turn on Agent Mode in Home Assistant
+python worker/vizdoom_agent.py --broker 192.168.1.10 --client-id doom --show
+```
+
+Controls, safety rails and options: [`docs/agent_mode.md`](docs/agent_mode.md#vizdoom-hybrid-reflexes--llm-strategy).
+
+</details>
+
 ---
 
 ## 🖥️ Remote control: RustDesk & companion *(experimental)*

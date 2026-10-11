@@ -301,12 +301,15 @@ class AnalysisPipeline:
             return
 
         ts = time.strftime("%Y-%m-%dT%H:%M:%S")
+        # A client may describe its button layout (e.g. the ViZDoom agent).
+        controls = coord._client_metadata.get(client_id, {}).get("controls") or ""
         try:
             action = await asyncio.wait_for(
                 coord._image_processor.generate_action(
                     image_bytes,
                     game,
                     allowed_buttons=coord._agent_allowed_buttons or None,
+                    controls=controls,
                 ),
                 timeout=coord._analysis_timeout + 5,
             )
