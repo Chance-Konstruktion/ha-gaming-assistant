@@ -50,7 +50,7 @@ body:
         - IP camera
         - HDMI bridge
         - Home Assistant camera entity
-        - Worker (YOLO, OCR, audio, board vision, agent executor)
+        - Worker (YOLO, OCR, audio, board vision, agent executor, RustDesk, companion)
         - Other / not relevant
   - type: textarea
     id: logs

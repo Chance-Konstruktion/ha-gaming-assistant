@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -41,6 +42,9 @@ from .const import (
     EVENT_CHESS_MOVE,
     MQTT_BOARD_COMMAND_TOPIC,
     MQTT_CHESS_MOVE_TOPIC,
+    MQTT_COMPANION_TOPIC,
+    MQTT_REMOTE_TOPIC,
+    REMOTE_SESSION_MODES,
     AGENT_VALID_BUTTONS,
     AGENT_ACTION_MIN_INTERVAL,
     AGENT_CONFIRM_TIMEOUT,
@@ -78,6 +82,19 @@ from .spoiler import SpoilerManager
 from .strategy import StrategyTier
 
 _LOGGER = logging.getLogger(__name__)
+
+# One MQTT topic level: a client ID, never a wildcard or a path.
+_TOPIC_SEGMENT = re.compile(r"[A-Za-z0-9_.\-]{1,64}")
+
+
+def _topic_segment(value: str, what: str) -> str:
+    """*value* as one MQTT topic level (a client ID), or HomeAssistantError."""
+    value = (value or "").strip()
+    if not _TOPIC_SEGMENT.fullmatch(value):
+        raise HomeAssistantError(
+            f"{what} must be a client ID (letters, digits, '-', '_', '.'), got {value!r}"
+        )
+    return value
 
 
 class GamingAssistantCoordinator(DataUpdateCoordinator):
@@ -374,6 +391,43 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             _LOGGER.info("Sent YOLO command: %s", command)
         except HomeAssistantError as err:
             _LOGGER.warning("Failed to send YOLO command: %s", err)
+
+    async def async_open_remote_session(
+        self, controller: str, peer: str, mode: str = "control"
+    ) -> None:
+        """Ask a RustDesk controller (GA-119) to open a session to *peer*.
+
+        *controller* is the client ID of the machine running
+        ``worker/rustdesk_controller.py``; *peer* is a name configured there,
+        so Home Assistant never handles RustDesk IDs or passwords. Raises
+        HomeAssistantError for bad input or when MQTT is unavailable.
+        """
+        topic = MQTT_REMOTE_TOPIC.format(client_id=_topic_segment(controller, "controller"))
+        peer = (peer or "").strip()
+        if not peer or len(peer) > 64:
+            raise HomeAssistantError("open_remote_session needs a peer name (max. 64 characters)")
+        if mode not in REMOTE_SESSION_MODES:
+            raise HomeAssistantError(
+                f"open_remote_session: mode must be one of {REMOTE_SESSION_MODES}, got {mode!r}"
+            )
+        await mqtt.async_publish(
+            self.hass, topic, json.dumps({"peer": peer, "mode": mode}), qos=1
+        )
+        _LOGGER.info("Asked %s to open a RustDesk %s session to %s", controller, mode, peer)
+
+    async def async_send_companion_command(self, device: str, command: str) -> None:
+        """Run a named command on a device's companion listener (GA-121).
+
+        Only names the listener defines on that device do anything; Home
+        Assistant never sends keys. Raises HomeAssistantError for bad input
+        or when MQTT is unavailable.
+        """
+        topic = MQTT_COMPANION_TOPIC.format(client_id=_topic_segment(device, "device"))
+        command = (command or "").strip()
+        if not command or len(command) > 64:
+            raise HomeAssistantError("companion_command needs a command name (max. 64 characters)")
+        await mqtt.async_publish(self.hass, topic, json.dumps({"command": command}), qos=1)
+        _LOGGER.info("Sent companion command %s to %s", command, device)
 
     async def async_publish_action(self, client_id: str, action: dict) -> None:
         """Publish a validated controller action to the agent executor."""

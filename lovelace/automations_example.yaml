@@ -162,3 +162,35 @@
       data:
         action_id: "{{ trigger.event.data.action.split('_')[-1] }}"
   mode: queued
+
+# -- 8. Doorbell pauses the game ----------------------------------------------
+# Needs worker/companion_listener.py on the gaming PC (client ID "gaming-pc").
+# "pause" is the play/pause media key; for a game that pauses on Escape,
+# define e.g. {"game_pause": {"key": "escape"}} there and send that instead.
+- alias: "Gaming Assistant – Doorbell pauses the game"
+  description: "Press pause on the gaming PC when someone rings."
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.doorbell  # Change to your doorbell
+      to: "on"
+  action:
+    - service: gaming_assistant.companion_command
+      data:
+        device: gaming-pc
+        command: pause
+  mode: single
+
+# -- 9. Co-Player mode opens RustDesk to the tablet ----------------------------
+# Needs worker/rustdesk_controller.py on the PC with a peer named "tablet".
+- alias: "Gaming Assistant – Co-Player opens the tablet"
+  description: "Switching to Co-Player opens a RustDesk session to the tablet on the PC."
+  trigger:
+    - platform: state
+      entity_id: select.gaming_assistant_assistant_mode
+      to: "coplay"
+  action:
+    - service: gaming_assistant.open_remote_session
+      data:
+        controller: gaming-pc
+        peer: tablet
+  mode: single

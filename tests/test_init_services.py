@@ -6,6 +6,7 @@ registered handlers directly to exercise their bodies.
 """
 
 import asyncio
+import json
 import sys
 import tempfile
 import types
@@ -253,6 +254,37 @@ class TestServiceHandlers(unittest.TestCase):
                 _run(self.h["set_chess_bot"](self._call(data)))
         self.assertFalse(self.coord.chess_bot_enabled)
         self.assertEqual(self.coord.chess_bot_color, "black")
+
+    def test_open_remote_session_publishes(self):
+        _MQTT.async_publish.reset_mock()
+        _run(self.h["open_remote_session"](self._call(
+            {"controller": "gaming-pc", "peer": "tablet"}
+        )))
+        sent = _MQTT.async_publish.await_args
+        self.assertEqual(sent.args[1], "gaming_assistant/gaming-pc/remote")
+        self.assertEqual(json.loads(sent.args[2]), {"peer": "tablet", "mode": "control"})
+
+    def test_companion_command_publishes(self):
+        _MQTT.async_publish.reset_mock()
+        _run(self.h["companion_command"](self._call({"device": "tv.box", "command": "pause"})))
+        sent = _MQTT.async_publish.await_args
+        self.assertEqual(sent.args[1], "gaming_assistant/tv.box/companion")
+        self.assertEqual(json.loads(sent.args[2]), {"command": "pause"})
+
+    def test_remote_control_rejects_bad_input(self):
+        _MQTT.async_publish.reset_mock()
+        for name, data in (
+            ("open_remote_session", {"controller": "gaming_assistant/#", "peer": "tablet"}),
+            ("open_remote_session", {"controller": "pc", "peer": ""}),
+            ("open_remote_session", {"controller": "pc", "peer": "tablet", "mode": "shell"}),
+            ("companion_command", {"device": "", "command": "pause"}),
+            ("companion_command", {"device": "pc/+", "command": "pause"}),
+            ("companion_command", {"device": "pc", "command": " "}),
+        ):
+            with self.subTest(service=name, data=data):
+                with self.assertRaises(integration.HomeAssistantError):
+                    _run(self.h[name](self._call(data)))
+        _MQTT.async_publish.assert_not_awaited()
 
     def test_send_yolo_command_publishes(self):
         _MQTT.async_publish.reset_mock()
