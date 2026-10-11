@@ -143,6 +143,26 @@ the symbolic reasoning. (The pixel layer — corner-warp + square classification
 — is a calibratable best-effort; robust auto corner-detection / a small
 classifier are future work.)
 
+**Playing back — the chess bot (`chess_bot.py`, GA-110).** With the bot on,
+every grounded position is also handed to `ChessBot.decide()`. On the bot's
+turn it takes the engine's move (searched at the bot's strength, depth 1–4)
+and turns it into a first-person sentence in Home Assistant's language plus a
+structured move. Like the grounding it is pure Python without Home Assistant
+imports; the coordinator does the I/O: TTS for the person at the board (who
+makes the move for the bot, which the worker then sees as the next position),
+the `gaming_assistant_chess_move` event for automations, and
+`gaming_assistant/{id}/chess_move` on MQTT. Each position is answered once, so
+a worker re-publishing the same board never repeats a move. It deliberately
+does not go through Agent Mode's gamepad executor: a chess move is a symbolic
+from→to instruction, not a controller input.
+
+```
+board FEN ─► analyze_fen(depth = bot strength) ─► ChessBot.decide() ─► on the bot's turn:
+                                                   ├─ TTS "I move my knight from g8 to f6."
+                                                   ├─ event gaming_assistant_chess_move
+                                                   └─ MQTT gaming_assistant/{id}/chess_move
+```
+
 **Event-driven escalation.** Tier 2 is no longer run on every frame.
 `coordinator._process_image` consults `PerceptionTier.should_escalate()`
 and spends an LLM call only when:
@@ -211,6 +231,8 @@ than a dead-end recap:
 | In | `gaming_assistant/{client_id}/board` | Board position as FEN for chess grounding (JSON) |
 | Out | `gaming_assistant/tip` | Latest tip (string) |
 | Out | `gaming_assistant/status` | `analyzing` / `idle` / `error` |
+| Out | `gaming_assistant/{client_id}/chess_move` | Chess bot's move or final word (JSON) |
+| Out | `gaming_assistant/board/command` | `{"command": "reset"}` to the board-vision workers (new game) |
 | Experimental | `gaming_assistant/{client_id}/action` | Structured JSON action (Phase 5) |
 
 ## Processing Pipeline

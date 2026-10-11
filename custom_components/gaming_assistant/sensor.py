@@ -434,6 +434,7 @@ class GamingAssistantChessSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         g = self._coordinator.chess_grounding
+        bot = self._coordinator.chess_bot_last_move or {}
         return {
             "available": g.get("available", False),
             "valid": g.get("valid", False),
@@ -450,4 +451,10 @@ class GamingAssistantChessSensor(CoordinatorEntity, SensorEntity):
             "checks": g.get("checks"),
             "fen": g.get("fen"),
             "error": g.get("error"),
+            "bot_enabled": self._coordinator.chess_bot_enabled,
+            "bot_color": self._coordinator.chess_bot_color,
+            "bot_strength": self._coordinator.chess_bot_strength,
+            "bot_move": bot.get("san"),
+            "bot_move_uci": bot.get("uci"),
+            "bot_speech": bot.get("speech"),
         }

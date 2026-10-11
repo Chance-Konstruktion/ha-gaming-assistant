@@ -94,6 +94,21 @@
           "medium": "Mittel",
           "high": "Hoch"
         }
+      },
+      "source_type": {
+        "name": "Quelltyp",
+        "state": {
+          "auto": "Automatisch",
+          "console": "Konsole / Bildschirm",
+          "tabletop": "Brettspiel am Tisch"
+        }
+      },
+      "chess_bot_color": {
+        "name": "Schach-Bot spielt",
+        "state": {
+          "white": "Weiß",
+          "black": "Schwarz"
+        }
       }
     },
     "number": {
@@ -102,6 +117,9 @@
       },
       "timeout": {
         "name": "Analyse-Timeout"
+      },
+      "chess_bot_strength": {
+        "name": "Schach-Bot Spielstärke"
       }
     },
     "switch": {
@@ -119,6 +137,9 @@
       },
       "strategy_reflection": {
         "name": "Strategie-LLM-Reflexion"
+      },
+      "chess_bot": {
+        "name": "Schach-Bot"
       }
     },
     "button": {

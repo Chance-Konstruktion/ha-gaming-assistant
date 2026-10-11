@@ -9,6 +9,7 @@ coordinator and exercise its logic for real.
 """
 
 import asyncio
+import json
 import sys
 import tempfile
 import time
@@ -503,6 +504,83 @@ class TestChessGrounding(unittest.TestCase):
         self.assertIn("error", result)
         # Nothing fed into game state for an invalid board.
         self.assertIsNone(self.coord.game_state_manager.get_current("unknown"))
+
+
+@unittest.skipUnless(_cg.is_available(), "python-chess not installed")
+class TestChessBot(unittest.TestCase):
+    """The chess bot answers on its turn: event, MQTT move, TTS announce."""
+
+    _START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    _AFTER_E4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+
+    def setUp(self):
+        self.coord, self.hass = _make_coord()
+        _MQTT.async_publish.reset_mock()
+
+    def _moves(self):
+        from custom_components.gaming_assistant.const import EVENT_CHESS_MOVE
+        return self.hass.bus.fired(EVENT_CHESS_MOVE)
+
+    def _published(self, topic):
+        return [c for c in _MQTT.async_publish.await_args_list if c.args[1] == topic]
+
+    def test_bot_off_stays_silent(self):
+        _run(self.coord._process_board("cam1", self._AFTER_E4))
+        self.assertEqual(self._moves(), [])
+        self.assertFalse(self.coord.chess_bot_enabled)
+
+    def test_bot_answers_on_its_turn(self):
+        _run(self.coord.async_set_chess_bot(enabled=True, color="black"))
+        _run(self.coord._process_board("cam1", self._AFTER_E4))
+        moves = self._moves()
+        self.assertEqual(len(moves), 1)
+        self.assertEqual(moves[0]["kind"], "move")
+        self.assertEqual(moves[0]["client_id"], "cam1")
+        self.assertEqual(moves[0]["bot_color"], "black")
+        # Published for PC-side helpers.
+        sent = self._published("gaming_assistant/cam1/chess_move")
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(json.loads(sent[0].args[2])["uci"], moves[0]["uci"])
+        self.assertEqual(self.coord.chess_bot_last_move["san"], moves[0]["san"])
+
+    def test_bot_waits_on_the_opponents_turn_and_repeats(self):
+        _run(self.coord.async_set_chess_bot(enabled=True, color="white"))
+        _run(self.coord._process_board("cam1", self._AFTER_E4))
+        self.assertEqual(self._moves(), [])
+        _run(self.coord.async_set_chess_bot(color="black"))  # re-answers the board
+        _run(self.coord._process_board("cam1", self._AFTER_E4))  # same board again
+        self.assertEqual(len(self._moves()), 1)
+
+    def test_bot_announces_via_tts_when_configured(self):
+        self.coord._tts_entity = "tts.piper"
+        self.coord._tts_target = "media_player.kitchen"
+        _run(self.coord.async_set_chess_bot(enabled=True, color="black"))
+        _run(self.coord._process_board("cam1", self._AFTER_E4))
+        speak = self.hass.services.async_call.await_args
+        self.assertEqual(speak.args[:2], ("tts", "speak"))
+        self.assertEqual(speak.args[2]["message"], self._moves()[0]["speech"])
+
+    def test_new_game_resets_workers_and_white_bot_opens(self):
+        _run(self.coord.async_set_chess_bot(enabled=True, color="white", new_game=True))
+        reset = self._published("gaming_assistant/board/command")
+        self.assertEqual(json.loads(reset[0].args[2]), {"command": "reset"})
+        self.assertEqual(self.coord.chess_grounding["fen"], self._START)
+        moves = self._moves()
+        self.assertEqual(len(moves), 1)
+        self.assertEqual(moves[0]["fen"], self._START)
+
+    def test_new_game_answers_a_repeated_opening(self):
+        _run(self.coord.async_set_chess_bot(enabled=True, color="black"))
+        _run(self.coord._process_board("cam1", self._AFTER_E4))
+        _run(self.coord.async_set_chess_bot(new_game=True))
+        _run(self.coord._process_board("cam1", self._AFTER_E4))  # 1.e4 again
+        self.assertEqual(len(self._moves()), 2)
+
+    def test_strength_drives_search_depth(self):
+        _run(self.coord.async_set_chess_bot(enabled=True, strength=1))
+        with patch.object(_cg, "analyze_fen", wraps=_cg.analyze_fen) as analyze:
+            _run(self.coord._process_board("cam1", self._AFTER_E4))
+        self.assertEqual(analyze.call_args.args[1], 1)
 
 
 # ---------------------------------------------------------------------------

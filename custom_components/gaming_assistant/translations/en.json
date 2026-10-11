@@ -94,6 +94,21 @@
           "medium": "Medium",
           "high": "High"
         }
+      },
+      "source_type": {
+        "name": "Source Type",
+        "state": {
+          "auto": "Auto",
+          "console": "Console / screen",
+          "tabletop": "Tabletop"
+        }
+      },
+      "chess_bot_color": {
+        "name": "Chess Bot Plays",
+        "state": {
+          "white": "White",
+          "black": "Black"
+        }
       }
     },
     "number": {
@@ -102,6 +117,9 @@
       },
       "timeout": {
         "name": "Analysis Timeout"
+      },
+      "chess_bot_strength": {
+        "name": "Chess Bot Strength"
       }
     },
     "switch": {
@@ -119,6 +137,9 @@
       },
       "strategy_reflection": {
         "name": "Strategy LLM Reflection"
+      },
+      "chess_bot": {
+        "name": "Chess Bot"
       }
     },
     "button": {

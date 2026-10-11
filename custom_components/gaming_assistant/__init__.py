@@ -19,6 +19,7 @@ from .const import (
     DOMAIN,
     MAX_IMAGE_BYTES,
 )
+from .chess_bot import BOT_COLORS
 from .coordinator import GamingAssistantCoordinator
 from .prompt_packs import download_prompt_packs
 
@@ -44,6 +45,7 @@ _ALL_SERVICES = (
     "set_game_hint", "list_game_packs", "set_source_type",
     "refresh_prompt_packs", "set_agent_mode", "send_yolo_command",
     "analyze_board", "confirm_agent_action", "reject_agent_action",
+    "set_chess_bot",
 )
 
 
@@ -448,6 +450,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     )
                     break
 
+        async def handle_set_chess_bot(call: ServiceCall) -> None:
+            """Configure the chess bot (GA-110); optionally start a new game."""
+            # Validate everything first so a bad call changes nothing.
+            color = call.data.get("color")
+            if color is not None and color not in BOT_COLORS:
+                raise HomeAssistantError(
+                    f"set_chess_bot: color must be one of {BOT_COLORS}, got {color!r}"
+                )
+            strength = call.data.get("strength")
+            try:
+                strength = None if strength is None else int(strength)
+            except (TypeError, ValueError) as err:
+                raise HomeAssistantError(
+                    f"set_chess_bot: strength must be a number, got {strength!r}"
+                ) from err
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_set_chess_bot(
+                        enabled=call.data.get("enabled"),
+                        color=color,
+                        strength=strength,
+                        new_game=bool(call.data.get("new_game", False)),
+                    )
+                    break
+
         async def handle_confirm_agent_action(call: ServiceCall) -> None:
             """Send the Agent Mode action that is waiting for confirmation."""
             action_id = (call.data.get("action_id") or "").strip() or None
@@ -586,6 +613,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "set_source_type", handle_set_source_type)
         hass.services.async_register(DOMAIN, "analyze_board", handle_analyze_board)
         hass.services.async_register(DOMAIN, "set_agent_mode", handle_set_agent_mode)
+        hass.services.async_register(DOMAIN, "set_chess_bot", handle_set_chess_bot)
         hass.services.async_register(
             DOMAIN, "confirm_agent_action", handle_confirm_agent_action
         )

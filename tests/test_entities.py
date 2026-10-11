@@ -7,7 +7,7 @@ import asyncio
 import sys
 import types
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 
 # ---------------------------------------------------------------------------
@@ -117,11 +117,13 @@ for mod_key in list(sys.modules.keys()):
 
 from custom_components.gaming_assistant.select import (
     AssistantModeSelect,
+    ChessBotColorSelect,
     SpoilerLevelSelect,
 )
 from custom_components.gaming_assistant.number import (
     AnalysisIntervalNumber,
     AnalysisTimeoutNumber,
+    ChessBotStrengthNumber,
 )
 from custom_components.gaming_assistant.const import (
     ASSISTANT_MODES,
@@ -315,6 +317,40 @@ class TestSpoilerManagerDefaultLevel(unittest.TestCase):
         # no initialize called
         self.assertEqual(mgr.default_level, "medium")  # DEFAULT_SPOILER_LEVEL
 
+
+
+class TestChessBotControls(unittest.TestCase):
+    """Color select and strength number drive the chess bot."""
+
+    def _coord(self):
+        coord = MagicMock()
+        coord.chess_bot_color = "black"
+        coord.chess_bot_strength = 3
+        coord.async_set_chess_bot = AsyncMock()
+        return coord
+
+    def test_color_select(self):
+        coord = self._coord()
+        entity = ChessBotColorSelect(coord)
+        self.assertEqual(entity.current_option, "black")
+        self.assertEqual(ChessBotColorSelect._attr_options, ["white", "black"])
+        _run(entity.async_select_option("white"))
+        coord.async_set_chess_bot.assert_awaited_once_with(color="white")
+        self.assertEqual(
+            ChessBotColorSelect._attr_unique_id, "gaming_assistant_chess_bot_color"
+        )
+
+    def test_strength_number(self):
+        coord = self._coord()
+        entity = ChessBotStrengthNumber(coord)
+        self.assertEqual(entity.native_value, 3)
+        self.assertEqual(
+            (ChessBotStrengthNumber._attr_native_min_value,
+             ChessBotStrengthNumber._attr_native_max_value),
+            (1, 4),
+        )
+        _run(entity.async_set_native_value(2.0))
+        coord.async_set_chess_bot.assert_awaited_once_with(strength=2)
 
 if __name__ == "__main__":
     unittest.main()

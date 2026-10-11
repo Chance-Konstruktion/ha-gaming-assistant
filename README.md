@@ -63,7 +63,7 @@ Ollama on your gaming rig or NAS. Cloud backends optional, never required. Zero 
 `Coach` · `Co-Player` · `Opponent` · `Analyst` — switch live from the dashboard or by voice.
 
 **🃏 Tabletop + console too**
-Chess, Poker, Catan, UNO via webcam. Consoles via HDMI capture or IP webcam. No PC needed.
+Chess, Poker, Catan, UNO via webcam. Consoles via HDMI capture or IP webcam. No PC needed. Play a real chess game against Home Assistant — it says its moves out loud.
 
 **🎙 HA Assist conversation agent**
 "Wechsel modus auf gegner." "How do I beat this boss?" Both work.
@@ -530,7 +530,7 @@ For physical board games you often have **just a camera on a table and no client
 Feed it a board as FEN and read the result on `sensor.gaming_assistant_chess`:
 
 ```yaml
-# Manually / from an automation / from a future board-vision worker:
+# Manually or from an automation (the board-vision worker publishes over MQTT):
 service: gaming_assistant.analyze_board
 data:
   fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
@@ -556,6 +556,30 @@ python worker/board_vision.py \
 ```
 
 Point any capture agent (e.g. `capture_agent_ipcam.py` for an IP webcam) at the board so frames flow on `gaming_assistant/{id}/image`; the worker reads those. It assumes the game **starts from the standard position** and that each move is seen as a stable frame. The pixel layer is a **calibratable best-effort** — tune `--occupancy-std` / `--dark-below` for your board and lighting (robust auto corner-detection / a small classifier are future work). The reliable, fully-tested part is the geometry + move-inference; reset the tracker any time with an MQTT command `{"command": "reset"}` on `gaming_assistant/board/command`.
+
+</details>
+
+<details>
+<summary><b>Chess bot</b> — play a real game against Home Assistant</summary>
+
+Turn on `switch.gaming_assistant_chess_bot` and the assistant plays one side (`select.gaming_assistant_chess_bot_color`, Black by default). Whenever a new position arrives — from the board-vision worker, the board MQTT topic or `analyze_board` — and it is the bot's turn, it answers once:
+
+- **Out loud** through the TTS entity and media player set under *Configure*, in Home Assistant's language: *"Ich ziehe den Springer von g8 nach f6."* / *"I move my knight from g8 to f6."* You make the move for it on the board. Captures, castling, en passant, promotion, check and mate are spoken as full sentences, and the end of the game gets a last word.
+- **As the event** `gaming_assistant_chess_move` for automations: `kind` (`move` or `game_over`), `san`, `uci`, `from`, `to`, `piece`, `capture`, `promotion`, `check`, `checkmate`, `speech`, `fen`, `fen_after`, `client_id`, `bot_color`.
+- **Over MQTT** on `gaming_assistant/{client_id}/chess_move` (the same JSON), for anything that wants to play the move elsewhere, e.g. on a screen.
+
+`number.gaming_assistant_chess_bot_strength` is the engine's search depth: 1 answers instantly but plays weakly, 4 is the strongest the in-HA engine gets (about a second per move on a desktop CPU, longer on small hardware such as a Raspberry Pi). Start a game with:
+
+```yaml
+action: gaming_assistant.set_chess_bot
+data:
+  enabled: true
+  color: white      # the bot opens right away
+  strength: 3
+  new_game: true    # resets the board-vision worker and starts from the initial position
+```
+
+A position the bot has answered is not answered again, so a worker that repeats the same board does not make the bot repeat itself. It is a sparring partner, not Stockfish.
 
 </details>
 
@@ -645,6 +669,9 @@ data:
 | `switch.gaming_assistant_agent_confirm_actions` | Switch | Agent Mode: hold each action until confirmed (off by default) |
 | `button.gaming_assistant_agent_confirm_action` | Button | Send the pending agent action (available only while one waits) |
 | `button.gaming_assistant_agent_reject_action` | Button | Drop the pending agent action |
+| `switch.gaming_assistant_chess_bot` | Switch | Chess bot: the assistant plays one side (off by default) |
+| `select.gaming_assistant_chess_bot_color` | Select | Side the chess bot plays: white / black |
+| `number.gaming_assistant_chess_bot_strength` | Number | Chess bot strength = search depth (1–4) |
 
 </details>
 
@@ -667,6 +694,7 @@ data:
 | `sensor.gaming_assistant_agent_action` | Agent Mode audit: last decision status (attrs: full action, published/failed/rejected/expired counts, whitelist, pending action + id + expiry) |
 | `sensor.gaming_assistant_scene_change` | Tier 1 perception: last frame's scene-change magnitude (attrs: frame_motion, frames_skipped) |
 | `sensor.gaming_assistant_strategy` | Tier 3 strategic focus fed into tips (attrs: full_strategy, game) |
+| `sensor.gaming_assistant_chess` | Chess grounding: suggested move (attrs: eval, material, threats, FEN, chess bot state and its last move + sentence) |
 | `binary_sensor.gaming_mode` | ON when a game is detected |
 | `image.gaming_assistant_last_frame` | Last received JPEG (debug) |
 | `conversation.gaming_assistant` | Voice control via HA Assist |
@@ -693,6 +721,8 @@ data:
 | `gaming_assistant.refresh_prompt_packs` | Hot-reload community packs |
 | `gaming_assistant.set_agent_mode` | Agent Mode on/off, button whitelist, optional per-action confirmation |
 | `gaming_assistant.confirm_agent_action` / `.reject_agent_action` | Send or drop the action awaiting confirmation (optional `action_id`) |
+| `gaming_assistant.analyze_board` | Ground a chess position given as FEN (optional `client_id`) |
+| `gaming_assistant.set_chess_bot` | Chess bot on/off, side, strength; `new_game` starts from the initial position |
 
 > Mode, spoiler level, interval, and timeout are now controlled via **entities** — services are for one-shot actions.
 

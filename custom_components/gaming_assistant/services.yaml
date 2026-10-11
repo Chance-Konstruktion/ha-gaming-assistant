@@ -432,6 +432,49 @@ set_agent_mode:
       selector:
         boolean:
 
+set_chess_bot:
+  name: Set chess bot
+  description: >
+    Let the assistant play one side of a chess game. On its turn the bot
+    announces its move via TTS (for a physical board), fires
+    gaming_assistant_chess_move and publishes the move on
+    gaming_assistant/{client_id}/chess_move. Positions come from the
+    board-vision worker, the board MQTT topic or analyze_board.
+  fields:
+    enabled:
+      name: Enabled
+      description: Turn the chess bot on or off. Leave empty to keep it.
+      required: false
+      selector:
+        boolean:
+    color:
+      name: Bot plays
+      description: The side the bot plays. Leave empty to keep it.
+      required: false
+      selector:
+        select:
+          options:
+            - white
+            - black
+    strength:
+      name: Strength
+      description: Search depth, 1 (quick) to 4 (strongest). Leave empty to keep it.
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 4
+          step: 1
+    new_game:
+      name: New game
+      description: >
+        Start a new game from the initial position: resets the board-vision
+        workers, and a bot playing White announces its first move.
+      required: false
+      default: false
+      selector:
+        boolean:
+
 confirm_agent_action:
   name: Confirm agent action
   description: >

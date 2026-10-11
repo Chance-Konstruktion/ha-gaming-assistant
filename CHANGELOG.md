@@ -6,6 +6,21 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ### Added
 
+- **Chess bot — play a real game against Home Assistant** (GA-110). Turn on
+  `switch.gaming_assistant_chess_bot` (or call the new
+  `gaming_assistant.set_chess_bot` service) and the assistant plays one side
+  (`select.gaming_assistant_chess_bot_color`, Black by default) at a strength
+  of 1–4 (`number.gaming_assistant_chess_bot_strength`, the engine's search
+  depth). On its turn it says its move out loud through the configured TTS
+  entity, in Home Assistant's language ("Ich ziehe den Springer von g8 nach
+  f6." / "I move my knight from g8 to f6."), fires the
+  `gaming_assistant_chess_move` event and publishes the move as JSON on
+  `gaming_assistant/{client_id}/chess_move`. Captures, castling, en passant,
+  promotion, check and mate are spoken as full sentences, and the end of the
+  game gets a last word. `new_game: true` resets the board-vision worker and
+  starts from the initial position, so a bot playing White opens right away.
+  Each position is answered once. `sensor.gaming_assistant_chess` shows the
+  bot's state and last move.
 - **Agent Mode: optional confirmation per action** (GA-AUD). Off by default —
   whoever enables Agent Mode trusts their agent. When on
   (`switch.gaming_assistant_agent_confirm_actions` or `set_agent_mode` with
@@ -62,6 +77,9 @@ All notable changes to the Gaming Assistant for Home Assistant.
   the loop can defer the file write.
 - **`strings.json`**: added the missing `entity.switch.auto_summary.name` key
   (was already present in all translation files).
+- **Source type select**: `select.gaming_assistant_source_type` had no
+  translations; its states (auto / console / tabletop) are now translated in
+  all five languages.
 
 ## [260619] - 2026-06-19 — "Tiered Cognition, Edge Perception & Chess"
 

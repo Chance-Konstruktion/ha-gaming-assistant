@@ -135,6 +135,7 @@ from custom_components.gaming_assistant.button import (
 from custom_components.gaming_assistant.switch import (
     AgentConfirmSwitch,
     AgentModeSwitch,
+    ChessBotSwitch,
     AutoAnnounceSwitch,
     AutoSummarySwitch,
     StrategyReflectionSwitch,
@@ -257,6 +258,19 @@ class TestSwitches(unittest.TestCase):
         coord.set_agent_confirm.assert_called_with(False)
         self.assertEqual(sw._attr_unique_id, "gaming_assistant_agent_confirm")
         self.assertEqual(sw._attr_translation_key, "agent_confirm")
+
+
+    def test_chess_bot_switch(self):
+        coord = MagicMock()
+        coord.chess_bot_enabled = False
+        coord.async_set_chess_bot = AsyncMock()
+        sw = ChessBotSwitch(coord)
+        self.assertFalse(sw.is_on)
+        _run(sw.async_turn_on())
+        coord.async_set_chess_bot.assert_awaited_with(enabled=True)
+        _run(sw.async_turn_off())
+        coord.async_set_chess_bot.assert_awaited_with(enabled=False)
+        self.assertEqual(sw._attr_unique_id, "gaming_assistant_chess_bot")
 
 
 class TestAgentActionButtons(unittest.TestCase):

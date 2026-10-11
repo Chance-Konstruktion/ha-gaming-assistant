@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .chess_bot import BOT_STRENGTH_MAX, BOT_STRENGTH_MIN
 from .const import DOMAIN
 from .coordinator import GamingAssistantCoordinator
 
@@ -25,6 +26,7 @@ async def async_setup_entry(
     async_add_entities([
         AnalysisIntervalNumber(coordinator),
         AnalysisTimeoutNumber(coordinator),
+        ChessBotStrengthNumber(coordinator),
     ])
 
 
@@ -78,3 +80,28 @@ class AnalysisTimeoutNumber(CoordinatorEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         self._coordinator.set_analysis_timeout(int(value))
+
+
+class ChessBotStrengthNumber(CoordinatorEntity, NumberEntity):
+    """Search depth the chess bot plays at (1 = quick, 4 = strongest)."""
+
+    _attr_name = "Gaming Assistant Chess Bot Strength"
+    _attr_unique_id = "gaming_assistant_chess_bot_strength"
+    _attr_icon = "mdi:chess-queen"
+    _attr_native_min_value = BOT_STRENGTH_MIN
+    _attr_native_max_value = BOT_STRENGTH_MAX
+    _attr_native_step = 1
+    _attr_mode = NumberMode.SLIDER
+    _attr_translation_key = "chess_bot_strength"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def native_value(self) -> float:
+        return self._coordinator.chess_bot_strength
+
+    async def async_set_native_value(self, value: float) -> None:
+        await self._coordinator.async_set_chess_bot(strength=int(value))

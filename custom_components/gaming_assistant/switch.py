@@ -28,6 +28,7 @@ async def async_setup_entry(
         AgentModeSwitch(coordinator),
         AgentConfirmSwitch(coordinator),
         StrategyReflectionSwitch(coordinator),
+        ChessBotSwitch(coordinator),
     ])
 
 
@@ -163,3 +164,32 @@ class StrategyReflectionSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs) -> None:
         self._coordinator.set_strategy_reflection(False)
+
+
+class ChessBotSwitch(CoordinatorEntity, SwitchEntity):
+    """Let the assistant play one side of the grounded chess game (GA-110).
+
+    The bot answers each new board position on its turn: it announces its
+    move via TTS (for a physical board), fires gaming_assistant_chess_move
+    and publishes the move for PC-side helpers. Off by default.
+    """
+
+    _attr_name = "Gaming Assistant Chess Bot"
+    _attr_unique_id = "gaming_assistant_chess_bot"
+    _attr_icon = "mdi:chess-knight"
+    _attr_translation_key = "chess_bot"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def is_on(self) -> bool:
+        return self._coordinator.chess_bot_enabled
+
+    async def async_turn_on(self, **kwargs) -> None:
+        await self._coordinator.async_set_chess_bot(enabled=True)
+
+    async def async_turn_off(self, **kwargs) -> None:
+        await self._coordinator.async_set_chess_bot(enabled=False)

@@ -39,6 +39,15 @@ MQTT_YOLO_STATUS_TOPIC = "gaming_assistant/+/status"
 # Agent Mode action topic (publish): {client_id} is the target capture client.
 MQTT_ACTION_TOPIC = "gaming_assistant/{client_id}/action"
 
+# Chess bot (publish): the bot's move for PC-side helpers that play it on a
+# screen; plus the board-vision workers' command topic ({"command": "reset"}).
+MQTT_CHESS_MOVE_TOPIC = "gaming_assistant/{client_id}/chess_move"
+MQTT_BOARD_COMMAND_TOPIC = "gaming_assistant/board/command"
+# Event fired when the chess bot moves (or calls the game over).
+EVENT_CHESS_MOVE = "gaming_assistant_chess_move"
+# Board used when the chess bot starts a new game.
+CHESS_START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
 # Spoiler Levels
 SPOILER_CATEGORIES = [
     "story", "items", "enemies", "bosses", "locations", "lore", "mechanics",

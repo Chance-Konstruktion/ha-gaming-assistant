@@ -94,6 +94,21 @@
           "medium": "Moyen",
           "high": "Élevé"
         }
+      },
+      "source_type": {
+        "name": "Type de source",
+        "state": {
+          "auto": "Automatique",
+          "console": "Console / écran",
+          "tabletop": "Jeu de plateau"
+        }
+      },
+      "chess_bot_color": {
+        "name": "Le bot joue les",
+        "state": {
+          "white": "Blancs",
+          "black": "Noirs"
+        }
       }
     },
     "number": {
@@ -102,6 +117,9 @@
       },
       "timeout": {
         "name": "Délai d'analyse"
+      },
+      "chess_bot_strength": {
+        "name": "Niveau du bot d'échecs"
       }
     },
     "switch": {
@@ -119,6 +137,9 @@
       },
       "strategy_reflection": {
         "name": "Réflexion LLM de stratégie"
+      },
+      "chess_bot": {
+        "name": "Bot d'échecs"
       }
     },
     "button": {
