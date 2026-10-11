@@ -553,3 +553,60 @@ send_yolo_command:
       required: false
       selector:
         text:
+
+open_remote_session:
+  name: Open remote session
+  description: >
+    Open a RustDesk session on a PC that runs worker/rustdesk_controller.py,
+    e.g. to take over the tablet from the gaming PC. The peer is a name
+    configured on that PC; IDs and passwords never pass through Home
+    Assistant. RustDesk cannot close sessions by command; end them in the
+    RustDesk window.
+  fields:
+    controller:
+      name: Controller
+      description: Client ID of the PC running the RustDesk controller.
+      required: true
+      example: "gaming-pc"
+      selector:
+        text:
+    peer:
+      name: Peer
+      description: Name of the device to connect to, as configured on that PC.
+      required: true
+      example: "tablet"
+      selector:
+        text:
+    mode:
+      name: Mode
+      description: Remote control or file transfer.
+      required: false
+      default: control
+      selector:
+        select:
+          options:
+            - control
+            - file_transfer
+
+companion_command:
+  name: Companion command
+  description: >
+    Run a named command on a device that runs worker/companion_listener.py:
+    pause, play_pause, mute, volume_up/down, next, previous, stop, or a name
+    defined there (a key such as Escape, or an Android key code via ADB).
+    Only names defined on that device do anything.
+  fields:
+    device:
+      name: Device
+      description: Client ID of the machine running the companion listener.
+      required: true
+      example: "gaming-pc"
+      selector:
+        text:
+    command:
+      name: Command
+      description: Name of the command, e.g. pause.
+      required: true
+      example: "pause"
+      selector:
+        text:

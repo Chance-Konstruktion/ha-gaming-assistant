@@ -652,6 +652,30 @@ data:
 
 ---
 
+## 🖥️ Remote control: RustDesk & companion *(experimental)*
+
+Two small workers let automations reach the devices you play on, next to (not instead of) Agent Mode:
+
+- **RustDesk controller** (`worker/rustdesk_controller.py`) opens a [RustDesk](https://rustdesk.com) session on the PC where you sit, to a device configured there by name: *"open the tablet"* from a dashboard button, a voice command or an automation. IDs and passwords stay on that PC; Home Assistant only sends the name. RustDesk can be started by command but not scripted, so the session is yours to use, and you close it in its window.
+- **Companion listener** (`worker/companion_listener.py`) runs named commands where you play: media keys (`pause`, `play_pause`, `mute`, `volume_up` …) out of the box, plus your own keys (Escape, Space, F-keys …) or Android key codes sent over ADB to a tablet or TV, no app needed. Only names defined on that machine do anything; Home Assistant never sends a key.
+
+```bash
+pip install paho-mqtt
+python worker/rustdesk_controller.py --broker 192.168.1.10 --client-id gaming-pc --peer tablet=123456789
+python worker/companion_listener.py --broker 192.168.1.10 --client-id gaming-pc --dry-run
+```
+
+```yaml
+action: gaming_assistant.companion_command   # e.g. when the doorbell rings
+data:
+  device: gaming-pc
+  command: pause
+```
+
+Details, configuration and safety rails: [`docs/rustdesk_control.md`](docs/rustdesk_control.md) (German). Automation examples (doorbell pauses the game, co-player mode opens RustDesk) are in [`lovelace/automations_example.yaml`](lovelace/automations_example.yaml).
+
+---
+
 ## 🧩 Entities & services
 
 <details>
@@ -725,6 +749,8 @@ data:
 | `gaming_assistant.confirm_agent_action` / `.reject_agent_action` | Send or drop the action awaiting confirmation (optional `action_id`) |
 | `gaming_assistant.analyze_board` | Ground a chess position given as FEN (optional `client_id`) |
 | `gaming_assistant.set_chess_bot` | Chess bot on/off, side, strength; `new_game` starts from the initial position |
+| `gaming_assistant.open_remote_session` | Open a RustDesk session to a named device, via `rustdesk_controller.py` on a PC |
+| `gaming_assistant.companion_command` | Run a named command (pause, mute, a key, an ADB key code) via `companion_listener.py` |
 
 > Mode, spoiler level, interval, and timeout are now controlled via **entities** — services are for one-shot actions.
 

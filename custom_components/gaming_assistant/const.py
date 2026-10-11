@@ -43,6 +43,13 @@ MQTT_ACTION_TOPIC = "gaming_assistant/{client_id}/action"
 # screen; plus the board-vision workers' command topic ({"command": "reset"}).
 MQTT_CHESS_MOVE_TOPIC = "gaming_assistant/{client_id}/chess_move"
 MQTT_BOARD_COMMAND_TOPIC = "gaming_assistant/board/command"
+# Remote control (Phase 8): RustDesk sessions opened by
+# worker/rustdesk_controller.py, named commands run by
+# worker/companion_listener.py. {client_id} is the machine running the worker.
+MQTT_REMOTE_TOPIC = "gaming_assistant/{client_id}/remote"
+MQTT_COMPANION_TOPIC = "gaming_assistant/{client_id}/companion"
+REMOTE_SESSION_MODES = ["control", "file_transfer"]
+
 # Event fired when the chess bot moves (or calls the game over).
 EVENT_CHESS_MOVE = "gaming_assistant_chess_move"
 # Board used when the chess bot starts a new game.

@@ -202,9 +202,9 @@ Wichtige Einschränkung (siehe `docs/rustdesk_control.md`): RustDesk hat keine s
 | Task | Beschreibung | Status |
 |------|--------------|--------|
 | GA-118 | Architektur-Doku RustDesk-Steuerungskanal (`docs/rustdesk_control.md`) | ✅ |
-| GA-119 | `worker/rustdesk_controller.py` — Wrapper um RustDesk-CLI (Session auf-/abbauen, ID/Passwort-Handling, kein Code-Import → MIT-Lizenz unberührt) | ⬜ |
-| GA-120 | HA-Service `gaming_assistant.open_remote_session` (Zielgerät, optionaler Auto-Trigger bei Pause/Coplay) | ⬜ |
-| GA-121 | Optionaler Companion-Listener pro Zielgerät für scriptbare Pause-Aktionen (MQTT → lokale Medientaste/Shortcut), ergänzt RustDesk um automatisierbare Kommandos | ⬜ |
+| GA-119 | `worker/rustdesk_controller.py` — Wrapper um RustDesk-CLI (Session auf-/abbauen, ID/Passwort-Handling, kein Code-Import → MIT-Lizenz unberührt) | ✅ (unreleased) — öffnet Sessions (`--connect`/`--file-transfer`) zu lokal konfigurierten Peers; ID und Passwort bleiben auf dem PC. Schließen geht per RustDesk-CLI nicht. |
+| GA-120 | HA-Service `gaming_assistant.open_remote_session` (Zielgerät, optionaler Auto-Trigger bei Pause/Coplay) | ✅ (unreleased) — Service mit Controller, Peer und Modus; Auto-Trigger als Automation (Beispiel: Co-Player öffnet das Tablet). |
+| GA-121 | Optionaler Companion-Listener pro Zielgerät für scriptbare Pause-Aktionen (MQTT → lokale Medientaste/Shortcut), ergänzt RustDesk um automatisierbare Kommandos | ✅ (unreleased) — `worker/companion_listener.py` + Service `companion_command`: Medientasten, eigene Tasten (Windows, Linux, macOS), Android-Tastencodes per ADB; nur lokal definierte Namen. |
 
 ### Begleit-Apps & Test-Infrastruktur
 
@@ -289,10 +289,11 @@ Empfohlener Workflow je Task:
 - Unit-Tests für Spoiler, History, Prompt Builder, Pack-Validator.
 - Integrationstests mit gemocktem MQTT + Ollama API.
 - Regressionstests für Legacy-Topics.
-- Aktueller Stand (11.10.2026): **647 Tests**. 637 Unit-Tests in `tests/`
-  stubben Home Assistant weg; die 10 Tests in `tests_ha/` booten ein echtes
+- Aktueller Stand (11.10.2026): **681 Tests**. 668 Unit-Tests in `tests/`
+  stubben Home Assistant weg; die 13 Tests in `tests_ha/` booten ein echtes
   Home Assistant, laden die Integration und spielen die Agent-Bestätigung,
-  den Schach-Bot und Sprachfragen mit Bild durch (`pytest -c pytest-ha.ini`).
+  den Schach-Bot, Sprachfragen mit Bild und die Fernsteuer-Services durch
+  (`pytest -c pytest-ha.ini`).
 - In beiden CIs gilt `STRICT_NO_SKIP`: Ein übersprungener Test ist ein
   Fehler.
   - **GitLab** (Merge-Tor): Unit-Tests auf Python 3.13; der Ladetest

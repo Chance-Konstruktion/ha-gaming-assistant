@@ -6,6 +6,17 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ### Added
 
+- **Remote control: RustDesk & companion** (GA-119 – GA-121, experimental).
+  `worker/rustdesk_controller.py` opens RustDesk sessions on a PC to devices
+  configured there by name (the new `gaming_assistant.open_remote_session`
+  service sends only the name; IDs and passwords never pass through Home
+  Assistant). `worker/companion_listener.py` runs named commands where you
+  play (the new `gaming_assistant.companion_command` service): media keys out
+  of the box, plus your own keys or Android key codes over ADB. Both run only
+  what is defined on their machine, refuse floods, report results over MQTT,
+  and Home Assistant refuses client IDs that are not a single topic level.
+  Automation examples: doorbell pauses the game, Co-Player opens the tablet.
+
 - **Voice questions see the screen** (GA-IMV). A question to the Assist
   conversation agent now goes to the LLM together with the latest captured
   frame (if it is at most 2 minutes old and the model takes images), the

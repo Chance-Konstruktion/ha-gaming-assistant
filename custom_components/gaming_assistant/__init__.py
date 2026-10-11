@@ -45,7 +45,7 @@ _ALL_SERVICES = (
     "set_game_hint", "list_game_packs", "set_source_type",
     "refresh_prompt_packs", "set_agent_mode", "send_yolo_command",
     "analyze_board", "confirm_agent_action", "reject_agent_action",
-    "set_chess_bot",
+    "set_chess_bot", "open_remote_session", "companion_command",
 )
 
 
@@ -476,6 +476,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     )
                     break
 
+        async def handle_open_remote_session(call: ServiceCall) -> None:
+            """Open a RustDesk session via a RustDesk controller (GA-120)."""
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_open_remote_session(
+                        call.data.get("controller", ""),
+                        call.data.get("peer", ""),
+                        call.data.get("mode") or "control",
+                    )
+                    break
+
+        async def handle_companion_command(call: ServiceCall) -> None:
+            """Run a named command on a companion listener (GA-121)."""
+            for coord in hass.data[DOMAIN].values():
+                if isinstance(coord, GamingAssistantCoordinator):
+                    await coord.async_send_companion_command(
+                        call.data.get("device", ""), call.data.get("command", "")
+                    )
+                    break
+
         async def handle_confirm_agent_action(call: ServiceCall) -> None:
             """Send the Agent Mode action that is waiting for confirmation."""
             action_id = (call.data.get("action_id") or "").strip() or None
@@ -615,6 +635,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "analyze_board", handle_analyze_board)
         hass.services.async_register(DOMAIN, "set_agent_mode", handle_set_agent_mode)
         hass.services.async_register(DOMAIN, "set_chess_bot", handle_set_chess_bot)
+        hass.services.async_register(
+            DOMAIN, "open_remote_session", handle_open_remote_session
+        )
+        hass.services.async_register(DOMAIN, "companion_command", handle_companion_command)
         hass.services.async_register(
             DOMAIN, "confirm_agent_action", handle_confirm_agent_action
         )
