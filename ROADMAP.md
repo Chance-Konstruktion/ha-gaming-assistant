@@ -5,8 +5,8 @@ Statusangaben werden bei jeder Release aktualisiert; abgehakte Tasks
 bleiben als Beleg im Dokument stehen, damit nachvollziehbar ist, was
 ausgeliefert wurde.
 
-**Aktueller Stand:** Release 260619. Auf `main` liegen weitere, noch
-unveröffentlichte Änderungen (`CHANGELOG.md`, Abschnitt *Unreleased*).
+**Aktueller Stand:** Release 261011 (11.10.2026). Was danach auf `main`
+landet, steht in `CHANGELOG.md` unter *Unreleased*.
 Detaillierte Versionshistorie: `CHANGELOG.md`.
 
 Statusmarker:
@@ -111,7 +111,7 @@ Detailliertes Diagramm: `docs/architecture.md`.
 - Rund 150 Packs (Action, RPG, Tabletop, Card), beim HA-Start
   automatisch heruntergeladen und lokal gecacht (nicht im Repo gebündelt).
 - Prüfsummen (`checksums.json`, SHA-256) gegen kaputte oder unvollständige
-  Downloads; ein Pack mit gültigen Pflichtfeldern lädt immer (unreleased).
+  Downloads; ein Pack mit gültigen Pflichtfeldern lädt immer (v261011).
 
 ### Diagnose & UX — ✅
 - Sensoren: Tip, Status, Latency, Frames Processed, Error Count,
@@ -160,7 +160,7 @@ Detailliertes Diagramm: `docs/architecture.md`.
 | GA-CON | Conversation Agent (HA Assist, EN + DE) | ✅ v0.9.1 |
 | GA-LNG | Automatische Spracherkennung | ✅ v0.9 |
 | GA-CMP | Compact-Mode für kleine Modelle | ✅ v0.9 |
-| GA-IMV | Bild-Kontext bei Sprachfragen (Audio + Bild + Tipp) | ✅ (unreleased) — Fragen an den Assist-Agenten gehen mit dem letzten Bild (höchstens 2 Minuten alt), dem laufenden Spiel samt Quelltyp und dem zuletzt gehörten Tipp an das LLM; ohne frisches Bild wie bisher nur als Text. Service `ask` mit `use_last_frame`. |
+| GA-IMV | Bild-Kontext bei Sprachfragen (Audio + Bild + Tipp) | ✅ v261011 — Fragen an den Assist-Agenten gehen mit dem letzten Bild (höchstens 2 Minuten alt), dem laufenden Spiel samt Quelltyp und dem zuletzt gehörten Tipp an das LLM; ohne frisches Bild wie bisher nur als Text. Service `ask` mit `use_last_frame`. |
 
 ### Phase 5 — Agent Mode / Player 2 (v1.0.x)
 
@@ -168,18 +168,18 @@ Detailliertes Diagramm: `docs/architecture.md`.
 |------|--------------|--------|
 | GA-ACT | Action-Output-Format im PromptBuilder (JSON-Schema + Whitelist-Parser) | ✅ v0.13 |
 | GA-109 | `vgamepad`-Executor-Worker (`worker/agent_executor.py`, MQTT `gaming_assistant/{client_id}/action`, Whitelist + Audit-Log) | ✅ v260618 — Worker + Whitelist + Dry-Run + Not-Aus + Audit-Log. |
-| GA-110 | Schach-Bot-Prototyp auf Action-Mode (TTS-Ansage für physisches Schach + optional vgamepad für PC-Schach) | ✅ (unreleased) — `chess_bot.py` spielt eine Seite auf der In-HA-Engine, Stärke 1–4 = Suchtiefe. Auf seinem Zug sagt er ihn per TTS in der HA-Sprache an (DE/EN, ganze Sätze inkl. Schlagen, Rochade, en passant, Umwandlung, Schach/Matt), feuert `gaming_assistant_chess_move` und schickt den Zug als JSON auf `gaming_assistant/{client_id}/chess_move`. Schalter, Farb-Select, Stärke-Number, Service `set_chess_bot` mit `new_game` (setzt den Brett-Worker zurück). PC-Schach läuft über dieses MQTT-Topic statt über vgamepad, weil ein Schachzug eine Von-nach-Anweisung ist und kein Controller-Input. Offen: ein PC-Helfer, der den Zug in einer Schach-App ausführt; der bräuchte Maussteuerung statt Gamepad (Entscheidung bei Chris). |
-| GA-111 | ViZDoom-Hybrid: Reflex-Agent + LLM-Strategie | 🧪 (unreleased) — `worker/vizdoom_agent.py`: Reflexe im Worker (ViZDoom-Labels, jeder Tic: auf das größte Monster drehen, schießen, sobald das Fadenkreuz drauf ist; Leichen und Gegenstände zählen nicht), Strategie aus dem Agent-Modus (Bild, HUD-Zahlen und Tastenbelegung gehen an HA, die Controller-Aktion kommt zurück und wird kurz gehalten). Gleiche Leitplanken wie der Gamepad-Executor, nichts verlässt den Spielprozess. Neu in HA: Clients beschreiben ihre Tasten in `meta.controls`, der Aktions-Prompt übernimmt das. Gegen das echte ViZDoom 1.3.1 geprüft (11.10.2026): in `defend_the_center` 22 Abschüsse pro Runde mit Reflexen, 0 ohne; gehaltene Aktionen bewegen den Spieler; Leichen tauchen nicht mehr in den Labels auf. Offen: ein Lauf mit Vision-LLM über HA. |
-| GA-AUD | Audit-Log + konfigurierbare Bestätigung pro Aktion | ✅ — Action-Publishing (`set_agent_mode`, Switch, Whitelist, Audit, Reset-on-restart) seit v260618; Governor mit Drosselung, Totmannschalter, Audit-Sensor und -Event seit v260619. Optionale Bestätigung pro Aktion (unreleased): Schalter, zwei Buttons, Services `confirm_agent_action`/`reject_agent_action`, Ablauf nach 30 s, Beispiel für Handy-Benachrichtigung; standardmäßig aus (Abschnitt 10). |
+| GA-110 | Schach-Bot-Prototyp auf Action-Mode (TTS-Ansage für physisches Schach + optional vgamepad für PC-Schach) | ✅ v261011 — `chess_bot.py` spielt eine Seite auf der In-HA-Engine, Stärke 1–4 = Suchtiefe. Auf seinem Zug sagt er ihn per TTS in der HA-Sprache an (DE/EN, ganze Sätze inkl. Schlagen, Rochade, en passant, Umwandlung, Schach/Matt), feuert `gaming_assistant_chess_move` und schickt den Zug als JSON auf `gaming_assistant/{client_id}/chess_move`. Schalter, Farb-Select, Stärke-Number, Service `set_chess_bot` mit `new_game` (setzt den Brett-Worker zurück). PC-Schach läuft über dieses MQTT-Topic statt über vgamepad, weil ein Schachzug eine Von-nach-Anweisung ist und kein Controller-Input. Offen: ein PC-Helfer, der den Zug in einer Schach-App ausführt; der bräuchte Maussteuerung statt Gamepad (Entscheidung bei Chris). |
+| GA-111 | ViZDoom-Hybrid: Reflex-Agent + LLM-Strategie | 🧪 v261011 — `worker/vizdoom_agent.py`: Reflexe im Worker (ViZDoom-Labels, jeder Tic: auf das größte Monster drehen, schießen, sobald das Fadenkreuz drauf ist; Leichen und Gegenstände zählen nicht), Strategie aus dem Agent-Modus (Bild, HUD-Zahlen und Tastenbelegung gehen an HA, die Controller-Aktion kommt zurück und wird kurz gehalten). Gleiche Leitplanken wie der Gamepad-Executor, nichts verlässt den Spielprozess. Neu in HA: Clients beschreiben ihre Tasten in `meta.controls`, der Aktions-Prompt übernimmt das. Gegen das echte ViZDoom 1.3.1 geprüft (11.10.2026): in `defend_the_center` 22 Abschüsse pro Runde mit Reflexen, 0 ohne; gehaltene Aktionen bewegen den Spieler; Leichen tauchen nicht mehr in den Labels auf. Offen: ein Lauf mit Vision-LLM über HA. |
+| GA-AUD | Audit-Log + konfigurierbare Bestätigung pro Aktion | ✅ — Action-Publishing (`set_agent_mode`, Switch, Whitelist, Audit, Reset-on-restart) seit v260618; Governor mit Drosselung, Totmannschalter, Audit-Sensor und -Event seit v260619. Optionale Bestätigung pro Aktion seit v261011: Schalter, zwei Buttons, Services `confirm_agent_action`/`reject_agent_action`, Ablauf nach 30 s, Beispiel für Handy-Benachrichtigung; standardmäßig aus (Abschnitt 10). |
 
 ### Phase 6 — Community & Ökosystem
 
 | Task | Beschreibung | Status |
 |------|--------------|--------|
 | GA-113 | Prompt-Pack-Sharing über externe Community-Repo + Auto-Download + Hot-Reload | ✅ — Repo + Loader v0.4, Hot-Reload-Service v0.13 |
-| GA-114 | Multi-Client-Routing (eigene Einstellungen / History pro Client) | ✅ (unreleased) — `sensor.gaming_assistant_clients` und eine Geräte-Karte im Seitenpanel (Status, Spiel, zuletzt gesehen, letzter Tipp); pro Gerät eigener Modus, Ansage-Lautsprecher und Spiel-Hinweis über Panel oder Service `set_client_options`, gespeichert in den Optionen. Ein eigener Verlauf pro Gerät ist nicht dabei: Der Verlauf hängt am Spiel, und das passt besser. |
+| GA-114 | Multi-Client-Routing (eigene Einstellungen / History pro Client) | ✅ v261011 — `sensor.gaming_assistant_clients` und eine Geräte-Karte im Seitenpanel (Status, Spiel, zuletzt gesehen, letzter Tipp); pro Gerät eigener Modus, Ansage-Lautsprecher und Spiel-Hinweis über Panel oder Service `set_client_options`, gespeichert in den Optionen. Ein eigener Verlauf pro Gerät ist nicht dabei: Der Verlauf hängt am Spiel, und das passt besser. |
 | GA-115 | Pack-Authoring-Guide + Submission-Workflow (`docs/pack_authoring.md`) | ✅ v0.13 |
-| GA-116 | Issue-/PR-Templates + Release-Checkliste | ✅ (unreleased) — `docs/release_checkliste.md` (Weg eines Releases, vorher/Release/danach, was nie); MR- und Issue-Vorlagen im GitLab (`.gitlab/`), Issue-Formulare auf GitHub (`.github/ISSUE_TEMPLATE/`); GitHub-Release-Text aus `CHANGELOG.md` (`tools/changelog_section.py`). |
+| GA-116 | Issue-/PR-Templates + Release-Checkliste | ✅ v261011 — `docs/release_checkliste.md` (Weg eines Releases, vorher/Release/danach, was nie); MR- und Issue-Vorlagen im GitLab (`.gitlab/`), Issue-Formulare auf GitHub (`.github/ISSUE_TEMPLATE/`); GitHub-Release-Text aus `CHANGELOG.md` (`tools/changelog_section.py`). |
 
 ### Phase 7 — Multi-Modell & Performance
 
@@ -190,7 +190,7 @@ Detailliertes Diagramm: `docs/architecture.md`.
 | GA-OCR | HUD-OCR-Worker (`worker/ocr_agent.py`) – liest HP/Ammo/Score per OCR aus konfigurierten Regionen und speist sie als gemessene Tier-1-Signale ein | ✅ v260619 |
 | GA-SND | Game-Audio-Worker (`worker/audio_agent.py`) – läuft **clientseitig auf dem Gaming-PC**, leitet Lautheit/Intensität/Onsets (Schüsse/Explosionen) lokal per DSP ab und schickt nur kompakte Tier-1-Signale; rohes Audio erreicht HA nie | ✅ v260619 (bis 08.10.2026 doppelt als GA-AUD geführt) |
 | GA-CHS | Schach-Grounding (`chess_grounding.py`) – läuft **in HA** (pure-Python `python-chess`, kein Zusatzserver/kein Stockfish), da Brettspiele am Tisch oft nur mit Cam und **ohne Client** laufen; validiert FEN, rechnet legale Züge/Material/Drohungen + besten Zug und speist alles als Tier-1-Signale ein | ✅ v260619 |
-| GA-BVW | Board-Vision-Worker (`worker/board_vision.py`) – Client-seitig: entzerrt das physische Brett aus 4 Eckpunkten, misst Belegung+Figurenfarbe und leitet den Zug per **Tracking** ab (keine Figuren-Typ-Klassifikation nötig) → publiziert FEN an `…/board`. Pixel-Schicht ist kalibrierbarer Best-Effort; Kern (Geometrie + Zug-Inferenz) voll getestet | ✅ (unreleased) |
+| GA-BVW | Board-Vision-Worker (`worker/board_vision.py`) – Client-seitig: entzerrt das physische Brett aus 4 Eckpunkten, misst Belegung+Figurenfarbe und leitet den Zug per **Tracking** ab (keine Figuren-Typ-Klassifikation nötig) → publiziert FEN an `…/board`. Pixel-Schicht ist kalibrierbarer Best-Effort; Kern (Geometrie + Zug-Inferenz) voll getestet | ✅ v261011 |
 | GA-GST | Game-State-Engine + Trend Detection | ✅ v0.10 |
 
 ### Phase 8 — Remote Device Control (RustDesk)
@@ -202,16 +202,16 @@ Wichtige Einschränkung (siehe `docs/rustdesk_control.md`): RustDesk hat keine s
 | Task | Beschreibung | Status |
 |------|--------------|--------|
 | GA-118 | Architektur-Doku RustDesk-Steuerungskanal (`docs/rustdesk_control.md`) | ✅ |
-| GA-119 | `worker/rustdesk_controller.py` — Wrapper um RustDesk-CLI (Session auf-/abbauen, ID/Passwort-Handling, kein Code-Import → MIT-Lizenz unberührt) | ✅ (unreleased) — öffnet Sessions (`--connect`/`--file-transfer`) zu lokal konfigurierten Peers; ID und Passwort bleiben auf dem PC. Schließen geht per RustDesk-CLI nicht. |
-| GA-120 | HA-Service `gaming_assistant.open_remote_session` (Zielgerät, optionaler Auto-Trigger bei Pause/Coplay) | ✅ (unreleased) — Service mit Controller, Peer und Modus; Auto-Trigger als Automation (Beispiel: Co-Player öffnet das Tablet). |
-| GA-121 | Optionaler Companion-Listener pro Zielgerät für scriptbare Pause-Aktionen (MQTT → lokale Medientaste/Shortcut), ergänzt RustDesk um automatisierbare Kommandos | ✅ (unreleased) — `worker/companion_listener.py` + Service `companion_command`: Medientasten, eigene Tasten (Windows, Linux, macOS), Android-Tastencodes per ADB; nur lokal definierte Namen. |
+| GA-119 | `worker/rustdesk_controller.py` — Wrapper um RustDesk-CLI (Session auf-/abbauen, ID/Passwort-Handling, kein Code-Import → MIT-Lizenz unberührt) | ✅ v261011 — öffnet Sessions (`--connect`/`--file-transfer`) zu lokal konfigurierten Peers; ID und Passwort bleiben auf dem PC. Schließen geht per RustDesk-CLI nicht. |
+| GA-120 | HA-Service `gaming_assistant.open_remote_session` (Zielgerät, optionaler Auto-Trigger bei Pause/Coplay) | ✅ v261011 — Service mit Controller, Peer und Modus; Auto-Trigger als Automation (Beispiel: Co-Player öffnet das Tablet). |
+| GA-121 | Optionaler Companion-Listener pro Zielgerät für scriptbare Pause-Aktionen (MQTT → lokale Medientaste/Shortcut), ergänzt RustDesk um automatisierbare Kommandos | ✅ v261011 — `worker/companion_listener.py` + Service `companion_command`: Medientasten, eigene Tasten (Windows, Linux, macOS), Android-Tastencodes per ADB; nur lokal definierte Namen. |
 
 ### Begleit-Apps & Test-Infrastruktur
 
 | Task | Beschreibung | Status |
 |------|--------------|--------|
 | GA-AND | Android Capture Agent (eigene App, Foreground-Service, CI-Build) | ✅ v0.11/v0.12 |
-| GA-112 | Android Draw-Over-Apps Overlay (Kotlin Begleit-App) | ✅ (unreleased) — in der Capture-App statt einer eigenen App: Option „Tipps über dem Spiel anzeigen“, Box zum Verschieben/Antippen, beim Screenshot unsichtbar. HA veröffentlicht dafür jeden Tipp auf `gaming_assistant/{client_id}/tip` (und `gaming_assistant/tip`, was auch das PC-Overlay repariert). Lokal gebaut und im Emulator (Android 14) geprüft; MQTT-Empfang nicht, mangels Broker. |
+| GA-112 | Android Draw-Over-Apps Overlay (Kotlin Begleit-App) | ✅ v261011 — in der Capture-App statt einer eigenen App: Option „Tipps über dem Spiel anzeigen“, Box zum Verschieben/Antippen, beim Screenshot unsichtbar. HA veröffentlicht dafür jeden Tipp auf `gaming_assistant/{client_id}/tip` (und `gaming_assistant/tip`, was auch das PC-Overlay repariert). Lokal gebaut und im Emulator (Android 14) geprüft; MQTT-Empfang nicht, mangels Broker. |
 | GA-117 | Test-Harness mit Beispielbildern für reproduzierbare E2E | ✅ v0.13 (`tests/fixtures/`) |
 
 ---
@@ -392,11 +392,13 @@ Bei folgenden Themen vor Implementierung Entscheidung dokumentieren:
 - Phasen 1–4 sind vollständig ausgeliefert.
 - v0.13 hat die letzten Capture- und Diagnose-Lücken geschlossen; 260619
   brachte die Stufen-Architektur, die Edge-Worker und Schach in HA.
-- Nächster großer Hebel ist **Phase 5** (Agent Mode mit vgamepad). Executor
-  (`worker/agent_executor.py`, GA-109) und HA-seitiges Action-Publishing
-  mit Governor (GA-AUD) sind ausgeliefert, die optionale Bestätigung pro
-  Aktion und der Schach-Bot (GA-110) liegen auf `main`; es fehlt der
-  ViZDoom-Versuch (GA-111).
+- 261011 schließt **Phase 5** (Agent Mode / Player 2) mit optionaler
+  Bestätigung pro Aktion, Schach-Bot (GA-110) und ViZDoom-Hybrid (GA-111)
+  ab, dazu Sprachfragen mit Bild (GA-IMV), Einstellungen pro Gerät (GA-114),
+  Release-Checkliste (GA-116), Android-Overlay (GA-112) und Fernsteuerung
+  über RustDesk und Companion (Phase 8, GA-119 bis GA-121).
+- Offen bleibt vor allem ein Lauf des ViZDoom-Hybrids mit einem Vision-LLM
+  über HA.
 - Die Prompt-Packs liegen im separaten Repo `ha-gaming-assistant-prompts`
   und werden per Auto-Download und `refresh_prompt_packs`-Service direkt in
   jede Installation gespiegelt.

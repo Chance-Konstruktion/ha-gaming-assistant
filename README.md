@@ -94,7 +94,7 @@ Real-time object detection (CUDA / NCNN / Hailo-8L / TFLite) and HUD number OCR 
 
 ## 🧠 Architecture
 
-`v260619` is a **Thin Client** design. The gaming device only captures and ships frames. All intelligence lives in Home Assistant.
+`v261011` is a **Thin Client** design. The gaming device only captures and ships frames. All intelligence lives in Home Assistant.
 
 ```
 ┌─────────────────────────────────────────┐        ┌───────────────────────────────────────────────┐
@@ -890,6 +890,6 @@ Issues, PRs, and prompt-pack submissions are welcome.
 
 **Built by gamers, for the HA homelab crowd.**
 
-<sub>v260619 · `Thin Client` · Local-first · Open source · Made with 🟦 and 🟪</sub>
+<sub>v261011 · `Thin Client` · Local-first · Open source · Made with 🟦 and 🟪</sub>
 
 </div>

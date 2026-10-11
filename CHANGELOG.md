@@ -4,6 +4,8 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ## [Unreleased]
 
+## [261011] - 2026-10-11 — "Player 2, Chess Bot & Remote Control"
+
 ### Added
 
 - **Android: tips on top of the game** (GA-112). The Android capture app can
