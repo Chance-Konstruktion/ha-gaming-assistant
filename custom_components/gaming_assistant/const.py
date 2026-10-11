@@ -48,6 +48,10 @@ EVENT_CHESS_MOVE = "gaming_assistant_chess_move"
 # Board used when the chess bot starts a new game.
 CHESS_START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
+# Questions with live context (voice via Assist, ask with use_last_frame)
+# use the latest captured frame only if it is at most this old (seconds).
+ASK_FRAME_MAX_AGE = 120
+
 # Spoiler Levels
 SPOILER_CATEGORIES = [
     "story", "items", "enemies", "bosses", "locations", "lore", "mechanics",

@@ -237,8 +237,9 @@ class TestConversationFallback(unittest.TestCase):
         entity, coord = _make_entity()
         coord.async_ask = AsyncMock(return_value="Try using fire arrows.")
         result = _process(entity, "How do I beat the dragon?")
+        # Voice questions are answered with what is on screen right now.
         coord.async_ask.assert_called_once_with(
-            question="How do I beat the dragon?"
+            question="How do I beat the dragon?", live_context=True
         )
         self.assertEqual(result.response._speech, "Try using fire arrows.")
 
@@ -269,7 +270,7 @@ class TestConversationFallback(unittest.TestCase):
         entity, coord = _make_entity()
         coord.async_ask = AsyncMock(return_value="Try checking the map.")
         result = _process(entity, "map?")
-        coord.async_ask.assert_called_once_with(question="map?")
+        coord.async_ask.assert_called_once_with(question="map?", live_context=True)
         self.assertIn("map", result.response._speech.lower())
 
 

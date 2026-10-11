@@ -160,7 +160,7 @@ Detailliertes Diagramm: `docs/architecture.md`.
 | GA-CON | Conversation Agent (HA Assist, EN + DE) | ✅ v0.9.1 |
 | GA-LNG | Automatische Spracherkennung | ✅ v0.9 |
 | GA-CMP | Compact-Mode für kleine Modelle | ✅ v0.9 |
-| GA-IMV | Bild-Kontext bei Sprachfragen (Audio + Bild + Tipp) | ⬜ optional |
+| GA-IMV | Bild-Kontext bei Sprachfragen (Audio + Bild + Tipp) | ✅ (unreleased) — Fragen an den Assist-Agenten gehen mit dem letzten Bild (höchstens 2 Minuten alt), dem laufenden Spiel samt Quelltyp und dem zuletzt gehörten Tipp an das LLM; ohne frisches Bild wie bisher nur als Text. Service `ask` mit `use_last_frame`. |
 
 ### Phase 5 — Agent Mode / Player 2 (v1.0.x)
 
@@ -289,10 +289,10 @@ Empfohlener Workflow je Task:
 - Unit-Tests für Spoiler, History, Prompt Builder, Pack-Validator.
 - Integrationstests mit gemocktem MQTT + Ollama API.
 - Regressionstests für Legacy-Topics.
-- Aktueller Stand (11.10.2026): **627 Tests**. 619 Unit-Tests in `tests/`
-  stubben Home Assistant weg; die 8 Tests in `tests_ha/` booten ein echtes
-  Home Assistant, laden die Integration und spielen die Agent-Bestätigung
-  und den Schach-Bot durch (`pytest -c pytest-ha.ini`).
+- Aktueller Stand (11.10.2026): **639 Tests**. 629 Unit-Tests in `tests/`
+  stubben Home Assistant weg; die 10 Tests in `tests_ha/` booten ein echtes
+  Home Assistant, laden die Integration und spielen die Agent-Bestätigung,
+  den Schach-Bot und Sprachfragen mit Bild durch (`pytest -c pytest-ha.ini`).
 - In beiden CIs gilt `STRICT_NO_SKIP`: Ein übersprungener Test ist ein
   Fehler.
   - **GitLab** (Merge-Tor): Unit-Tests auf Python 3.13; der Ladetest

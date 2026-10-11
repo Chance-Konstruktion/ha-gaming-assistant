@@ -80,6 +80,26 @@ class TestActionMode(unittest.TestCase):
         self.assertIn("DPAD_UP", prompt)
         self.assertIn("JSON", prompt)
 
+    def test_question_with_live_screen_and_last_tip(self):
+        prompt = PromptBuilder.build(
+            game="Elden Ring", user_question="How do I beat this boss?",
+            last_tip="Dodge into his swings.", live_screen=True,
+        )
+        self.assertIn("The attached image is the player's screen right now.", prompt)
+        self.assertIn("Your most recent tip to the player was: Dodge into his swings.", prompt)
+        # Context comes before the question it explains.
+        self.assertLess(prompt.index("Dodge into"), prompt.index("The player asks:"))
+        compact = PromptBuilder.build(
+            user_question="And now?", last_tip="Heal.", live_screen=True, compact=True
+        )
+        self.assertIn("Image: the player's screen right now.", compact)
+        self.assertIn("Your last tip: Heal.", compact)
+
+    def test_live_context_only_for_questions(self):
+        prompt = PromptBuilder.build(game="Doom", last_tip="Reload.", live_screen=True)
+        self.assertNotIn("Reload.", prompt)
+        self.assertNotIn("screen right now", prompt)
+
     def test_build_action_compact(self):
         prompt = PromptBuilder.build_action(game="Chess", compact=True)
         self.assertIn("JSON", prompt)

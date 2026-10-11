@@ -6,6 +6,15 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ### Added
 
+- **Voice questions see the screen** (GA-IMV). A question to the Assist
+  conversation agent now goes to the LLM together with the latest captured
+  frame (if it is at most 2 minutes old and the model takes images), the
+  current game and its source type, and the tip the player heard last. "How do I beat this boss?" is
+  answered about the boss on screen. Without a recent frame the question is
+  answered from text as before. The `gaming_assistant.ask` service gains
+  `use_last_frame` to do the same; an image or game hint passed explicitly
+  still wins.
+
 - **Chess bot — play a real game against Home Assistant** (GA-110). Turn on
   `switch.gaming_assistant_chess_bot` (or call the new
   `gaming_assistant.set_chess_bot` service) and the assistant plays one side
@@ -77,6 +86,8 @@ All notable changes to the Gaming Assistant for Home Assistant.
   the loop can defer the file write.
 - **`strings.json`**: added the missing `entity.switch.auto_summary.name` key
   (was already present in all translation files).
+- **`ask` and `process_image` with `image_path`** no longer read the file on
+  the event loop.
 - **Source type select**: `select.gaming_assistant_source_type` had no
   translations; its states (auto / console / tabletop) are now translated in
   all five languages.
