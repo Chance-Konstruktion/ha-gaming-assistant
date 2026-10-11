@@ -62,8 +62,9 @@ class GamingAssistantConversationEntity(
         if intent_response is not None:
             return self._respond(intent_response, user_input)
 
-        # Fall through: treat as a free-form question via the ask pipeline
-        answer = await self.coordinator.async_ask(question=text)
+        # Fall through: a free-form question, answered with what is on
+        # screen right now (latest frame, current game, last tip).
+        answer = await self.coordinator.async_ask(question=text, live_context=True)
         if answer:
             return self._respond(answer, user_input)
 

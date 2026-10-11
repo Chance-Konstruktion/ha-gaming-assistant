@@ -87,6 +87,17 @@ ask:
             - "android_tv"
             - "console"
             - "tabletop"
+    use_last_frame:
+      name: Use the current screen
+      description: >
+        Answer about what is happening right now: without an image of your
+        own, the latest captured frame (if at most 2 minutes old) is attached,
+        and the current game and the last tip go into the question. Voice
+        questions via Assist always do this.
+      required: false
+      default: false
+      selector:
+        boolean:
 
 set_spoiler_level:
   name: Set Spoiler Level

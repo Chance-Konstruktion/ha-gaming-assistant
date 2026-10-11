@@ -143,6 +143,25 @@ class TestAskPipeline(unittest.TestCase):
         self.assertEqual(answer, "Use the shotgun.")
         self.assertTrue(proc._backend.generate.await_count >= 1)
 
+    def test_ask_with_live_context(self):
+        proc = _make_processor("Hit the weak spot.")
+        _run(proc.ask(
+            question="How do I beat this boss?",
+            metadata={"window_title": "Doom"},
+            image_bytes=b"frame",
+            last_tip="Circle-strafe.",
+            live_screen=True,
+        ))
+        prompt = proc._backend.generate.call_args[0][0]
+        self.assertIn("screen right now", prompt)
+        self.assertIn("Circle-strafe.", prompt)
+
+    def test_live_screen_needs_an_image(self):
+        proc = _make_processor("Go left.")
+        _run(proc.ask(question="Where to?", image_bytes=None, live_screen=True))
+        prompt = proc._backend.generate_text.call_args[0][0]
+        self.assertNotIn("screen right now", prompt)
+
     def test_ask_without_image_uses_text_backend(self):
         proc = _make_processor("Go left.")
         answer = _run(proc.ask(

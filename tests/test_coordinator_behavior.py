@@ -118,6 +118,7 @@ import custom_components.gaming_assistant.camera_watcher as camera_watcher  # no
 from custom_components.gaming_assistant import chess_grounding as _cg  # noqa: E402
 from custom_components.gaming_assistant.const import (  # noqa: E402
     AGENT_MAX_CONSECUTIVE_FAILURES,
+    ASK_FRAME_MAX_AGE,
     EVENT_AGENT_ACTION,
     EVENT_NEW_TIP,
     EVENT_SESSION_ENDED,
@@ -774,6 +775,61 @@ class TestAsyncLifecycle(unittest.TestCase):
         self.assertEqual(out, "Use the rocket launcher.")
         self.assertEqual(self.coord.tip, "Use the rocket launcher.")
         self.assertTrue(self.hass.bus.fired(EVENT_NEW_TIP))
+
+    def _ask_live(self, **kwargs):
+        self.coord._image_processor.ask = AsyncMock(return_value="Aim for the eye.")
+        _run(self.coord.async_ask("How do I beat this boss?", live_context=True, **kwargs))
+        return self.coord._image_processor.ask.await_args.kwargs
+
+    def test_voice_question_sees_the_current_screen(self):
+        self.coord._client_metadata["cam_table"] = {
+            "client_type": "tabletop", "window_title": "Chess",
+        }
+        self.coord._record_last_image("cam_table", b"live-frame")
+        self.coord._tip = "Develop your knights."
+        sent = self._ask_live()
+        self.assertEqual(sent["image_bytes"], b"live-frame")
+        self.assertTrue(sent["live_screen"])
+        self.assertEqual(sent["metadata"]["client_type"], "tabletop")
+        self.assertEqual(sent["metadata"]["window_title"], "Chess")
+        self.assertEqual(sent["last_tip"], "Develop your knights.")
+
+    def test_current_game_wins_over_the_frame_title(self):
+        self.coord._client_metadata["rig1"] = {"window_title": "Doom"}
+        self.coord._record_last_image("rig1", b"frame")
+        self.coord._current_game = "Doom Eternal"
+        self.assertEqual(self._ask_live()["metadata"]["window_title"], "Doom Eternal")
+
+    def test_stale_frame_is_left_out(self):
+        self.coord._record_last_image("rig1", b"old-frame")
+        self.coord._last_image_monotonic -= ASK_FRAME_MAX_AGE + 1
+        sent = self._ask_live()
+        self.assertIsNone(sent["image_bytes"])
+        self.assertFalse(sent["live_screen"])
+        self.assertEqual(sent["last_tip"], "")  # no real tip yet
+
+    def test_text_only_model_gets_no_frame(self):
+        self.coord._record_last_image("rig1", b"frame")
+        self.coord._llm_backend.allow_images = False
+        sent = self._ask_live()
+        self.assertIsNone(sent["image_bytes"])
+        self.assertFalse(sent["live_screen"])
+
+    def test_own_image_and_hint_win(self):
+        self.coord._record_last_image("rig1", b"frame")
+        sent = self._ask_live(image_bytes=b"mine", game_hint="Celeste")
+        self.assertEqual(sent["image_bytes"], b"mine")
+        self.assertFalse(sent["live_screen"])
+        self.assertEqual(sent["metadata"]["window_title"], "Celeste")
+
+    def test_plain_ask_has_no_live_context(self):
+        self.coord._record_last_image("rig1", b"frame")
+        self.coord._tip = "Old tip."
+        self.coord._image_processor.ask = AsyncMock(return_value="ok")
+        _run(self.coord.async_ask("What now?"))
+        sent = self.coord._image_processor.ask.await_args.kwargs
+        self.assertIsNone(sent["image_bytes"])
+        self.assertEqual(sent["last_tip"], "")
 
     def test_persist_and_load_state_roundtrip(self):
         self.coord.game_state_manager.update("Doom", {"health": 50})

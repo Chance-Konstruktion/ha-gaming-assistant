@@ -121,12 +121,18 @@ class PromptBuilder:
         language: str = "",
         compact: bool = False,
         state_context: str = "",
+        last_tip: str = "",
+        live_screen: bool = False,
     ) -> str:
         """Assemble the full prompt in the correct order.
 
         When *compact* is True (recommended for small models like 3B),
         prompts are significantly shorter to fit within limited context
         and improve instruction-following.
+
+        For a question, *last_tip* is the tip the player heard most recently
+        and *live_screen* says the attached image is their screen right now,
+        so "this boss" or "what you just said" can be resolved.
         """
         parts: list[str] = []
 
@@ -180,6 +186,16 @@ class PromptBuilder:
 
         # 6. User question (ask-mode) or mode-specific instruction
         if user_question:
+            if live_screen:
+                parts.append(
+                    "Image: the player's screen right now." if compact
+                    else "The attached image is the player's screen right now."
+                )
+            if last_tip:
+                parts.append(
+                    f"Your last tip: {last_tip}" if compact
+                    else f"Your most recent tip to the player was: {last_tip}"
+                )
             parts.append(f"The player asks: {user_question}")
             if not compact:
                 parts.append("Answer the question directly and concisely.")

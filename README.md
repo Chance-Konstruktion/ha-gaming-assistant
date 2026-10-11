@@ -66,7 +66,7 @@ Ollama on your gaming rig or NAS. Cloud backends optional, never required. Zero 
 Chess, Poker, Catan, UNO via webcam. Consoles via HDMI capture or IP webcam. No PC needed. Play a real chess game against Home Assistant — it says its moves out loud.
 
 **🎙 HA Assist conversation agent**
-"Wechsel modus auf gegner." "How do I beat this boss?" Both work.
+"Wechsel modus auf gegner." "How do I beat this boss?" Both work, and the assistant looks at your screen to answer.
 
 **📦 150+ community prompt packs**
 ~50 games × base / cheats / secrets / completion flavors — Elden Ring, BG3, CS2, Zelda, Hearthstone, MTG Arena, FIFA, Civ VI, Rocket League… auto-downloaded from a sibling repo on first start (cached locally) and hot-reloaded on demand.
@@ -348,6 +348,8 @@ data:
 | "analyze" | "analysiere" | Force immediate analysis |
 
 Anything else is forwarded to the LLM as a free-form question. *"Was ist mein nächster Zug?"* works.
+
+Questions are answered with what is happening right now: the latest captured frame (if it is at most 2 minutes old), the current game and the tip you heard last go along, so *"How do I beat **this** boss?"* or *"What did you mean by that?"* make sense to the model. With no recent frame the question is answered from text alone. The `gaming_assistant.ask` service does the same with `use_last_frame: true`.
 
 </details>
 
@@ -709,7 +711,7 @@ data:
 | `gaming_assistant.analyze` | Trigger an immediate screenshot analysis |
 | `gaming_assistant.start` / `.stop` | Pause / resume capture |
 | `gaming_assistant.process_image` | Manually analyze an image (path or base64) |
-| `gaming_assistant.ask` | Ask a direct question (optional image) |
+| `gaming_assistant.ask` | Ask a direct question (optional image, or `use_last_frame` for the current screen) |
 | `gaming_assistant.set_spoiler_level` | Change spoiler settings per category/game |
 | `gaming_assistant.set_spoiler_profile` | Set/clear a per-game spoiler profile |
 | `gaming_assistant.clear_history` | Clear tip history |

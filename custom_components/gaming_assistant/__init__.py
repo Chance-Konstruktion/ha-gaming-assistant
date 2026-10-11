@@ -197,8 +197,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
             if image_path:
                 path = Path(image_path)
-                if path.exists():
-                    image_bytes = path.read_bytes()
+                if await hass.async_add_executor_job(path.exists):
+                    image_bytes = await hass.async_add_executor_job(path.read_bytes)
                 else:
                     _LOGGER.error("Image file not found: %s", image_path)
                     return
@@ -240,8 +240,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
             if image_path:
                 path = Path(image_path)
-                if path.exists():
-                    image_bytes = path.read_bytes()
+                if await hass.async_add_executor_job(path.exists):
+                    image_bytes = await hass.async_add_executor_job(path.read_bytes)
                 else:
                     _LOGGER.error("Image file not found: %s", image_path)
                     return
@@ -265,6 +265,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         image_bytes=image_bytes,
                         game_hint=game_hint,
                         client_type=client_type,
+                        live_context=bool(call.data.get("use_last_frame", False)),
                     )
                     break
 

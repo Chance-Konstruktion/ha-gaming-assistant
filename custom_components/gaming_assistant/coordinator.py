@@ -18,6 +18,7 @@ from homeassistant.helpers.event import async_call_later, async_track_time_inter
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
+    ASK_FRAME_MAX_AGE,
     ASSISTANT_MODES,
     CONF_AUTO_ANNOUNCE,
     CONF_LLM_ALLOW_IMAGES,
@@ -105,6 +106,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._last_image_bytes: bytes | None = None
         self._last_image_client_id: str = ""
         self._last_image_timestamp: str = ""
+        self._last_image_monotonic: float = 0.0
 
         # Configurable interval & timeout
         self._analysis_interval: int = config.get(CONF_INTERVAL, DEFAULT_INTERVAL)
@@ -991,6 +993,15 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._last_image_bytes = image_bytes
         self._last_image_client_id = client_id
         self._last_image_timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
+        self._last_image_monotonic = time.monotonic()
+
+    def _fresh_frame(self) -> bytes | None:
+        """The latest frame, if it is recent enough to show the game *now*."""
+        if self._last_image_bytes is None:
+            return None
+        if time.monotonic() - self._last_image_monotonic > ASK_FRAME_MAX_AGE:
+            return None
+        return self._last_image_bytes
 
     # -- MQTT setup with retry -----------------------------------------------
 
@@ -1213,12 +1224,35 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         image_bytes: bytes | None = None,
         game_hint: str = "",
         client_type: str = "pc",
+        live_context: bool = False,
     ) -> str:
-        """Answer a direct question, optionally with image context."""
+        """Answer a direct question, optionally with image context.
+
+        With *live_context* (voice questions via Assist, or ``ask`` with
+        ``use_last_frame``) the answer is about what is happening right now:
+        the latest frame if it is fresh (``ASK_FRAME_MAX_AGE``) and the model
+        takes images, the current game, the frame's client type and the tip
+        the player heard last. An explicit image or game hint still wins.
+        """
         metadata = {"client_type": client_type}
+        last_tip = ""
+        live_screen = False
         if game_hint:
             metadata["window_title"] = game_hint
             self._current_game = game_hint
+        if live_context:
+            frame_meta = self._client_metadata.get(self._last_image_client_id) or {}
+            # A text-only model would never see the frame; leave it out.
+            if image_bytes is None and getattr(self._llm_backend, "allow_images", True):
+                image_bytes = self._fresh_frame()
+                if image_bytes is not None:
+                    live_screen = True
+                    metadata["client_type"] = frame_meta.get("client_type", client_type)
+            game = game_hint or self._current_game or frame_meta.get("window_title", "")
+            if game:
+                metadata["window_title"] = game
+            if self._tip and self._tip != "Waiting for tips...":
+                last_tip = self._tip
 
         self._status = "analyzing"
         self.async_set_updated_data(self._build_data())
@@ -1229,6 +1263,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 client_id="ask",
                 metadata=metadata,
                 image_bytes=image_bytes,
+                last_tip=last_tip,
+                live_screen=live_screen,
             )
             if answer:
                 self._tip = answer

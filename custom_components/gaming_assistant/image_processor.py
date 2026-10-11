@@ -424,8 +424,14 @@ class ImageProcessor:
         client_id: str = "ask",
         metadata: dict | None = None,
         image_bytes: bytes | None = None,
+        last_tip: str = "",
+        live_screen: bool = False,
     ) -> str:
-        """Answer a direct user question (optional image context)."""
+        """Answer a direct user question (optional image context).
+
+        *last_tip* and *live_screen* add the live context of a voice question
+        (see :meth:`PromptBuilder.build`).
+        """
         metadata = metadata or {}
 
         game = metadata.get("window_title", "") or metadata.get("game", "")
@@ -460,6 +466,8 @@ class ImageProcessor:
             language=self._language,
             compact=self._compact,
             state_context=state_context,
+            last_tip=last_tip,
+            live_screen=live_screen and bool(image_bytes),
         )
 
         if image_bytes:
