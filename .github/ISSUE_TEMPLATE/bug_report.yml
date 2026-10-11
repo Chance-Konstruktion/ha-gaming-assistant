@@ -1,0 +1,62 @@
+name: Bug report
+description: Something in the Gaming Assistant does not work as described.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: What is broken, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.10.0"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Gaming Assistant version
+      description: Shown in HACS, or `version` in manifest.json.
+      placeholder: "260619"
+    validations:
+      required: true
+  - type: input
+    id: llm
+    attributes:
+      label: LLM backend and model
+      placeholder: "Ollama, qwen2.5vl:7b"
+  - type: dropdown
+    id: client
+    attributes:
+      label: Capture client
+      options:
+        - PC capture agent
+        - Android app
+        - Android TV (ADB)
+        - IP camera
+        - HDMI bridge
+        - Home Assistant camera entity
+        - Worker (YOLO, OCR, audio, board vision, agent executor)
+        - Other / not relevant
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log
+      description: >
+        Settings → System → Logs, filtered for "gaming_assistant". Please
+        remove tokens, passwords and addresses you do not want to share.
+      render: text

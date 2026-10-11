@@ -179,7 +179,7 @@ Detailliertes Diagramm: `docs/architecture.md`.
 | GA-113 | Prompt-Pack-Sharing über externe Community-Repo + Auto-Download + Hot-Reload | ✅ — Repo + Loader v0.4, Hot-Reload-Service v0.13 |
 | GA-114 | Multi-Client-Routing (eigene Einstellungen / History pro Client) | 🟡 — Active-Client-Tracking ist da, dedizierte UI fehlt |
 | GA-115 | Pack-Authoring-Guide + Submission-Workflow (`docs/pack_authoring.md`) | ✅ v0.13 |
-| GA-116 | Issue-/PR-Templates + Release-Checkliste | 🟡 — CI vorhanden, Checkliste fehlt |
+| GA-116 | Issue-/PR-Templates + Release-Checkliste | ✅ (unreleased) — `docs/release_checkliste.md` (Weg eines Releases, vorher/Release/danach, was nie); MR- und Issue-Vorlagen im GitLab (`.gitlab/`), Issue-Formulare auf GitHub (`.github/ISSUE_TEMPLATE/`); GitHub-Release-Text aus `CHANGELOG.md` (`tools/changelog_section.py`). |
 
 ### Phase 7 — Multi-Modell & Performance
 
@@ -289,7 +289,7 @@ Empfohlener Workflow je Task:
 - Unit-Tests für Spoiler, History, Prompt Builder, Pack-Validator.
 - Integrationstests mit gemocktem MQTT + Ollama API.
 - Regressionstests für Legacy-Topics.
-- Aktueller Stand (11.10.2026): **639 Tests**. 629 Unit-Tests in `tests/`
+- Aktueller Stand (11.10.2026): **647 Tests**. 637 Unit-Tests in `tests/`
   stubben Home Assistant weg; die 10 Tests in `tests_ha/` booten ein echtes
   Home Assistant, laden die Integration und spielen die Agent-Bestätigung,
   den Schach-Bot und Sprachfragen mit Bild durch (`pytest -c pytest-ha.ini`).
@@ -361,7 +361,7 @@ Ein Feature gilt als „done", wenn:
 
 ## 9) Dokumentationsplan
 
-Pro Release zu prüfen:
+Pro Release zu prüfen (Ablauf: `docs/release_checkliste.md`):
 - `README.md` (Installation, Setup, Beispiele).
 - `CHANGELOG.md` (Versionshistorie als Single-Source-of-Truth).
 - `docs/architecture.md` (Architekturdiagramm).
@@ -380,6 +380,7 @@ Bei folgenden Themen vor Implementierung Entscheidung dokumentieren:
 | Remote-Pack-Trust-Modell (Signaturen, Allowlist, manuelle Reviews) | ✅ entschieden am 08.10.2026: Vertrauen über die Herkunft. Alle Packs stammen von Chris (erstellt mit seinem OpenClaw-Bot) und werden vor der Veröffentlichung an drei externen Stellen auf Fehler und Schadcode geprüft. Keine Signaturen; die SHA-256-Prüfsummen sichern nur gegen kaputte oder unvollständige Downloads. |
 | Agent-Mode-Scope (nur „assistive actions" vs. volle Input-Kontrolle) | ✅ entschieden am 08.10.2026: volle Kontrolle. Wer seinen Agenten einbindet, vertraut ihm. Die Schutzschienen (Freigabeliste, Drosselung, Totmannschalter, Not-Aus, aus nach Neustart) bleiben als Voreinstellung; die Bestätigung pro Aktion wird optional und ist standardmäßig aus. |
 | Overlay im Hauptrepo vs. Companion-Repo | ✅ — Hauptrepo (`tools/`), reine Display-Komponente |
+| Zwei Wege zum GitHub-Release (GitLab-Job `github-release` und GitHub-Workflow `release.yml`) | ✅ geklärt am 11.10.2026 (Vorschlag Claude, Einspruch jederzeit): Beide bleiben. Der GitLab-Job kommt aus der gemeinsamen CI-Vorlage und sorgt in jedem Repo für ein GitHub-Release; der Workflow ergänzt hier Zip und CHANGELOG-Text. Die Reihenfolge ist egal, das Ergebnis gleich (`docs/release_checkliste.md`). |
 | Mindest-Hardwareprofil für empfehlenswerte Modelle | 🟡 — README-Tabelle vorhanden, nicht ADR-formal |
 
 ---

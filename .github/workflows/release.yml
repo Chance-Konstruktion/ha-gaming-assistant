@@ -21,8 +21,15 @@ jobs:
             custom_components/gaming_assistant \
             hacs.json README.md LICENSE
 
+      # The notes are the tag's section of CHANGELOG.md. GitHub's generated
+      # notes would list pull requests, and there are none here: development
+      # happens on GitLab. If the GitLab job "github-release" created the
+      # release first, this replaces its placeholder text and adds the zip.
+      - name: Release notes from CHANGELOG.md
+        run: python3 tools/changelog_section.py "${GITHUB_REF_NAME}" > dist/release-notes.md
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           files: dist/gaming_assistant_hacs.zip
-          generate_release_notes: true
+          body_path: dist/release-notes.md
