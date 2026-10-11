@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .chess_bot import BOT_COLORS
 from .const import (
     ASSISTANT_MODES,
     DOMAIN,
@@ -31,6 +32,7 @@ async def async_setup_entry(
         AssistantModeSelect(coordinator),
         SpoilerLevelSelect(coordinator),
         SourceTypeSelect(coordinator),
+        ChessBotColorSelect(coordinator),
     ])
 
 
@@ -98,3 +100,25 @@ class SourceTypeSelect(CoordinatorEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         self._coordinator.set_source_type(option)
+
+
+class ChessBotColorSelect(CoordinatorEntity, SelectEntity):
+    """Which side the chess bot plays (white / black)."""
+
+    _attr_name = "Gaming Assistant Chess Bot Color"
+    _attr_unique_id = "gaming_assistant_chess_bot_color"
+    _attr_icon = "mdi:chess-pawn"
+    _attr_options = BOT_COLORS
+    _attr_translation_key = "chess_bot_color"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def current_option(self) -> str:
+        return self._coordinator.chess_bot_color
+
+    async def async_select_option(self, option: str) -> None:
+        await self._coordinator.async_set_chess_bot(color=option)

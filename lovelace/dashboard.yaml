@@ -154,6 +154,32 @@ cards:
       {% else %}
       _No board analysed yet. Call `gaming_assistant.analyze_board` with a FEN._
       {% endif %}
+      {% set bot = state_attr('sensor.gaming_assistant_chess', 'bot_speech') %}
+      {% if bot and state_attr('sensor.gaming_assistant_chess', 'bot_enabled') %}
+
+      **Chess bot:** {{ bot }}
+      {% endif %}
+
+  # -- Chess bot: plays one side and says its moves via TTS ------------------
+  - type: entities
+    title: Chess Bot
+    entities:
+      - entity: switch.gaming_assistant_chess_bot
+        name: Play against me
+      - entity: select.gaming_assistant_chess_bot_color
+        name: Bot plays
+      - entity: number.gaming_assistant_chess_bot_strength
+        name: Strength
+      - type: button
+        name: New game
+        icon: mdi:restart
+        action_name: Start
+        tap_action:
+          action: call-service
+          service: gaming_assistant.set_chess_bot
+          data:
+            enabled: true
+            new_game: true
 
   # -- Last Received Frame (Debug) -------------------------------------------
   - type: picture-entity

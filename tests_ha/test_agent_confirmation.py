@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import time
 from datetime import timedelta
-from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -19,67 +18,24 @@ pytest.importorskip("homeassistant.setup", reason="needs a real Home Assistant (
 
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
-from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-    async_fire_time_changed,
-)
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.gaming_assistant.const import (
     AGENT_CONFIRM_TIMEOUT,
-    CONF_MODEL,
-    CONF_OLLAMA_HOST,
     DOMAIN,
     EVENT_AGENT_ACTION,
 )
+from ha_helpers import entity_id, published
 
 ACTION = {"action": "tap_button", "button": "A", "duration_ms": 80}
+ACTION_TOPIC = "gaming_assistant/rig1/action"
 
 
-async def _setup(hass: HomeAssistant):
-    assert await async_setup_component(hass, "homeassistant", {})
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={CONF_MODEL: "llava", CONF_OLLAMA_HOST: "http://localhost:11434"},
-        title="Gaming Assistant",
-    )
-    entry.add_to_hass(hass)
-    with patch(
-        "custom_components.gaming_assistant.download_prompt_packs",
-        new=AsyncMock(return_value=False),
-    ), patch(
-        "custom_components.gaming_assistant.coordinator."
-        "GamingAssistantCoordinator.async_fetch_available_models",
-        new=AsyncMock(return_value=[]),
-    ):
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
-    return entry, hass.data[DOMAIN][entry.entry_id]
-
-
-def _action_publishes(mqtt_mock) -> list:
-    """Payloads sent to an executor action topic.
-
-    Matches on the topic only: newer Home Assistant releases pass extra
-    keyword arguments (e.g. ``message_expiry_interval``) to the client.
-    """
-    return [
-        c.args[1]
-        for c in mqtt_mock.async_publish.call_args_list
-        if c.args and c.args[0] == "gaming_assistant/rig1/action"
-    ]
-
-
-def _entity_id(hass: HomeAssistant, domain: str, unique_id: str) -> str:
-    entity_id = er.async_get(hass).async_get_entity_id(domain, DOMAIN, unique_id)
-    assert entity_id is not None, f"{domain} {unique_id} was not registered"
-    return entity_id
-
-
-async def test_confirm_button_publishes_held_action(hass: HomeAssistant, mqtt_mock) -> None:
-    entry, coordinator = await _setup(hass)
+async def test_confirm_button_publishes_held_action(
+    hass: HomeAssistant, integration, mqtt_mock
+) -> None:
+    _, coordinator = integration
     events = []
     hass.bus.async_listen(EVENT_AGENT_ACTION, lambda e: events.append(e.data))
 
@@ -87,11 +43,11 @@ async def test_confirm_button_publishes_held_action(hass: HomeAssistant, mqtt_mo
         DOMAIN, "set_agent_mode", {"enabled": True, "confirm_actions": True}, blocking=True
     )
     assert coordinator.agent_mode and coordinator.agent_confirm
-    confirm_switch = _entity_id(hass, "switch", "gaming_assistant_agent_confirm")
+    confirm_switch = entity_id(hass, "switch", "gaming_assistant_agent_confirm")
     assert hass.states.get(confirm_switch).state == "on"
 
-    confirm_button = _entity_id(hass, "button", "gaming_assistant_agent_confirm_action")
-    reject_button = _entity_id(hass, "button", "gaming_assistant_agent_reject_action")
+    confirm_button = entity_id(hass, "button", "gaming_assistant_agent_confirm_action")
+    reject_button = entity_id(hass, "button", "gaming_assistant_agent_reject_action")
     # Nothing waits yet, so there is nothing to press.
     assert hass.states.get(confirm_button).state == STATE_UNAVAILABLE
     assert hass.states.get(reject_button).state == STATE_UNAVAILABLE
@@ -100,7 +56,7 @@ async def test_confirm_button_publishes_held_action(hass: HomeAssistant, mqtt_mo
     await hass.async_block_till_done()
     assert hass.states.get(confirm_button).state != STATE_UNAVAILABLE
     pending_id = coordinator.agent_pending_action["id"]
-    sensor = _entity_id(hass, "sensor", "gaming_assistant_agent_action")
+    sensor = entity_id(hass, "sensor", "gaming_assistant_agent_action")
     state = hass.states.get(sensor)
     assert state.state == "pending"
     assert state.attributes["pending_action_id"] == pending_id
@@ -111,7 +67,7 @@ async def test_confirm_button_publishes_held_action(hass: HomeAssistant, mqtt_mo
     )
     await hass.async_block_till_done()
 
-    assert len(_action_publishes(mqtt_mock)) == 1
+    assert len(published(mqtt_mock, ACTION_TOPIC)) == 1
     assert coordinator.agent_pending_action is None
     assert hass.states.get(confirm_button).state == STATE_UNAVAILABLE
     assert hass.states.get(sensor).state == "published"
@@ -120,12 +76,9 @@ async def test_confirm_button_publishes_held_action(hass: HomeAssistant, mqtt_mo
         ("published", pending_id),
     ]
 
-    assert await hass.config_entries.async_unload(entry.entry_id)
-    await hass.async_block_till_done()
 
-
-async def test_unanswered_action_expires(hass: HomeAssistant, mqtt_mock) -> None:
-    entry, coordinator = await _setup(hass)
+async def test_unanswered_action_expires(hass: HomeAssistant, integration, mqtt_mock) -> None:
+    _, coordinator = integration
     coordinator.set_agent_mode(True, confirm=True)
     coordinator._hold_agent_action("rig1", "Doom", dict(ACTION), time.monotonic(), "ts")
     await hass.async_block_till_done()
@@ -139,14 +92,11 @@ async def test_unanswered_action_expires(hass: HomeAssistant, mqtt_mock) -> None
     assert coordinator.agent_pending_action is None
     assert coordinator.agent_last_action_status == "expired"
     assert coordinator.agent_actions_expired == 1
-    assert _action_publishes(mqtt_mock) == []
-
-    assert await hass.config_entries.async_unload(entry.entry_id)
-    await hass.async_block_till_done()
+    assert published(mqtt_mock, ACTION_TOPIC) == []
 
 
-async def test_reject_service_with_action_id(hass: HomeAssistant, mqtt_mock) -> None:
-    entry, coordinator = await _setup(hass)
+async def test_reject_service_with_action_id(hass: HomeAssistant, integration) -> None:
+    _, coordinator = integration
     coordinator.set_agent_mode(True, confirm=True)
     coordinator._hold_agent_action("rig1", "Doom", dict(ACTION), time.monotonic(), "ts")
     await hass.async_block_till_done()
@@ -163,6 +113,3 @@ async def test_reject_service_with_action_id(hass: HomeAssistant, mqtt_mock) -> 
     )
     assert coordinator.agent_pending_action is None
     assert coordinator.agent_last_action_status == "rejected"
-
-    assert await hass.config_entries.async_unload(entry.entry_id)
-    await hass.async_block_till_done()

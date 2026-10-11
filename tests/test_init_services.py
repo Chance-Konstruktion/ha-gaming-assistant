@@ -236,6 +236,24 @@ class TestServiceHandlers(unittest.TestCase):
         self.assertTrue(self.coord.agent_mode)
         self.assertEqual(self.coord.agent_allowed_buttons, ["A", "B"])
 
+    def test_set_chess_bot(self):
+        _run(self.h["set_chess_bot"](self._call(
+            {"enabled": True, "color": "white", "strength": "2"}
+        )))
+        self.assertTrue(self.coord.chess_bot_enabled)
+        self.assertEqual(self.coord.chess_bot_color, "white")
+        self.assertEqual(self.coord.chess_bot_strength, 2)
+
+    def test_set_chess_bot_rejects_bad_input_without_changes(self):
+        for data in (
+            {"enabled": True, "color": "green"},
+            {"enabled": True, "strength": "max"},
+        ):
+            with self.subTest(data=data), self.assertRaises(integration.HomeAssistantError):
+                _run(self.h["set_chess_bot"](self._call(data)))
+        self.assertFalse(self.coord.chess_bot_enabled)
+        self.assertEqual(self.coord.chess_bot_color, "black")
+
     def test_send_yolo_command_publishes(self):
         _MQTT.async_publish.reset_mock()
         _run(self.h["send_yolo_command"](self._call(

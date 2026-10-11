@@ -292,6 +292,32 @@ class TestTierSensors(unittest.TestCase):
         self.assertEqual(attrs["eval_white_cp"], 30)
         self.assertEqual(attrs["phase"], "opening")
 
+    def test_chess_sensor_shows_the_bots_move(self):
+        coord = MagicMock()
+        coord.chess_grounding = {"available": True, "valid": True, "best_move": "Nf6"}
+        coord.chess_bot_enabled = True
+        coord.chess_bot_color = "black"
+        coord.chess_bot_strength = 2
+        coord.chess_bot_last_move = {
+            "kind": "move", "san": "Nf6", "uci": "g8f6",
+            "speech": "Ich ziehe den Springer von g8 nach f6.",
+        }
+        attrs = GamingAssistantChessSensor(coord).extra_state_attributes
+        self.assertTrue(attrs["bot_enabled"])
+        self.assertEqual(attrs["bot_color"], "black")
+        self.assertEqual(attrs["bot_strength"], 2)
+        self.assertEqual(attrs["bot_move"], "Nf6")
+        self.assertEqual(attrs["bot_move_uci"], "g8f6")
+        self.assertEqual(attrs["bot_speech"], "Ich ziehe den Springer von g8 nach f6.")
+
+    def test_chess_sensor_without_bot_move(self):
+        coord = MagicMock()
+        coord.chess_grounding = {}
+        coord.chess_bot_last_move = None
+        attrs = GamingAssistantChessSensor(coord).extra_state_attributes
+        self.assertIsNone(attrs["bot_move"])
+        self.assertIsNone(attrs["bot_speech"])
+
 
 class TestStatusSensorAttributes(unittest.TestCase):
     """The status sensor must expose attributes before the first refresh."""

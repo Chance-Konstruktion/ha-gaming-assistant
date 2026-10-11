@@ -36,6 +36,10 @@ from .const import (
     CONF_TIMEOUT,
     CONF_TTS_ENTITY,
     CONF_TTS_TARGET,
+    CHESS_START_FEN,
+    EVENT_CHESS_MOVE,
+    MQTT_BOARD_COMMAND_TOPIC,
+    MQTT_CHESS_MOVE_TOPIC,
     AGENT_VALID_BUTTONS,
     AGENT_ACTION_MIN_INTERVAL,
     AGENT_CONFIRM_TIMEOUT,
@@ -64,6 +68,7 @@ from .camera_watcher import CameraWatcher
 from .client_registry import ClientRegistry
 from .mqtt_router import MqttRouter
 from . import chess_grounding
+from .chess_bot import ChessBot
 from .perception import PerceptionTier
 from .pipeline import AnalysisPipeline
 from .prompt_packs import PromptPackLoader
@@ -169,6 +174,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         self._last_frame_motion: str = ""
         # Chess grounding: last analysed board (per the current game/source).
         self._chess_grounding: dict[str, Any] = {}
+        # Chess bot (GA-110): plays one side of the grounded game. Runtime-only,
+        # off by default.
+        self._chess_bot = ChessBot()
         self._last_analysis: str = ""
         self._last_error_message: str = ""
         self._last_error_type: str = ""
@@ -891,6 +899,23 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         return self._chess_grounding
 
     @property
+    def chess_bot_enabled(self) -> bool:
+        return self._chess_bot.enabled
+
+    @property
+    def chess_bot_color(self) -> str:
+        return self._chess_bot.color
+
+    @property
+    def chess_bot_strength(self) -> int:
+        return self._chess_bot.strength
+
+    @property
+    def chess_bot_last_move(self) -> dict[str, Any] | None:
+        """The bot's last reaction (move or game over), None before the first."""
+        return self._chess_bot.last_move
+
+    @property
     def pipeline_healthy(self) -> bool:
         """Whether the core pipeline is operational.
 
@@ -1003,13 +1028,20 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         (off the event loop in the executor). Its grounded facts — material,
         threats, a suggested move — become Tier 1 measured signals, exactly
         like HUD numbers or audio cues. Never raises; bad FEN is recorded as a
-        structured error.
+        structured error. With the chess bot on, the search runs at the bot's
+        strength and the bot reacts when it is its turn.
         """
+        depth = (
+            self._chess_bot.strength
+            if self._chess_bot.enabled
+            else chess_grounding.DEFAULT_SEARCH_DEPTH
+        )
         result = await self.hass.async_add_executor_job(
-            chess_grounding.analyze_fen, fen
+            chess_grounding.analyze_fen, fen, depth
         )
         result["client_id"] = client_id
         self._chess_grounding = result
+        await self._async_chess_bot_react(client_id, result)
 
         measured = chess_grounding.measured_signals(result)
         if measured:
@@ -1030,6 +1062,80 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     def _handle_board(self, client_id: str, data: dict[str, Any]) -> None:
         """Feed a board FEN into chess grounding (delegated to MqttRouter)."""
         self._mqtt_router.handle_board(client_id, data)
+
+    # -- Chess bot (GA-110) ----------------------------------------------------
+
+    async def _async_chess_bot_react(
+        self, client_id: str, result: dict[str, Any]
+    ) -> None:
+        """Let the chess bot answer a grounded position, if it is its turn.
+
+        The reaction is announced via TTS (the person at a physical board then
+        plays it), fired as ``gaming_assistant_chess_move`` for automations,
+        and published on ``gaming_assistant/{client_id}/chess_move`` for a
+        PC-side helper that wants to play it on a screen.
+        """
+        reaction = self._chess_bot.decide(result, self.hass.config.language)
+        if reaction is None:
+            return
+        _LOGGER.info("Chess bot (%s): %s", self._chess_bot.color, reaction["speech"])
+        payload = {**reaction, "client_id": client_id, "bot_color": self._chess_bot.color}
+        self.hass.bus.async_fire(EVENT_CHESS_MOVE, payload)
+        try:
+            await mqtt.async_publish(
+                self.hass,
+                MQTT_CHESS_MOVE_TOPIC.format(client_id=client_id),
+                json.dumps(payload),
+                qos=1,
+            )
+        except HomeAssistantError as err:
+            _LOGGER.warning("Failed to publish chess bot move: %s", err)
+        if self._tts_entity and self._tts_target:
+            await self.async_announce(reaction["speech"])
+        self._notify_update()
+
+    async def async_set_chess_bot(
+        self,
+        enabled: bool | None = None,
+        color: str | None = None,
+        strength: int | None = None,
+        new_game: bool = False,
+    ) -> None:
+        """Configure the chess bot; optionally start a new game.
+
+        ``new_game`` resets the board-vision workers and grounds the starting
+        position, so a bot playing White announces its first move right away.
+        Otherwise a bot that was just switched on (or changed sides) answers
+        the current board if it is its turn.
+        """
+        self._chess_bot.configure(enabled=enabled, color=color, strength=strength)
+        _LOGGER.info(
+            "Chess bot: %s, plays %s, strength %d",
+            "on" if self._chess_bot.enabled else "off",
+            self._chess_bot.color,
+            self._chess_bot.strength,
+        )
+        if new_game:
+            self._chess_bot.new_game()
+            try:
+                await mqtt.async_publish(
+                    self.hass, MQTT_BOARD_COMMAND_TOPIC,
+                    json.dumps({"command": "reset"}), qos=1,
+                )
+            except HomeAssistantError as err:
+                _LOGGER.warning("Failed to reset board-vision workers: %s", err)
+            client_id = self._chess_grounding.get("client_id") or "chess_bot"
+            await self._process_board(client_id, CHESS_START_FEN)
+            return
+        if self._chess_bot.enabled and self._chess_grounding.get("valid"):
+            # The stored best move was searched at the old depth; re-ground at
+            # the bot's strength before it plays.
+            await self._process_board(
+                self._chess_grounding.get("client_id") or "chess_bot",
+                self._chess_grounding["fen"],
+            )
+            return
+        self._notify_update()
 
     # -- Game-state persistence ----------------------------------------------
 
@@ -1234,6 +1340,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             "strategy_reflection": self._strategy.reflection_enabled,
             "chess_summary": self._chess_grounding.get("summary", ""),
             "chess_best_move": self._chess_grounding.get("best_move", ""),
+            "chess_bot_enabled": self._chess_bot.enabled,
+            "chess_bot_color": self._chess_bot.color,
+            "chess_bot_last_move": self._chess_bot.last_move,
             "spoiler_level": self._spoiler.default_level,
             "registered_workers": self._client_registry.registered_workers,
             "clients": self._client_registry.clients,
