@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: FAQ and troubleshooting
+    url: https://github.com/Chance-Konstruktion/ha-gaming-assistant/blob/main/docs/FAQ.md
+    about: Common setup problems (MQTT, Ollama, models, HACS) and their fixes.
+  - name: Prompt packs
+    url: https://github.com/Chance-Konstruktion/ha-gaming-assistant-prompts
+    about: Wrong or missing tips for a specific game belong to the prompt packs.

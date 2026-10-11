@@ -1,0 +1,20 @@
+name: Feature request
+description: An idea for the Gaming Assistant.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What should become possible?
+      description: The situation or problem, ideally with a game or device as an example.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How could it work? Entities, services, automations, a dashboard card …
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you use today instead

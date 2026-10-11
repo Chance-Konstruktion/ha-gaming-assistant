@@ -57,6 +57,13 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ### Changed
 
+- **GitHub release notes come from this CHANGELOG:** the release workflow puts
+  the tag's section of `CHANGELOG.md` on the GitHub release
+  (`tools/changelog_section.py`) instead of GitHub's generated list of pull
+  requests, which stayed empty because development happens on GitLab.
+- **Issue forms** for bug reports and feature requests on GitHub, merge
+  request and issue templates on GitLab, and a release checklist for
+  maintainers (`docs/release_checkliste.md`, German).
 - **Prompt-pack loader is more forgiving:** a pack whose required fields are
   valid always loads; problems in optional fields (e.g. a date in `version`)
   are logged and recorded instead of silently dropping the whole pack.
