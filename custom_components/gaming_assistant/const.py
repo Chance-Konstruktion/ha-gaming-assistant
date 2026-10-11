@@ -75,6 +75,13 @@ DEFAULT_SPOILER_LEVEL = "medium"
 
 # Assistant Modes
 ASSISTANT_MODES = ["coach", "coplay", "opponent", "analyst"]
+
+# Per-client settings (GA-114), saved in the config entry options as
+# {client_id: {key: value}}. Each overrides the global setting for that
+# client only: its assistant mode, the speaker its tips are announced on, and
+# a game hint used when the client reports no window title.
+CONF_CLIENT_OPTIONS = "client_options"
+CLIENT_OPTION_KEYS = ("assistant_mode", "tts_target", "game_hint")
 DEFAULT_ASSISTANT_MODE = "coach"
 
 # Source Types (how the camera sees the game)

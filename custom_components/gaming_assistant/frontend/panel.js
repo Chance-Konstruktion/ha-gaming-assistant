@@ -24,6 +24,7 @@ const ENTITIES = {
   errorCount: `sensor.${DOMAIN}_error_count`,
   sessionSummary: `sensor.${DOMAIN}_session_summary`,
   sourceType: `select.${DOMAIN}_source_type`,
+  clients: `sensor.${DOMAIN}_clients`,
 };
 
 const I18N = {
@@ -86,6 +87,12 @@ const I18N = {
     aiModel: "KI-Modell",
     save: "Speichern",
     saved: "Gespeichert!",
+    clients: "Ger\u00E4te",
+    noClients: "Noch keine Ger\u00E4te. Starte einen Capture-Agent oder eine Kamera.",
+    globalSetting: "\u2014 Wie global \u2014",
+    activeClient: "aktiv",
+    lastSeen: "zuletzt",
+    clientGameHint: "Spiel, falls keins erkannt",
   },
   en: {
     title: "Gaming Assistant",
@@ -146,6 +153,12 @@ const I18N = {
     aiModel: "AI Model",
     save: "Save",
     saved: "Saved!",
+    clients: "Clients",
+    noClients: "No clients yet. Start a capture agent or a camera watcher.",
+    globalSetting: "\u2014 Global \u2014",
+    activeClient: "active",
+    lastSeen: "last seen",
+    clientGameHint: "Game if none is detected",
   },
 };
 
@@ -325,6 +338,25 @@ class GamingAssistantPanel extends HTMLElement {
         .section-divider {
           border: none; border-top: 1px solid var(--border); margin: 16px 0 12px;
         }
+
+        .client-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .client-row:last-child { border-bottom: none; }
+        .client-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .client-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text2); flex: none; }
+        .client-dot.online { background: var(--success); }
+        .client-dot.offline { background: var(--danger); }
+        .client-name { font-weight: 500; font-size: 14px; }
+        .client-meta { font-size: 12px; color: var(--text2); }
+        .client-tip {
+          font-size: 13px; color: var(--text2); font-style: italic;
+          margin: 6px 0 0 18px; word-wrap: break-word;
+        }
+        .client-controls {
+          display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px;
+          align-items: end; margin: 8px 0 0 18px;
+        }
+        @media (max-width: 600px) { .client-controls { grid-template-columns: 1fr; } }
+        .client-controls .btn { justify-content: center; }
       </style>
 
       <div class="container">
@@ -432,6 +464,12 @@ class GamingAssistantPanel extends HTMLElement {
         <div class="card" id="summary-card" style="display:none;">
           <h2>${t("sessionSummary")}</h2>
           <div class="summary-box" id="session-summary"></div>
+        </div>
+
+        <!-- Clients (GA-114): own mode, speaker and game hint per client -->
+        <div class="card">
+          <h2>${t("clients")}</h2>
+          <div id="clients-list"></div>
         </div>
 
         <!-- 5. Diagnostics & Setup -->
@@ -708,11 +746,130 @@ class GamingAssistantPanel extends HTMLElement {
       this._updateModelDropdown($("setup-model"), statusState.attributes);
     }
 
+    this._updateClients();
+
     // Setup dropdowns (populate once from hass.states)
     if (!this._setupPopulated) {
       this._populateSetupDropdowns();
       this._setupPopulated = true;
     }
+  }
+
+  // -- Clients (GA-114) -------------------------------------------------------
+
+  _updateClients() {
+    const listEl = this.shadowRoot.getElementById("clients-list");
+    if (!listEl) return;
+    const sensor = this._getState(ENTITIES.clients);
+    const clients = (sensor && sensor.attributes && sensor.attributes.clients) || {};
+    const ids = Object.keys(clients);
+    // Rebuild only when clients come or go, so edits in progress survive the
+    // frequent state updates; the rows are filled in place below.
+    const idsKey = ids.join("\n");
+    if (listEl.dataset.idsKey !== idsKey || !this._clientRows) {
+      listEl.dataset.idsKey = idsKey;
+      listEl.textContent = "";
+      this._clientRows = {};
+      if (ids.length === 0) {
+        const empty = document.createElement("em");
+        empty.style.color = "var(--text2)";
+        empty.textContent = this._t("noClients");
+        listEl.appendChild(empty);
+      }
+      for (const id of ids) {
+        this._clientRows[id] = this._buildClientRow(id);
+        listEl.appendChild(this._clientRows[id].el);
+      }
+    }
+    for (const id of ids) this._fillClientRow(this._clientRows[id], id, clients[id] || {});
+  }
+
+  _buildClientRow(id) {
+    const t = (k) => this._t(k);
+    const make = (tag, className) => {
+      const el = document.createElement(tag);
+      if (className) el.className = className;
+      return el;
+    };
+    const labelled = (label, input) => {
+      const wrap = make("div", "control-item");
+      const lab = make("label");
+      lab.textContent = label;
+      wrap.append(lab, input);
+      return wrap;
+    };
+
+    const el = make("div", "client-row");
+    const head = make("div", "client-head");
+    const dot = make("span", "client-dot");
+    const name = make("span", "client-name");
+    const meta = make("span", "client-meta");
+    head.append(dot, name, meta);
+    const tip = make("div", "client-tip");
+
+    const mode = make("select");
+    [["", t("globalSetting")], ["coach", t("modeCoach")], ["coplay", t("modeCoplay")],
+      ["opponent", t("modeOpponent")], ["analyst", t("modeAnalyst")]]
+      .forEach(([value, label]) => mode.add(new Option(label, value)));
+    const speaker = make("select");
+    speaker.add(new Option(t("globalSetting"), ""));
+    const states = (this._hass && this._hass.states) || {};
+    Object.keys(states).filter((e) => e.startsWith("media_player.")).sort()
+      .forEach((e) => speaker.add(new Option(states[e].attributes.friendly_name || e, e)));
+    const hint = make("input");
+    hint.type = "text";
+    hint.placeholder = t("clientGameHint");
+    const save = make("button", "btn");
+    save.textContent = t("save");
+
+    const row = { el, dot, name, meta, tip, mode, speaker, hint, save, dirty: false };
+    [mode, speaker, hint].forEach((input) =>
+      input.addEventListener("input", () => { row.dirty = true; }));
+    save.addEventListener("click", async () => {
+      save.disabled = true;
+      await this._callDomainService("set_client_options", {
+        client_id: id,
+        assistant_mode: mode.value || "global",
+        tts_target: speaker.value,
+        game_hint: hint.value.trim(),
+      });
+      row.dirty = false;
+      save.textContent = t("saved");
+      setTimeout(() => { save.textContent = t("save"); save.disabled = false; }, 1500);
+    });
+
+    const controls = make("div", "client-controls");
+    controls.append(
+      labelled(t("mode"), mode), labelled(t("speaker"), speaker),
+      labelled(t("game"), hint), save,
+    );
+    el.append(head, tip, controls);
+    return row;
+  }
+
+  _fillClientRow(row, id, client) {
+    const t = (k) => this._t(k);
+    row.dot.className = "client-dot"
+      + (client.online === true ? " online" : client.online === false ? " offline" : "");
+    row.name.textContent = client.name && client.name !== id ? `${client.name} (${id})` : id;
+    const parts = [client.type && client.type !== "unknown" ? client.type : ""];
+    if (client.active) parts.push(t("activeClient"));
+    if (client.game) parts.push(client.game);
+    if (client.last_seen) parts.push(`${t("lastSeen")} ${String(client.last_seen).replace("T", " ")}`);
+    row.meta.textContent = parts.filter(Boolean).join(" \u00B7 ");
+    row.tip.textContent = client.last_tip || "";
+    row.tip.style.display = client.last_tip ? "" : "none";
+
+    // Show the stored settings unless the user is editing this row.
+    if (row.dirty || row.el.contains(this.shadowRoot.activeElement)) return;
+    const options = client.options || {};
+    row.mode.value = options.assistant_mode || "";
+    const target = options.tts_target || "";
+    if (target && !Array.from(row.speaker.options).some((o) => o.value === target)) {
+      row.speaker.add(new Option(target, target));
+    }
+    row.speaker.value = target;
+    row.hint.value = options.game_hint || "";
   }
 
   _populateSetupDropdowns() {

@@ -6,6 +6,15 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ### Added
 
+- **Several devices, each with its own settings** (GA-114). The new
+  `sensor.gaming_assistant_clients` lists every capture client and worker
+  with online status, type, game, last seen and its latest tip, and the
+  sidebar panel has a **Clients** card for it. Each device can get its own
+  assistant mode, announce speaker and game hint (used when it reports no
+  window title) in the panel or with the new
+  `gaming_assistant.set_client_options` service; they override the global
+  settings for that device only and are saved across restarts.
+
 - **Remote control: RustDesk & companion** (GA-119 – GA-121, experimental).
   `worker/rustdesk_controller.py` opens RustDesk sessions on a PC to devices
   configured there by name (the new `gaming_assistant.open_remote_session`

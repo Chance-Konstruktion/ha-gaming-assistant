@@ -33,6 +33,7 @@ async def async_setup_entry(
         GamingAssistantLastAnalysisSensor(coordinator),
         GamingAssistantActiveWatchersSensor(coordinator),
         GamingAssistantRegisteredWorkersSensor(coordinator),
+        GamingAssistantClientsSensor(coordinator),
         GamingAssistantSessionSummarySensor(coordinator),
         GamingAssistantAgentActionSensor(coordinator),
         GamingAssistantPerceptionSensor(coordinator),
@@ -269,6 +270,27 @@ class GamingAssistantRegisteredWorkersSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         return {"workers": self._coordinator.registered_workers}
+
+
+class GamingAssistantClientsSensor(CoordinatorEntity, SensorEntity):
+    """All known clients with status, game, latest tip and own settings (GA-114)."""
+
+    _attr_name = "Gaming Assistant Clients"
+    _attr_unique_id = "gaming_assistant_clients"
+    _attr_icon = "mdi:monitor-cellphone"
+
+    def __init__(self, coordinator: GamingAssistantCoordinator) -> None:
+        super().__init__(coordinator)
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def native_value(self) -> int:
+        return len(self._coordinator.client_overview())
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {"clients": self._coordinator.client_overview()}
 
 
 class GamingAssistantSessionSummarySensor(CoordinatorEntity, SensorEntity):

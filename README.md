@@ -368,6 +368,27 @@ data:
 </details>
 
 <details>
+<summary><b>👥 Several devices</b> — each with its own mode, speaker and game</summary>
+
+The PC in the office, the console in the living room, a camera over the board game: every capture client and worker shows up on `sensor.gaming_assistant_clients` and in the **Clients** card of the sidebar panel, with online status, game, last seen and its latest tip. Each one can get its own settings, which override the global ones for that device only:
+
+- **Mode** — e.g. the kids' tablet stays *Coach* while the PC plays *Opponent*.
+- **Speaker** — tips from the living-room console are announced in the living room (with auto-announce on).
+- **Game** — assumed when the device reports no window title (consoles, Android TV, cameras).
+
+Set them in the panel or with the service; an empty value (or mode `global`) goes back to the global setting. They are saved and survive a restart.
+
+```yaml
+action: gaming_assistant.set_client_options
+data:
+  client_id: living-room-tv
+  assistant_mode: coplay
+  tts_target: media_player.living_room
+```
+
+</details>
+
+<details>
 <summary><b>📡 Event-based automations</b> — every tip fires <code>gaming_assistant_new_tip</code></summary>
 
 ```yaml
@@ -716,6 +737,7 @@ Details, configuration and safety rails: [`docs/rustdesk_control.md`](docs/rustd
 | `sensor.gaming_assistant_last_analysis` | Timestamp of last success |
 | `sensor.gaming_assistant_active_watchers` | Active camera watchers |
 | `sensor.gaming_assistant_registered_workers` | Auto-discovered workers |
+| `sensor.gaming_assistant_clients` | All known devices (attrs: per client status, type, game, last seen, latest tip, own settings) |
 | `sensor.gaming_assistant_session_summary` | Last session summary |
 | `sensor.gaming_assistant_agent_action` | Agent Mode audit: last decision status (attrs: full action, published/failed/rejected/expired counts, whitelist, pending action + id + expiry) |
 | `sensor.gaming_assistant_scene_change` | Tier 1 perception: last frame's scene-change magnitude (attrs: frame_motion, frames_skipped) |
@@ -750,6 +772,7 @@ Details, configuration and safety rails: [`docs/rustdesk_control.md`](docs/rustd
 | `gaming_assistant.analyze_board` | Ground a chess position given as FEN (optional `client_id`) |
 | `gaming_assistant.set_chess_bot` | Chess bot on/off, side, strength; `new_game` starts from the initial position |
 | `gaming_assistant.open_remote_session` | Open a RustDesk session to a named device, via `rustdesk_controller.py` on a PC |
+| `gaming_assistant.set_client_options` | Own mode, speaker or game hint for one device (empty / `global` = back to global) |
 | `gaming_assistant.companion_command` | Run a named command (pause, mute, a key, an ADB key code) via `companion_listener.py` |
 
 > Mode, spoiler level, interval, and timeout are now controlled via **entities** — services are for one-shot actions.

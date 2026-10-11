@@ -177,7 +177,7 @@ Detailliertes Diagramm: `docs/architecture.md`.
 | Task | Beschreibung | Status |
 |------|--------------|--------|
 | GA-113 | Prompt-Pack-Sharing über externe Community-Repo + Auto-Download + Hot-Reload | ✅ — Repo + Loader v0.4, Hot-Reload-Service v0.13 |
-| GA-114 | Multi-Client-Routing (eigene Einstellungen / History pro Client) | 🟡 — Active-Client-Tracking ist da, dedizierte UI fehlt |
+| GA-114 | Multi-Client-Routing (eigene Einstellungen / History pro Client) | ✅ (unreleased) — `sensor.gaming_assistant_clients` und eine Geräte-Karte im Seitenpanel (Status, Spiel, zuletzt gesehen, letzter Tipp); pro Gerät eigener Modus, Ansage-Lautsprecher und Spiel-Hinweis über Panel oder Service `set_client_options`, gespeichert in den Optionen. Ein eigener Verlauf pro Gerät ist nicht dabei: Der Verlauf hängt am Spiel, und das passt besser. |
 | GA-115 | Pack-Authoring-Guide + Submission-Workflow (`docs/pack_authoring.md`) | ✅ v0.13 |
 | GA-116 | Issue-/PR-Templates + Release-Checkliste | ✅ (unreleased) — `docs/release_checkliste.md` (Weg eines Releases, vorher/Release/danach, was nie); MR- und Issue-Vorlagen im GitLab (`.gitlab/`), Issue-Formulare auf GitHub (`.github/ISSUE_TEMPLATE/`); GitHub-Release-Text aus `CHANGELOG.md` (`tools/changelog_section.py`). |
 
@@ -289,11 +289,12 @@ Empfohlener Workflow je Task:
 - Unit-Tests für Spoiler, History, Prompt Builder, Pack-Validator.
 - Integrationstests mit gemocktem MQTT + Ollama API.
 - Regressionstests für Legacy-Topics.
-- Aktueller Stand (11.10.2026): **687 Tests**. 672 Unit-Tests in `tests/`
-  stubben Home Assistant weg; die 15 Tests in `tests_ha/` booten ein echtes
+- Aktueller Stand (11.10.2026): **697 Tests**. 680 Unit-Tests in `tests/`
+  stubben Home Assistant weg; die 17 Tests in `tests_ha/` booten ein echtes
   Home Assistant, laden die Integration und spielen die Agent-Bestätigung,
-  den Schach-Bot, Sprachfragen mit Bild, die Fernsteuer-Services und den
-  Konfigurieren-Dialog durch (`pytest -c pytest-ha.ini`).
+  den Schach-Bot, Sprachfragen mit Bild, die Fernsteuer-Services, den
+  Konfigurieren-Dialog und die Geräte-Einstellungen durch
+  (`pytest -c pytest-ha.ini`).
 - In beiden CIs gilt `STRICT_NO_SKIP`: Ein übersprungener Test ist ein
   Fehler.
   - **GitLab** (Merge-Tor): Unit-Tests auf Python 3.13; der Ladetest
