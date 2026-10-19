@@ -4,6 +4,23 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ## [Unreleased]
 
+### Changed
+
+- **The sidebar panel looks like part of Home Assistant.** It is now built
+  from Home Assistant's own elements (tabs, cards, buttons, selects, switches,
+  dialogs) with four tabs: Overview, History, Clients and Settings. Each tab
+  has its own address; on a phone the tabs move to the bottom bar. Clearing
+  the history asks in a Home Assistant dialog, and failed actions show a
+  notification instead of failing silently.
+
+### Fixed
+
+- **Mode and gaming-mode status in the panel.** The panel looked for
+  `select.gaming_assistant_assistant_mode` and `binary_sensor.gaming_mode`,
+  which new installs name `select.gaming_assistant_mode` and
+  `binary_sensor.gaming_assistant_gaming_mode`. It now finds either name, so
+  the mode picker and the active/inactive chip work again.
+
 ## [261011] - 2026-10-11 — "Player 2, Chess Bot & Remote Control"
 
 ### Added
