@@ -2,7 +2,11 @@
 from __future__ import annotations
 
 import base64
+import json
 import logging
+from datetime import datetime
+import re
+import time
 from pathlib import Path
 
 from homeassistant.components import mqtt
@@ -19,9 +23,11 @@ from .const import (
     CONF_TTS_TARGET,
     DOMAIN,
     MAX_IMAGE_BYTES,
+    AGENT_VALID_BUTTONS,
 )
 from .chess_bot import BOT_COLORS
 from .coordinator import GamingAssistantCoordinator
+from .prompt_builder import PromptBuilder
 from .prompt_packs import download_prompt_packs
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,7 +53,7 @@ _ALL_SERVICES = (
     "refresh_prompt_packs", "set_agent_mode", "send_yolo_command",
     "analyze_board", "confirm_agent_action", "reject_agent_action",
     "set_chess_bot", "open_remote_session", "companion_command",
-    "set_client_options",
+    "set_client_options", "send_game_action",
 )
 
 
@@ -452,14 +458,104 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             allowed = call.data.get("allowed_buttons")
             if isinstance(allowed, str):
                 allowed = [b.strip() for b in allowed.split(",") if b.strip()]
+            if allowed is not None:
+                valid_buttons = {button.upper() for button in AGENT_VALID_BUTTONS}
+                unknown_buttons = [
+                    str(button) for button in allowed
+                    if not isinstance(button, str) or button.upper() not in valid_buttons
+                ]
+                if unknown_buttons:
+                    raise HomeAssistantError(
+                        "Unknown allowed_buttons: " + ", ".join(unknown_buttons)
+                    )
+                allowed = [button.upper() for button in allowed]
             confirm = call.data.get("confirm_actions")
+            external = bool(call.data.get("external", False))
             for coord in hass.data[DOMAIN].values():
                 if isinstance(coord, GamingAssistantCoordinator):
-                    coord.set_agent_mode(
+                    reset_required = coord.set_agent_mode(
                         enabled, allowed,
                         confirm=None if confirm is None else bool(confirm),
+                        external=external,
+                        schedule_reset=False,
                     )
+                    if reset_required and not await coord.async_publish_agent_command(
+                        "reset", session_id=coord._agent_session_id
+                    ):
+                        # Enabling external control without a confirmed session
+                        # reset could let the next command race stale held input.
+                        # Fail closed in HA; the executor watchdog remains the
+                        # fallback if the broker is currently unreachable.
+                        if enabled:
+                            coord.set_agent_mode(False, schedule_reset=False)
+                        raise HomeAssistantError(
+                            "Could not publish the controller reset. Player 2 remains disabled; "
+                            "check MQTT and the game executor."
+                        )
                     break
+
+        async def handle_send_game_action(call: ServiceCall) -> None:
+            """Validate and publish one explicit gamepad action from an MCP/client tool."""
+            client_id = call.data.get("client_id")
+            expected_timestamp = call.data.get("expected_frame_timestamp")
+            command_id = call.data.get("command_id")
+            if not isinstance(command_id, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", command_id):
+                raise HomeAssistantError("send_game_action requires a valid command_id")
+            if not isinstance(client_id, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", client_id):
+                raise HomeAssistantError("send_game_action requires a valid client_id")
+            if not isinstance(expected_timestamp, str) or not expected_timestamp:
+                raise HomeAssistantError("send_game_action requires expected_frame_timestamp from the snapshot")
+            try:
+                expected_epoch = datetime.fromisoformat(expected_timestamp).timestamp()
+            except (TypeError, ValueError, OverflowError) as err:
+                raise HomeAssistantError("expected_frame_timestamp must be a valid ISO timestamp") from err
+            expected_age = time.time() - expected_epoch
+            if expected_age < -1.0 or expected_age > 10.0:
+                raise HomeAssistantError("Snapshot is too old or from the future; fetch a fresh snapshot")
+
+            action_data = {"action": call.data.get("action")}
+            for key in ("button", "stick", "x", "y", "duration_ms", "reason"):
+                if key in call.data:
+                    action_data[key] = call.data[key]
+
+            for coord in hass.data[DOMAIN].values():
+                if not isinstance(coord, GamingAssistantCoordinator):
+                    continue
+                if not coord.agent_mode:
+                    raise HomeAssistantError("Enable Gaming Assistant Agent Mode before sending an action")
+                if not coord.agent_external_control:
+                    raise HomeAssistantError(
+                        "Player 2 is in local-controller mode. Enable external=true via set_agent_mode "
+                        "for MCP control so the local LLM cannot issue competing inputs."
+                    )
+                if coord.agent_confirm:
+                    raise HomeAssistantError(
+                        "Per-action confirmation is enabled. Confirm actions through Home Assistant, "
+                        "or explicitly disable confirm_actions before using direct MCP control."
+                    )
+                if client_id not in coord._client_metadata:
+                    raise HomeAssistantError(f"Unknown or inactive gaming client: {client_id}")
+                if (
+                    coord.last_image_client_id != client_id
+                    or time.monotonic() - coord._last_image_monotonic > 10.0
+                ):
+                    raise HomeAssistantError(
+                        "Game snapshot is stale or belongs to another client; fetch a fresh snapshot and retry"
+                    )
+                allowed_buttons = coord.agent_allowed_buttons or AGENT_VALID_BUTTONS
+                try:
+                    action = PromptBuilder.parse_action(json.dumps(action_data), allowed_buttons)
+                except ValueError as err:
+                    raise HomeAssistantError(f"Invalid or disallowed game action: {err}") from err
+                published = await coord.async_publish_action(
+                    client_id, action, command_id=command_id, external=True
+                )
+                if published is None or published.get("session_id") != coord._agent_session_id:
+                    raise HomeAssistantError(
+                        "Control mode changed while sending the action; fetch a fresh snapshot and retry"
+                    )
+                return
+            raise HomeAssistantError("Gaming Assistant integration is not ready")
 
         async def handle_set_chess_bot(call: ServiceCall) -> None:
             """Configure the chess bot (GA-110); optionally start a new game."""
@@ -656,6 +752,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "set_source_type", handle_set_source_type)
         hass.services.async_register(DOMAIN, "analyze_board", handle_analyze_board)
         hass.services.async_register(DOMAIN, "set_agent_mode", handle_set_agent_mode)
+        hass.services.async_register(DOMAIN, "send_game_action", handle_send_game_action)
         hass.services.async_register(DOMAIN, "set_chess_bot", handle_set_chess_bot)
         hass.services.async_register(
             DOMAIN, "open_remote_session", handle_open_remote_session
