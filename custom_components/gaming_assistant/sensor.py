@@ -352,7 +352,9 @@ class GamingAssistantAgentActionSensor(CoordinatorEntity, SensorEntity):
         pending = self._coordinator.agent_pending_action or {}
         return {
             "agent_mode": self._coordinator.agent_mode,
+            "external_control": self._coordinator.agent_external_control,
             "last_action": self._coordinator.agent_last_action,
+            "last_execution_result": self._coordinator.agent_last_action_result,
             "timestamp": self._coordinator.agent_last_action_timestamp,
             "actions_published": self._coordinator.agent_actions_published,
             "actions_failed": self._coordinator.agent_actions_failed,

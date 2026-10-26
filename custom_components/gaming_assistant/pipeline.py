@@ -239,7 +239,7 @@ class AnalysisPipeline:
                         _LOGGER.debug("Repeat tip suppressed from announce")
 
                     # Agent Mode: also produce + publish a controller action.
-                    if coord._agent_mode:
+                    if coord._agent_mode and not coord._agent_external_control:
                         await self._maybe_publish_agent_action(
                             client_id, image_bytes, coord._current_game
                         )
@@ -327,6 +327,14 @@ class AnalysisPipeline:
             coord._notify_update()
             return
 
+        # Controller ownership may have changed while the LLM was generating
+        # an action. Do not turn a revoked local decision into a publish failure.
+        if not coord._agent_mode or coord._agent_external_control:
+            if action:
+                self._fire_agent_action_event(client_id, game, "cancelled", action)
+            coord._notify_update()
+            return
+
         if not action:
             coord._agent_governor.record_no_op(ts)
             coord._notify_update()
@@ -336,9 +344,27 @@ class AnalysisPipeline:
             coord._hold_agent_action(client_id, game, action, now, ts)
             return
 
-        await coord.async_publish_action(client_id, action)
-        coord._agent_governor.record_published(action, now, ts)
-        self._fire_agent_action_event(client_id, game, "published", action)
+        published = await coord.async_publish_action(client_id, action)
+        if published is not None and published.get("session_id") != coord._agent_session_id:
+            self._fire_agent_action_event(client_id, game, "cancelled", published)
+            coord._notify_update()
+            return
+        if published is None:
+            auto_disabled = coord._agent_governor.record_error(ts)
+            if auto_disabled:
+                _LOGGER.error(
+                    "Agent Mode auto-disabled after %d consecutive publish failures",
+                    coord._agent_governor.max_consecutive_failures,
+                )
+                coord.set_agent_mode(False)
+            self._fire_agent_action_event(
+                client_id, game, "auto_disabled" if auto_disabled else "error", action
+            )
+            coord._notify_update()
+            return
+
+        coord._agent_governor.record_published(published, now, ts)
+        self._fire_agent_action_event(client_id, game, "published", published)
         coord._notify_update()
 
     def _fire_agent_action_event(

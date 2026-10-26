@@ -22,6 +22,7 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
     MQTT_AUDIO_TOPIC,
+    MQTT_ACTION_RESULT_TOPIC,
     MQTT_BOARD_TOPIC,
     MQTT_DETECTIONS_TOPIC,
     MQTT_HUD_TOPIC,
@@ -275,6 +276,20 @@ class MqttRouter:
                 data.get("model", "?"), data.get("backend", "?"),
             )
 
+        @callback
+        def agent_action_result_received(msg) -> None:
+            """Route executor receipts back to the coordinator for correlation."""
+            client_id = msg.topic.split("/")[1]
+            try:
+                payload = msg.payload
+                if isinstance(payload, bytes):
+                    payload = payload.decode("utf-8")
+                result = json.loads(payload)
+                if isinstance(result, dict):
+                    coord.handle_agent_action_result(client_id, result)
+            except (json.JSONDecodeError, UnicodeDecodeError) as err:
+                _LOGGER.warning("Invalid agent action receipt from %s: %s", client_id, err)
+
         hass = coord.hass
         unsub_tip = await mqtt.async_subscribe(hass, MQTT_TIP_TOPIC, tip_received, 0)
         unsub_mode = await mqtt.async_subscribe(hass, MQTT_MODE_TOPIC, mode_received, 0)
@@ -303,11 +318,14 @@ class MqttRouter:
         unsub_client_status = await mqtt.async_subscribe(
             hass, MQTT_YOLO_STATUS_TOPIC, client_status_received, 0
         )
+        unsub_agent_results = await mqtt.async_subscribe(
+            hass, MQTT_ACTION_RESULT_TOPIC, agent_action_result_received, 0
+        )
 
         self._unsubscribe_callbacks = [
             unsub_tip, unsub_mode, unsub_status, unsub_image, unsub_meta,
             unsub_register, unsub_detections, unsub_hud, unsub_audio,
-            unsub_board, unsub_client_status,
+            unsub_board, unsub_client_status, unsub_agent_results,
         ]
 
     # -- HUD (OCR) handling --------------------------------------------------
