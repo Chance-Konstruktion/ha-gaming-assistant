@@ -256,6 +256,55 @@ class TestPackValidation(unittest.TestCase):
         self.assertIn("keywords", joined)
         self.assertIn("system_prompt", joined)
 
+    def test_required_field_types_are_rejected(self):
+        base = {
+            "id": "valid_game",
+            "name": "Valid Game",
+            "keywords": ["valid game"],
+            "system_prompt": "Give useful, actionable game tips.",
+        }
+        cases = (
+            ("id", 123),
+            ("name", ["not", "a", "string"]),
+            ("keywords", None),
+            ("system_prompt", []),
+        )
+        for field, value in cases:
+            with self.subTest(field=field):
+                pack = {**base, field: value}
+                errors = self._mod.validate_pack(pack)
+                fatal = self._mod.required_field_errors(pack)
+                self.assertTrue(any(field in error for error in errors), errors)
+                self.assertTrue(any(field in error for error in fatal), fatal)
+
+    def test_unhashable_optional_values_report_errors_instead_of_crashing(self):
+        pack = {
+            "id": "valid_game",
+            "name": "Valid Game",
+            "keywords": ["valid game"],
+            "system_prompt": "Give useful, actionable game tips.",
+            "spoiler_defaults": {"story": []},
+            "constraints": {"supported_modes": [[]]},
+        }
+        errors = self._mod.validate_pack(pack)
+        self.assertTrue(any("spoiler_defaults.story" in error for error in errors), errors)
+        self.assertTrue(any("supported_modes" in error for error in errors), errors)
+
+    def test_loader_skips_non_string_system_prompt(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_dir = Path(tmpdir)
+            (cache_dir / "broken_prompt.json").write_text(json.dumps({
+                "id": "broken_prompt",
+                "name": "Broken Prompt",
+                "keywords": ["broken"],
+                "system_prompt": [],
+            }), encoding="utf-8")
+            loader = self._mod.PromptPackLoader(cache_dir=cache_dir)
+            loader.load_all()
+            self.assertIsNone(loader.get("broken_prompt"))
+            self.assertIn("broken_prompt.json", loader.invalid_packs)
+
     def test_bad_version_rejected(self):
         errors = self._mod.validate_pack({
             "id": "x", "name": "x", "keywords": ["x"],
