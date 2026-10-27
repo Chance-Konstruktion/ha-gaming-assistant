@@ -371,6 +371,48 @@ class TestRemotePackVerification(unittest.TestCase):
         self.assertEqual(written, 1)
         self.assertTrue((self.tmp / "base" / "good.json").exists())
 
+    def test_malformed_manifest_fails_closed(self):
+        good = self._pack("good")
+        zip_bytes = _make_repo_zip({
+            "repo-main/checksums.json": b"{not valid json",
+            "repo-main/packs/base/good.json": good,
+        })
+
+        written = self.mod.extract_prompt_packs(zip_bytes, self.tmp)
+
+        self.assertEqual(written, 0)
+        self.assertFalse((self.tmp / "base" / "good.json").exists())
+
+    def test_manifest_with_invalid_hash_fails_closed(self):
+        good = self._pack("good")
+        manifest = {"algorithm": "sha256", "packs": {"base/good.json": "not-a-hash"}}
+        zip_bytes = _make_repo_zip({
+            "repo-main/checksums.json": json.dumps(manifest).encode("utf-8"),
+            "repo-main/packs/base/good.json": good,
+        })
+
+        written = self.mod.extract_prompt_packs(zip_bytes, self.tmp)
+
+        self.assertEqual(written, 0)
+        self.assertFalse((self.tmp / "base" / "good.json").exists())
+
+    def test_archive_path_traversal_is_rejected(self):
+        outside_content = self._pack("outside")
+        manifest = {
+            "algorithm": "sha256",
+            "packs": {"../outside.json": hashlib.sha256(outside_content).hexdigest()},
+        }
+        zip_bytes = _make_repo_zip({
+            "repo-main/checksums.json": json.dumps(manifest).encode("utf-8"),
+            "repo-main/packs/../outside.json": outside_content,
+        })
+        cache_dir = self.tmp / "cache"
+
+        written = self.mod.extract_prompt_packs(zip_bytes, cache_dir)
+
+        self.assertEqual(written, 0)
+        self.assertFalse((self.tmp / "outside.json").exists())
+
     def test_template_and_non_json_ignored(self):
         good = self._pack("good")
         manifest = {"algorithm": "sha256",
