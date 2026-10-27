@@ -435,11 +435,20 @@ set_agent_mode:
     confirm_actions:
       name: Confirm each action
       description: >
-        Optional. When on, every action waits as pending until it is
-        confirmed or rejected (buttons, services or a notification) and
-        lapses after 30 seconds. Off by default. Leave empty to keep the
-        current setting.
+        Optional. When on, every local LLM action waits as pending until it is
+        confirmed or rejected and lapses after 30 seconds. Direct external MCP
+        actions are refused while confirmation is on. Off by default.
       required: false
+      selector:
+        boolean:
+    external:
+      name: External controller owns Player 2
+      description: >
+        Give exclusive control to an external client such as ChatGPT through the
+        MCP bridge. The local LLM action generator is disabled while this is on,
+        preventing two agents from fighting over the same controller. Off by default.
+      required: false
+      default: false
       selector:
         boolean:
 
@@ -647,6 +656,98 @@ set_client_options:
     game_hint:
       name: Game hint
       description: Game to assume when this client reports no window title.
+      required: false
+      selector:
+        text:
+
+
+send_game_action:
+  name: Send one game action
+  description: >
+    Send one validated controller action to a registered gaming client. Requires
+    Agent Mode to be enabled, a recent snapshot from the same client, and an
+    action that passes the active button allowlist. Intended for trusted MCP/client
+    integrations; it does not expose keyboard, shell, or arbitrary system control.
+  fields:
+    client_id:
+      name: Gaming client ID
+      description: Exact client ID from the Gaming Assistant Clients sensor.
+      required: true
+      selector:
+        text:
+    expected_frame_timestamp:
+      name: Expected frame timestamp
+      description: Timestamp returned with the snapshot being acted upon. Stale snapshots are rejected.
+      required: true
+      selector:
+        text:
+    command_id:
+      name: Command ID
+      description: Unique caller-generated ID used to correlate the executor receipt.
+      required: true
+      selector:
+        text:
+    action:
+      name: Action
+      description: One whitelisted controller operation.
+      required: true
+      selector:
+        select:
+          options:
+            - tap_button
+            - press_button
+            - release_button
+            - move_stick
+            - wait
+            - no_op
+    button:
+      name: Button
+      description: Required for button actions; must be in the active allowlist.
+      required: false
+      selector:
+        text:
+    stick:
+      name: Stick
+      description: Required for move_stick.
+      required: false
+      selector:
+        select:
+          options:
+            - left
+            - right
+    x:
+      name: X axis
+      description: Stick X value from -1.0 to 1.0.
+      required: false
+      selector:
+        number:
+          min: -1
+          max: 1
+          step: 0.1
+          mode: box
+    y:
+      name: Y axis
+      description: Stick Y value from -1.0 to 1.0.
+      required: false
+      selector:
+        number:
+          min: -1
+          max: 1
+          step: 0.1
+          mode: box
+    duration_ms:
+      name: Duration in milliseconds
+      description: Optional button or wait duration, capped at 5000 ms.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 5000
+          step: 10
+          mode: box
+    reason:
+      name: Reason
+      description: Short explanation for the audit log.
       required: false
       selector:
         text:

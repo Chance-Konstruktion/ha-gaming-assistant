@@ -620,8 +620,9 @@ Beyond *watching* your game, the assistant can **play** it. `worker/agent_execut
 
 - **Whitelist** — only buttons you list in `--allow-buttons` are ever forwarded; anything else is rejected and logged.
 - **Dry-run** — `--dry-run` (and the automatic fallback when `vgamepad` isn't installed) validates and logs actions *without sending input*. Always start here.
-- **Audit log** — every action (accepted, rejected, or skipped) is appended as one JSON line to `--audit-log`.
-- **Emergency stop** — publish `stop` to `gaming_assistant/command` to instantly pause and release all inputs; `start` resumes. Inputs are also released on disconnect and shutdown, so nothing ever stays stuck.
+- **Audit log** — every action (accepted, rejected, expired, duplicate, or skipped) is appended as one JSON line to `--audit-log`.
+- **Short-lived commands** — HA adds session/command IDs and a two-second expiry; the executor rejects stale and duplicate deliveries and publishes an execution receipt.
+- **Input watchdog** — a held button or stick is neutralized after 1.5 seconds without fresh control. Disabling Agent Mode requests a neutral reset; `stop` still pauses the executor and `start` resumes it.
 
 ```bash
 pip install -r worker/requirements-player2.txt   # vgamepad + paho-mqtt
@@ -691,6 +692,24 @@ python worker/vizdoom_agent.py --broker 192.168.1.10 --client-id doom --show
 Controls, safety rails and options: [`docs/agent_mode.md`](docs/agent_mode.md#vizdoom-hybrid-reflexes--llm-strategy).
 
 </details>
+
+---
+
+## 🧩 ChatGPT / MCP bridge *(optional)*
+
+The optional `worker/mcp_server.py` exposes a limited MCP tool surface for a compatible ChatGPT/MCP client: list gaming clients, get a screenshot with its frame timestamp, inspect Player-2 status, enable/disable Agent Mode, and submit one validated action. Home Assistant and the gamepad executor both revalidate actions; arbitrary HA services, keyboard/mouse injection and shell access are not exposed.
+
+Install its separate dependencies and configure `HA_URL` plus `HA_TOKEN` as environment variables:
+
+```bash
+pip install -r worker/requirements-mcp.txt
+# For a local MCP host, leave MCP_TRANSPORT unset (stdio).
+python worker/mcp_server.py
+```
+
+For a remote ChatGPT connector, use `MCP_TRANSPORT=streamable-http` and place the loopback-only listener behind HTTPS and an authentication flow that ChatGPT supports, or use Secure MCP Tunnel if available. Set `MCP_ALLOWED_HOSTS` to the public proxy hostname (bare hostname and `:*` forms); DNS-rebinding protection remains enabled. **Do not expose the MCP port or Home Assistant token directly to the Internet.** The bridge does not implement OAuth itself, and ChatGPT write-capable MCP access depends on plan/workspace eligibility. See [`docs/chatgpt_mcp.md`](docs/chatgpt_mcp.md).
+
+The bridge starts with control disabled. Enabling it selects **exclusive external control** so the local Home Assistant LLM cannot simultaneously send competing actions. The direct MCP action service refuses local-controller mode and refuses actions while per-action confirmation is enabled. Start the capture agent and executor, send a single action against a recent frame timestamp, and inspect the executor receipt before continuing. Use `stop_game_agent` to disable control and request neutral inputs.
 
 ---
 

@@ -76,3 +76,35 @@ jobs:
         env:
           STRICT_NO_SKIP: "1"
         run: pytest -c pytest-ha.ini -v -rs
+
+  mcp-bridge-smoketest:
+    name: Optional MCP bridge import smoke test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install optional MCP bridge dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r worker/requirements-mcp.txt
+
+      - name: Compile and smoke-test the MCP bridge
+        run: |
+          python -m py_compile worker/mcp_server.py
+          python - <<'PY'
+          from datetime import datetime, timedelta, timezone
+          from worker.mcp_server import MCP_ALLOWED_HOSTS, _image_format, _timestamp_age, mcp
+
+          assert _image_format(b"\x89PNG\r\n\x1a\n...") == "png"
+          assert _image_format(b"\xff\xd8\xff...") == "jpeg"
+          future = (datetime.now(timezone.utc) + timedelta(seconds=30)).isoformat()
+          assert _timestamp_age(future) < 0
+          assert MCP_ALLOWED_HOSTS
+          print(f"MCP bridge imported: {type(mcp).__name__}; host allowlist configured")
+          PY
