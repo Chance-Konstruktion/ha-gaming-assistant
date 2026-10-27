@@ -58,11 +58,14 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import math
 import platform
 import re
 import signal
 import sys
 import time
+import threading
+from collections import OrderedDict
 from datetime import datetime, timezone
 from typing import Callable
 
@@ -94,6 +97,7 @@ except ImportError:  # pragma: no cover - depends on host (Windows + ViGEmBus)
 # MQTT topics
 # ---------------------------------------------------------------------------
 ACTION_TOPIC_TEMPLATE = "gaming_assistant/{client_id}/action"
+ACTION_RESULT_TOPIC_TEMPLATE = "gaming_assistant/{client_id}/action_result"
 STATUS_TOPIC_TEMPLATE = "gaming_assistant/{client_id}/status"
 REGISTER_TOPIC_TEMPLATE = "gaming_assistant/{client_id}/register"
 COMMAND_TOPIC = "gaming_assistant/command"
@@ -102,6 +106,9 @@ DEFAULT_BROKER = "localhost"
 DEFAULT_PORT = 1883
 DEFAULT_TAP_MS = 80
 MAX_DURATION_MS = 5000
+# A held button or non-neutral stick is cleared if no fresh control arrives.
+DEFAULT_HOLD_TIMEOUT_S = 1.5
+MAX_SEEN_COMMANDS = 2048
 
 # ---------------------------------------------------------------------------
 # Action contract (kept in sync with PromptBuilder.ACTION_SCHEMA in the
@@ -141,7 +148,10 @@ _BUTTON_TO_XUSB = {
 
 VALID_BUTTONS = frozenset(_BUTTON_TO_XUSB) | TRIGGER_BUTTONS
 ACTION_KEYS = frozenset(
-    {"action", "button", "stick", "x", "y", "duration_ms", "reason"}
+    {
+        "action", "button", "stick", "x", "y", "duration_ms", "reason",
+        "command_id", "session_id", "expires_at",
+    }
 )
 
 
@@ -211,6 +221,23 @@ def parse_action(text, allowed_buttons: list[str] | None = None) -> dict:
             or duration > MAX_DURATION_MS
         ):
             raise ValueError(f"duration_ms must be an int in [0, {MAX_DURATION_MS}]")
+
+    # Optional transport metadata is added by Home Assistant, never by the LLM.
+    for key in ("command_id", "session_id"):
+        value = payload.get(key)
+        if value is not None and (
+            not isinstance(value, str) or not value.strip() or len(value) > 128
+        ):
+            raise ValueError(f"{key} must be a non-empty string of at most 128 chars")
+    expires_at = payload.get("expires_at")
+    if expires_at is not None and (
+        isinstance(expires_at, bool)
+        or not isinstance(expires_at, (int, float))
+        or (isinstance(expires_at, float) and not math.isfinite(expires_at))
+        or expires_at <= 0
+        or expires_at > 4102444800  # Reject implausible timestamps beyond year 2100.
+    ):
+        raise ValueError("expires_at must be a positive Unix timestamp")
 
     return {k: v for k, v in payload.items() if k in ACTION_KEYS}
 
@@ -302,6 +329,7 @@ class AgentExecutor:
         default_tap_ms: int = DEFAULT_TAP_MS,
         audit: Callable[[dict], None] | None = None,
         sleep: Callable[[float], None] = time.sleep,
+        hold_timeout_s: float = DEFAULT_HOLD_TIMEOUT_S,
     ):
         self.controller = controller
         self.client_id = client_id
@@ -318,7 +346,16 @@ class AgentExecutor:
         self.default_tap_ms = default_tap_ms
         self.audit = audit
         self._sleep = sleep
+        self.hold_timeout_s = max(0.1, float(hold_timeout_s))
         self.paused = False
+        self._lock = threading.RLock()
+        self._hold_timer: threading.Timer | None = None
+        self._hold_generation = 0
+        self._held_buttons: set[str] = set()
+        self._active_sticks: set[str] = set()
+        self._seen_command_ids: OrderedDict[str, None] = OrderedDict()
+        # The active HA session revokes in-flight actions when controller ownership changes.
+        self._active_session_id: str | None = None
 
     # -- public API ---------------------------------------------------------
     def handle(self, raw) -> dict:
@@ -337,6 +374,49 @@ class AgentExecutor:
             log.warning("Rejected action: %s", err)
             self._record(entry)
             return entry
+
+        # Expired commands must never be replayed after a delayed/reconnected MQTT
+        # delivery. Legacy payloads without an expiry remain backwards compatible.
+        command_id = action.get("command_id")
+        if command_id:
+            entry["command_id"] = command_id
+        if action.get("session_id"):
+            entry["session_id"] = action["session_id"]
+        expires_at = action.get("expires_at")
+        if expires_at is not None and float(expires_at) <= time.time():
+            entry.update(result="expired", reason="action TTL elapsed", action=action)
+            self._record(entry)
+            return entry
+
+        session_id = action.get("session_id")
+        if self._active_session_id is not None and not session_id:
+            entry.update(
+                result="session_mismatch",
+                reason="action has no controller session after session safety was activated",
+                action=action,
+            )
+            self._record(entry)
+            return entry
+        if session_id:
+            if self._active_session_id is None:
+                # First modern action establishes the session for older deployments
+                # where the reset envelope may not yet have arrived.
+                self._active_session_id = session_id
+            elif session_id != self._active_session_id:
+                entry.update(
+                    result="session_mismatch",
+                    reason="action belongs to a revoked controller session",
+                    action=action,
+                )
+                self._record(entry)
+                return entry
+
+        if command_id and command_id in self._seen_command_ids:
+            entry.update(result="duplicate", reason="command_id already processed", action=action)
+            self._record(entry)
+            return entry
+        if command_id:
+            self._remember_command(command_id)
 
         entry["action"] = action
 
@@ -364,50 +444,130 @@ class AgentExecutor:
         return entry
 
     def execute(self, action: dict) -> None:
-        """Forward a *validated* action to the controller."""
-        kind = action["action"]
-        if kind == "no_op":
-            return
-        if kind == "wait":
-            self._do_sleep(action.get("duration_ms", 0))
-            return
-        if kind == "move_stick":
-            self.controller.stick(
-                action["stick"],
-                float(action.get("x", 0.0)),
-                float(action.get("y", 0.0)),
-            )
-            self.controller.update()
-            return
+        """Forward a validated action; held inputs are protected by a watchdog."""
+        with self._lock:
+            kind = action["action"]
+            if kind in ("no_op", "wait"):
+                if kind == "wait":
+                    self._do_sleep(action.get("duration_ms", 0))
+                return
+            if kind == "move_stick":
+                stick = action["stick"]
+                x, y = float(action.get("x", 0.0)), float(action.get("y", 0.0))
+                self.controller.stick(stick, x, y)
+                self.controller.update()
+                if abs(x) < 0.001 and abs(y) < 0.001:
+                    self._active_sticks.discard(stick)
+                    self._refresh_watchdog()
+                else:
+                    self._active_sticks.add(stick)
+                    self._arm_watchdog()
+                return
 
-        button = action["button"]
-        if kind == "press_button":
-            self._press(button)
-        elif kind == "release_button":
-            self._release(button)
-        elif kind == "tap_button":
-            duration = action.get("duration_ms")
-            duration = self.default_tap_ms if duration is None else duration
-            self._press(button)
-            self._do_sleep(duration)
-            self._release(button)
+            button = action["button"]
+            if kind == "press_button":
+                self._press(button)
+                self._held_buttons.add(button)
+                self._arm_watchdog()
+            elif kind == "release_button":
+                self._release(button)
+                self._held_buttons.discard(button)
+                self._refresh_watchdog()
+            elif kind == "tap_button":
+                duration = action.get("duration_ms")
+                duration = self.default_tap_ms if duration is None else duration
+                self._press(button)
+                try:
+                    self._do_sleep(duration)
+                finally:
+                    self._release(button)
 
     def pause(self) -> None:
         """Emergency stop: release everything and ignore further actions."""
-        self.paused = True
-        self.reset()
+        with self._lock:
+            self.paused = True
+            self.reset()
         log.warning("Executor PAUSED — inputs released, actions will be skipped.")
 
     def resume(self) -> None:
-        self.paused = False
+        with self._lock:
+            self.paused = False
         log.info("Executor RESUMED.")
 
     def reset(self) -> None:
         """Return the controller to neutral (no buttons / sticks held)."""
-        if self.controller is None:
-            return
-        self.controller.reset()
-        self.controller.update()
+        with self._lock:
+            self._cancel_watchdog()
+            self._held_buttons.clear()
+            self._active_sticks.clear()
+            if self.controller is None:
+                return
+            self.controller.reset()
+            self.controller.update()
+
+    def set_session(self, session_id: str) -> None:
+        """Neutralize controls and revoke all actions from the previous HA session."""
+        if not isinstance(session_id, str) or not session_id.strip() or len(session_id) > 128:
+            raise ValueError("session_id must be a non-empty string of at most 128 chars")
+        with self._lock:
+            self.reset()
+            self._active_session_id = session_id
+            self._seen_command_ids.clear()
+
+    def _remember_command(self, command_id: str) -> None:
+        self._seen_command_ids[command_id] = None
+        self._seen_command_ids.move_to_end(command_id)
+        while len(self._seen_command_ids) > MAX_SEEN_COMMANDS:
+            self._seen_command_ids.popitem(last=False)
+
+    def _cancel_watchdog(self) -> None:
+        self._hold_generation += 1
+        timer, self._hold_timer = self._hold_timer, None
+        if timer is not None:
+            timer.cancel()
+
+    def _arm_watchdog(self) -> None:
+        self._cancel_watchdog()
+        generation = self._hold_generation
+        timer = threading.Timer(
+            self.hold_timeout_s, self._watchdog_expired, args=(generation,)
+        )
+        timer.daemon = True
+        self._hold_timer = timer
+        timer.start()
+
+    def _refresh_watchdog(self) -> None:
+        if self._held_buttons or self._active_sticks:
+            self._arm_watchdog()
+        else:
+            self._cancel_watchdog()
+
+    def _watchdog_expired(self, generation: int) -> None:
+        with self._lock:
+            # A cancelled timer may already be waiting for this lock. It must
+            # not neutralize inputs armed by a newer timer.
+            if generation != self._hold_generation:
+                return
+            self._hold_timer = None
+            if self.paused or not (self._held_buttons or self._active_sticks):
+                return
+            if self.controller is not None:
+                self.controller.reset()
+                self.controller.update()
+            held = sorted(self._held_buttons)
+            sticks = sorted(self._active_sticks)
+            self._held_buttons.clear()
+            self._active_sticks.clear()
+            entry = {
+                "time": _now_iso(),
+                "client_id": self.client_id,
+                "result": "watchdog_reset",
+                "reason": f"no fresh control within {self.hold_timeout_s:.2f}s",
+                "released_buttons": held,
+                "neutralized_sticks": sticks,
+            }
+            log.warning("Input watchdog neutralized stale controls: %s", entry)
+            self._record(entry)
 
     # -- internals ----------------------------------------------------------
     def _press(self, button: str) -> None:
@@ -441,11 +601,32 @@ class AgentExecutor:
 # MQTT runner
 # ---------------------------------------------------------------------------
 def _handle_command(executor: AgentExecutor, payload: bytes) -> None:
-    cmd = payload.decode("utf-8", "replace").strip().lower()
+    raw = payload.decode("utf-8", "replace").strip()
+    session_id = None
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        data = None
+    if isinstance(data, dict):
+        cmd = str(data.get("command", "")).strip().lower()
+        session_id = data.get("session_id")
+    else:
+        cmd = raw.lower()
+
     if cmd in ("stop", "pause"):
         executor.pause()
     elif cmd in ("start", "resume"):
         executor.resume()
+    elif cmd in ("reset", "neutral", "release"):
+        # Session-tagged resets also revoke actions already in flight on MQTT.
+        if session_id is not None:
+            try:
+                executor.set_session(session_id)
+            except ValueError as err:
+                log.warning("Ignoring invalid reset session: %s", err)
+                executor.reset()
+        else:
+            executor.reset()
 
 
 def run(args) -> None:
@@ -481,6 +662,7 @@ def run(args) -> None:
     )
 
     action_topic = ACTION_TOPIC_TEMPLATE.format(client_id=args.client_id)
+    result_topic = ACTION_RESULT_TOPIC_TEMPLATE.format(client_id=args.client_id)
     status_topic = STATUS_TOPIC_TEMPLATE.format(client_id=args.client_id)
     register_topic = REGISTER_TOPIC_TEMPLATE.format(client_id=args.client_id)
 
@@ -501,6 +683,7 @@ def run(args) -> None:
         c.subscribe(action_topic, qos=1)
         c.subscribe(COMMAND_TOPIC, qos=1)
         log.info("Subscribed to %s and %s", action_topic, COMMAND_TOPIC)
+        log.info("Action results are published to %s", result_topic)
         c.publish(
             register_topic,
             json.dumps(
@@ -522,7 +705,9 @@ def run(args) -> None:
             _handle_command(executor, msg.payload)
             return
         if msg.topic == action_topic:
-            executor.handle(msg.payload)
+            result = executor.handle(msg.payload)
+            # Report every result so HA can distinguish validation/execution outcomes.
+            c.publish(result_topic, json.dumps(result), qos=1, retain=False)
 
     def on_disconnect(c, userdata, rc):
         # Release any held inputs if the broker drops us unexpectedly.

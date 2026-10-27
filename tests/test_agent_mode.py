@@ -150,8 +150,12 @@ class TestAgentModeContracts(unittest.TestCase):
         self.assertIn("MQTT_ACTION_TOPIC.format(client_id=client_id)", self.coord)
 
     def test_process_image_gates_on_agent_mode(self):
-        self.assertIn("if coord._agent_mode:", self.pipeline)
+        self.assertIn(
+            "if coord._agent_mode and not coord._agent_external_control:", self.pipeline
+        )
         self.assertIn("await self._maybe_publish_agent_action(", self.pipeline)
+        self.assertIn("self._agent_external_control: bool = False", self.coord)
+        self.assertIn("def agent_external_control(self)", self.coord)
 
     def test_action_path_is_isolated(self):
         # The action generation must be wrapped so it can never break analysis.

@@ -256,6 +256,55 @@ class TestPackValidation(unittest.TestCase):
         self.assertIn("keywords", joined)
         self.assertIn("system_prompt", joined)
 
+    def test_required_field_types_are_rejected(self):
+        base = {
+            "id": "valid_game",
+            "name": "Valid Game",
+            "keywords": ["valid game"],
+            "system_prompt": "Give useful, actionable game tips.",
+        }
+        cases = (
+            ("id", 123),
+            ("name", ["not", "a", "string"]),
+            ("keywords", None),
+            ("system_prompt", []),
+        )
+        for field, value in cases:
+            with self.subTest(field=field):
+                pack = {**base, field: value}
+                errors = self._mod.validate_pack(pack)
+                fatal = self._mod.required_field_errors(pack)
+                self.assertTrue(any(field in error for error in errors), errors)
+                self.assertTrue(any(field in error for error in fatal), fatal)
+
+    def test_unhashable_optional_values_report_errors_instead_of_crashing(self):
+        pack = {
+            "id": "valid_game",
+            "name": "Valid Game",
+            "keywords": ["valid game"],
+            "system_prompt": "Give useful, actionable game tips.",
+            "spoiler_defaults": {"story": []},
+            "constraints": {"supported_modes": [[]]},
+        }
+        errors = self._mod.validate_pack(pack)
+        self.assertTrue(any("spoiler_defaults.story" in error for error in errors), errors)
+        self.assertTrue(any("supported_modes" in error for error in errors), errors)
+
+    def test_loader_skips_non_string_system_prompt(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_dir = Path(tmpdir)
+            (cache_dir / "broken_prompt.json").write_text(json.dumps({
+                "id": "broken_prompt",
+                "name": "Broken Prompt",
+                "keywords": ["broken"],
+                "system_prompt": [],
+            }), encoding="utf-8")
+            loader = self._mod.PromptPackLoader(cache_dir=cache_dir)
+            loader.load_all()
+            self.assertIsNone(loader.get("broken_prompt"))
+            self.assertIn("broken_prompt.json", loader.invalid_packs)
+
     def test_bad_version_rejected(self):
         errors = self._mod.validate_pack({
             "id": "x", "name": "x", "keywords": ["x"],
@@ -370,6 +419,48 @@ class TestRemotePackVerification(unittest.TestCase):
         written = self.mod.extract_prompt_packs(zip_bytes, self.tmp)
         self.assertEqual(written, 1)
         self.assertTrue((self.tmp / "base" / "good.json").exists())
+
+    def test_malformed_manifest_fails_closed(self):
+        good = self._pack("good")
+        zip_bytes = _make_repo_zip({
+            "repo-main/checksums.json": b"{not valid json",
+            "repo-main/packs/base/good.json": good,
+        })
+
+        written = self.mod.extract_prompt_packs(zip_bytes, self.tmp)
+
+        self.assertEqual(written, 0)
+        self.assertFalse((self.tmp / "base" / "good.json").exists())
+
+    def test_manifest_with_invalid_hash_fails_closed(self):
+        good = self._pack("good")
+        manifest = {"algorithm": "sha256", "packs": {"base/good.json": "not-a-hash"}}
+        zip_bytes = _make_repo_zip({
+            "repo-main/checksums.json": json.dumps(manifest).encode("utf-8"),
+            "repo-main/packs/base/good.json": good,
+        })
+
+        written = self.mod.extract_prompt_packs(zip_bytes, self.tmp)
+
+        self.assertEqual(written, 0)
+        self.assertFalse((self.tmp / "base" / "good.json").exists())
+
+    def test_archive_path_traversal_is_rejected(self):
+        outside_content = self._pack("outside")
+        manifest = {
+            "algorithm": "sha256",
+            "packs": {"../outside.json": hashlib.sha256(outside_content).hexdigest()},
+        }
+        zip_bytes = _make_repo_zip({
+            "repo-main/checksums.json": json.dumps(manifest).encode("utf-8"),
+            "repo-main/packs/../outside.json": outside_content,
+        })
+        cache_dir = self.tmp / "cache"
+
+        written = self.mod.extract_prompt_packs(zip_bytes, cache_dir)
+
+        self.assertEqual(written, 0)
+        self.assertFalse((self.tmp / "outside.json").exists())
 
     def test_template_and_non_json_ignored(self):
         good = self._pack("good")

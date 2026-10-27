@@ -122,6 +122,7 @@ from custom_components.gaming_assistant.const import (  # noqa: E402
     EVENT_AGENT_ACTION,
     EVENT_NEW_TIP,
     EVENT_SESSION_ENDED,
+    MQTT_ACTION_RESULT_TOPIC,
     MQTT_AUDIO_TOPIC,
     MQTT_BOARD_TOPIC,
     MQTT_DETECTIONS_TOPIC,
@@ -347,7 +348,7 @@ class TestMqttHandlers(unittest.TestCase):
         self.coord, self.hass = _make_coord()
         _MQTT.async_subscribe.reset_mock()
         _run(self.coord._subscribe_topics())
-        # subscribe_topics registers exactly 11 handlers in a fixed order;
+        # subscribe_topics registers one handler per subscribed topic;
         # index them by the topic they were bound to.
         self.cb = {
             call.args[1]: call.args[2]
@@ -355,7 +356,29 @@ class TestMqttHandlers(unittest.TestCase):
         }
 
     def test_subscribes_to_all_topics(self):
-        self.assertEqual(len(self.cb), 11)
+        self.assertEqual(len(self.cb), 12)
+        self.assertIn(MQTT_ACTION_RESULT_TOPIC, self.cb)
+
+    def test_action_result_receipt_is_correlated(self):
+        command_id = "cmd-receipt-1"
+        self.coord._agent_action_commands[command_id] = {
+            "command_id": command_id,
+            "session_id": self.coord._agent_session_id,
+            "client_id": "rig1",
+        }
+        payload = {
+            "command_id": command_id,
+            "session_id": self.coord._agent_session_id,
+            "result": "executed",
+            "time": "2026-10-26T00:00:00Z",
+            "action": {"action": "tap_button", "button": "A"},
+        }
+        self.cb[MQTT_ACTION_RESULT_TOPIC](
+            _msg("gaming_assistant/rig1/action_result", json.dumps(payload).encode())
+        )
+        self.assertEqual(self.coord.agent_last_action_result["command_id"], command_id)
+        self.assertEqual(self.coord.agent_last_action_result["result"], "executed")
+        self.assertNotIn(command_id, self.coord._agent_action_commands)
 
     def test_tip_handler(self):
         self.cb[MQTT_TIP_TOPIC](_msg(MQTT_TIP_TOPIC, b"Use cover"))
@@ -880,8 +903,15 @@ class TestAsyncLifecycle(unittest.TestCase):
 
     def test_publish_action_uses_mqtt(self):
         _MQTT.async_publish.reset_mock()
-        _run(self.coord.async_publish_action("rig1", {"action": "button", "button": "A"}))
+        self.coord._agent_mode = True
+        payload = _run(
+            self.coord.async_publish_action("rig1", {"action": "tap_button", "button": "A"})
+        )
         self.assertTrue(_MQTT.async_publish.await_count >= 1)
+        self.assertIsNotNone(payload)
+        self.assertTrue(payload["command_id"])
+        self.assertEqual(payload["session_id"], self.coord._agent_session_id)
+        self.assertGreater(payload["expires_at"], __import__("time").time())
 
     def test_send_yolo_command_uses_mqtt(self):
         _MQTT.async_publish.reset_mock()

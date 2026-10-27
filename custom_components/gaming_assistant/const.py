@@ -41,6 +41,11 @@ MQTT_YOLO_STATUS_TOPIC = "gaming_assistant/+/status"
 
 # Agent Mode action topic (publish): {client_id} is the target capture client.
 MQTT_ACTION_TOPIC = "gaming_assistant/{client_id}/action"
+# Executor returns execution/validation receipts on the matching per-client topic.
+MQTT_ACTION_RESULT_TOPIC = "gaming_assistant/+/action_result"
+# Global stop/reset topic is shared with the existing executor emergency stop.
+MQTT_AGENT_COMMAND_TOPIC = "gaming_assistant/command"
+EVENT_AGENT_ACTION_RESULT = "gaming_assistant_agent_action_result"
 
 # Chess bot (publish): the bot's move for PC-side helpers that play it on a
 # screen; plus the board-vision workers' command topic ({"command": "reset"}).

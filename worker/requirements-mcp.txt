@@ -1,0 +1,4 @@
+# Optional MCP bridge for ChatGPT-compatible gaming clients.
+# Kept separate from the base Home Assistant integration and Player-2 worker.
+mcp>=1.28,<2
+httpx>=0.27,<1

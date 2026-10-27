@@ -6,10 +6,11 @@ import json
 import logging
 import re
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from homeassistant.components import mqtt
 from homeassistant.core import HomeAssistant, callback
@@ -64,8 +65,10 @@ from .const import (
     DEFAULT_TIMEOUT,
     DOMAIN,
     EVENT_NEW_TIP,
+    EVENT_AGENT_ACTION_RESULT,
     HEALTH_MAX_FAILURE_STREAK,
     MQTT_ACTION_TOPIC,
+    MQTT_AGENT_COMMAND_TOPIC,
     MQTT_YOLO_COMMAND_TOPIC,
 )
 from .agent_governor import AgentActionGovernor
@@ -155,7 +158,13 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
 
         # Agent Mode / Player 2 — opt-in, runtime-only (resets to OFF on restart).
         self._agent_mode: bool = DEFAULT_AGENT_MODE
+        # External controllers (e.g. ChatGPT over MCP) take exclusive control;
+        # the local LLM must not independently publish competing button actions.
+        self._agent_external_control: bool = False
         self._agent_allowed_buttons: list[str] = []
+        self._agent_session_id = uuid.uuid4().hex
+        self._agent_action_commands: dict[str, dict[str, Any]] = {}
+        self._agent_last_action_result: dict[str, Any] | None = None
         # Safety governor: rate limit + failure auto-disable + audit counters.
         self._agent_governor = AgentActionGovernor(
             AGENT_ACTION_MIN_INTERVAL, AGENT_MAX_CONSECUTIVE_FAILURES
@@ -527,16 +536,100 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         await mqtt.async_publish(self.hass, topic, json.dumps({"command": command}), qos=1)
         _LOGGER.info("Sent companion command %s to %s", command, device)
 
-    async def async_publish_action(self, client_id: str, action: dict) -> None:
-        """Publish a validated controller action to the agent executor."""
+    async def async_publish_action(
+        self, client_id: str, action: dict, command_id: str | None = None,
+        external: bool = False,
+    ) -> dict[str, Any] | None:
+        """Publish a short-lived, deduplicatable action and track its receipt.
+
+        None means HA could not hand the command to MQTT. A returned envelope
+        means it was published, not yet that the controller executed it; the
+        executor receipt arrives on the result topic.
+        """
+        if not self._agent_mode:
+            _LOGGER.warning("Refusing to publish action while Agent Mode is off")
+            return None
+        if bool(external) != self._agent_external_control:
+            _LOGGER.warning(
+                "Refusing %s action because %s controller mode is active",
+                "external" if external else "local",
+                "external" if self._agent_external_control else "local",
+            )
+            return None
+        if command_id is not None and not re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", command_id):
+            _LOGGER.warning("Refusing invalid agent command_id")
+            return None
         topic = MQTT_ACTION_TOPIC.format(client_id=client_id)
+        payload = {
+            **action,
+            "command_id": command_id or uuid.uuid4().hex,
+            "session_id": self._agent_session_id,
+            "expires_at": time.time() + 2.0,
+        }
+        self._agent_action_commands[payload["command_id"]] = {
+            **payload, "client_id": client_id,
+        }
+        while len(self._agent_action_commands) > 256:
+            self._agent_action_commands.pop(next(iter(self._agent_action_commands)))
         try:
             await mqtt.async_publish(
-                self.hass, topic, json.dumps(action), qos=1,
+                self.hass, topic, json.dumps(payload), qos=1, retain=False,
             )
-            _LOGGER.info("Published agent action to %s: %s", topic, action)
+            _LOGGER.info("Published agent action %s to %s: %s", payload["command_id"], topic, action)
+            return payload
         except HomeAssistantError as err:
+            self._agent_action_commands.pop(payload["command_id"], None)
             _LOGGER.warning("Failed to publish agent action: %s", err)
+            return None
+
+    async def async_publish_agent_command(
+        self, command: str, session_id: str | None = None
+    ) -> bool:
+        """Publish a narrow executor command; reset envelopes can revoke old sessions."""
+        if command not in {"reset", "stop", "start"}:
+            raise ValueError(f"Unsupported agent command: {command}")
+        if session_id is not None and command != "reset":
+            raise ValueError("session_id is only valid for reset commands")
+        payload: str = (
+            json.dumps({"command": command, "session_id": session_id})
+            if session_id is not None else command
+        )
+        try:
+            await mqtt.async_publish(
+                self.hass, MQTT_AGENT_COMMAND_TOPIC, payload, qos=1, retain=False,
+            )
+            _LOGGER.info("Sent agent executor command: %s", command)
+            return True
+        except HomeAssistantError as err:
+            _LOGGER.warning("Failed to send agent executor command %s: %s", command, err)
+            return False
+
+    @callback
+    def handle_agent_action_result(self, client_id: str, result: dict[str, Any]) -> None:
+        """Accept only receipts for commands issued by this coordinator session."""
+        if not isinstance(result, dict):
+            return
+        command_id = result.get("command_id")
+        session_id = result.get("session_id")
+        pending = self._agent_action_commands.get(command_id) if isinstance(command_id, str) else None
+        if (
+            pending is None
+            or session_id != self._agent_session_id
+            or pending.get("client_id") != client_id
+        ):
+            _LOGGER.debug("Ignoring uncorrelated agent action result from %s", client_id)
+            return
+        self._agent_action_commands.pop(command_id, None)
+        self._agent_last_action_result = {
+            "client_id": client_id,
+            "command_id": command_id,
+            "result": str(result.get("result", "unknown"))[:40],
+            "reason": str(result.get("reason", ""))[:200],
+            "timestamp": str(result.get("time", ""))[:40],
+            "action": result.get("action") if isinstance(result.get("action"), dict) else {},
+        }
+        self.hass.bus.async_fire(EVENT_AGENT_ACTION_RESULT, dict(self._agent_last_action_result))
+        self._notify_update()
 
     @property
     def llm_backend(self) -> LLMBackend:
@@ -761,6 +854,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         return self._agent_mode
 
     @property
+    def agent_external_control(self) -> bool:
+        return self._agent_external_control
+
+    @property
     def agent_allowed_buttons(self) -> list[str]:
         return list(self._agent_allowed_buttons)
 
@@ -771,6 +868,10 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
     @property
     def agent_actions_failed(self) -> int:
         return self._agent_governor.failed
+
+    @property
+    def agent_last_action_result(self) -> dict[str, Any] | None:
+        return self._agent_last_action_result
 
     @property
     def agent_last_action(self) -> dict | None:
@@ -806,7 +907,9 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         enabled: bool,
         allowed_buttons: list[str] | None = None,
         confirm: bool | None = None,
-    ) -> None:
+        external: bool = False,
+        schedule_reset: bool = True,
+    ) -> bool:
         """Enable/disable Agent Mode (opt-in autonomous controller actions).
 
         When enabled, each analyzed frame additionally produces a validated
@@ -814,10 +917,29 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         (or parked for confirmation, see :meth:`set_agent_confirm`).
         Runtime-only by design: it always resets to OFF on restart.
         """
-        if enabled and not self._agent_mode:
+        previous_mode = self._agent_mode
+        previous_external = self._agent_external_control
+        next_mode = bool(enabled)
+        next_external = bool(enabled and external)
+        if next_mode and not previous_mode:
             # Fresh enable: clear any stale failure streak from a prior run.
             self._agent_governor.reset_failures()
-        self._agent_mode = bool(enabled)
+        self._agent_mode = next_mode
+        self._agent_external_control = next_external
+        session_changed = (
+            previous_mode != self._agent_mode
+            or previous_external != self._agent_external_control
+        )
+        if session_changed:
+            # A session-tagged reset neutralizes controls and makes any delayed
+            # action from the previous controller mode fail closed at the executor.
+            self._agent_session_id = uuid.uuid4().hex
+            self._agent_action_commands.clear()
+        reset_required = session_changed or not self._agent_mode
+        if reset_required and schedule_reset:
+            self.hass.async_create_task(
+                self.async_publish_agent_command("reset", session_id=self._agent_session_id)
+            )
         if not self._agent_mode:
             self._cancel_pending_agent_action()
         if confirm is not None:
@@ -830,12 +952,14 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
                 b.upper() for b in allowed_buttons if b.upper() in valid
             ]
         _LOGGER.info(
-            "Agent mode set to: %s (allowed buttons: %s, confirm: %s)",
+            "Agent mode set to: %s (controller: %s, allowed buttons: %s, confirm: %s)",
             self._agent_mode,
+            "external" if self._agent_external_control else "local",
             ", ".join(self._agent_allowed_buttons) or "all",
             self._agent_confirm,
         )
         self.async_set_updated_data(self._build_data())
+        return reset_required
 
     def set_agent_confirm(self, enabled: bool) -> None:
         """Require (or stop requiring) a confirmation for each agent action.
@@ -894,11 +1018,33 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             return False
         self._cancel_agent_confirm_timer()
         ts = time.strftime("%Y-%m-%dT%H:%M:%S")
-        await self.async_publish_action(pending["client_id"], pending["action"])
-        self._agent_governor.record_published(pending["action"], now, ts)
+        published = await self.async_publish_action(pending["client_id"], pending["action"])
+        if (
+            not self._agent_mode
+            or self._agent_external_control
+            or (published is not None and published.get("session_id") != self._agent_session_id)
+        ):
+            self._pipeline._fire_agent_action_event(
+                pending["client_id"], pending["game"], "cancelled",
+                published or pending["action"], pending["id"],
+            )
+            self._notify_update()
+            return False
+        if published is None:
+            auto_disabled = self._agent_governor.record_error(ts)
+            if auto_disabled:
+                self.set_agent_mode(False)
+            self._pipeline._fire_agent_action_event(
+                pending["client_id"], pending["game"],
+                "auto_disabled" if auto_disabled else "error",
+                pending["action"], pending["id"],
+            )
+            self._notify_update()
+            return False
+        self._agent_governor.record_published(published, now, ts)
         self._pipeline._fire_agent_action_event(
             pending["client_id"], pending["game"], "published",
-            pending["action"], pending["id"],
+            published, pending["id"],
         )
         self._notify_update()
         return True
@@ -1191,7 +1337,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         """Remember the most recent frame for the image entity / diagnostics."""
         self._last_image_bytes = image_bytes
         self._last_image_client_id = client_id
-        self._last_image_timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
+        # Millisecond precision lets MCP clients pin actions to the frame they saw.
+        self._last_image_timestamp = datetime.now().astimezone().isoformat(timespec="milliseconds")
         self._last_image_monotonic = time.monotonic()
 
     def _fresh_frame(self) -> bytes | None:

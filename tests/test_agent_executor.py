@@ -8,6 +8,7 @@ validation/dispatch/audit logic is exercised on any platform.
 import json
 import os
 import tempfile
+import time
 import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -115,6 +116,25 @@ class TestParseAction(unittest.TestCase):
         # True is an int in Python — must still be rejected.
         with self.assertRaises(ValueError):
             parse_action('{"action": "wait", "duration_ms": true}')
+
+    def test_accepts_transport_metadata(self):
+        action = parse_action(
+            '{"action":"tap_button","button":"A","command_id":"cmd-1",'
+            '"session_id":"session-1","expires_at":4102444800}'
+        )
+        self.assertEqual(action["command_id"], "cmd-1")
+        self.assertEqual(action["session_id"], "session-1")
+
+    def test_rejects_invalid_transport_metadata(self):
+        for payload in (
+            '{"action":"no_op","command_id":17}',
+            '{"action":"no_op","session_id":""}',
+            '{"action":"no_op","expires_at":true}',
+            '{"action":"no_op","expires_at":-1}',
+            '{"action":"no_op","expires_at":NaN}',
+        ):
+            with self.subTest(payload=payload), self.assertRaises(ValueError):
+                parse_action(payload)
 
 
 # ===========================================================================
@@ -236,6 +256,85 @@ class TestExecutorHandle(unittest.TestCase):
         entry = executor.handle('{"action": "tap_button", "button": "START"}')
         self.assertEqual(entry["result"], "rejected")
         self.controller.press.assert_not_called()
+
+    def test_expired_action_is_never_executed(self):
+        payload = json.dumps({
+            "action": "tap_button", "button": "A", "command_id": "stale-1",
+            "expires_at": time.time() - 1,
+        })
+        entry = self.executor.handle(payload)
+        self.assertEqual(entry["result"], "expired")
+        self.controller.press.assert_not_called()
+
+    def test_duplicate_command_id_is_only_executed_once(self):
+        payload = json.dumps({
+            "action": "tap_button", "button": "A", "duration_ms": 0,
+            "command_id": "unique-1",
+        })
+        first = self.executor.handle(payload)
+        second = self.executor.handle(payload)
+        self.assertEqual(first["result"], "executed")
+        self.assertEqual(second["result"], "duplicate")
+        self.controller.press.assert_called_once_with("A")
+
+    def test_hold_watchdog_resets_stale_button_and_stick(self):
+        executor = AgentExecutor(
+            self.controller, hold_timeout_s=0.1, audit=self.audit.append
+        )
+        executor.handle('{"action":"press_button","button":"A"}')
+        executor.handle('{"action":"move_stick","stick":"left","x":0.5,"y":0.0}')
+        time.sleep(0.2)
+        self.controller.reset.assert_called_once()
+        watchdog_rows = [row for row in self.audit if row["result"] == "watchdog_reset"]
+        self.assertEqual(watchdog_rows[0]["released_buttons"], ["A"])
+        self.assertEqual(watchdog_rows[0]["neutralized_sticks"], ["left"])
+
+    def test_session_reset_rejects_in_flight_actions_from_old_mode(self):
+        from worker.agent_executor import _handle_command
+
+        self.executor.handle(json.dumps({
+            "action": "no_op", "session_id": "session-old", "command_id": "old-first"
+        }))
+        _handle_command(
+            self.executor,
+            json.dumps({"command": "reset", "session_id": "session-new"}).encode(),
+        )
+        stale = self.executor.handle(json.dumps({
+            "action": "tap_button", "button": "A", "duration_ms": 0,
+            "command_id": "old-late", "session_id": "session-old",
+            "expires_at": time.time() + 5,
+        }))
+        self.assertEqual(stale["result"], "session_mismatch")
+        self.controller.press.assert_not_called()
+
+        fresh = self.executor.handle(json.dumps({
+            "action": "tap_button", "button": "B", "duration_ms": 0,
+            "command_id": "new-fresh", "session_id": "session-new",
+            "expires_at": time.time() + 5,
+        }))
+        self.assertEqual(fresh["result"], "executed")
+        self.controller.press.assert_called_once_with("B")
+
+    def test_legacy_actions_are_rejected_after_session_mode_is_active(self):
+        from worker.agent_executor import _handle_command
+
+        _handle_command(
+            self.executor,
+            json.dumps({"command": "reset", "session_id": "strict-session"}).encode(),
+        )
+        entry = self.executor.handle(
+            '{"action":"tap_button","button":"A","duration_ms":0}'
+        )
+        self.assertEqual(entry["result"], "session_mismatch")
+        self.controller.press.assert_not_called()
+
+    def test_reset_command_releases_inputs_without_pausing(self):
+        from worker.agent_executor import _handle_command
+        self.executor.execute({"action": "press_button", "button": "A"})
+        _handle_command(self.executor, b"reset")
+        self.assertFalse(self.executor.paused)
+        self.assertEqual(self.executor._held_buttons, set())
+        self.controller.reset.assert_called_once()
 
 
 # ===========================================================================

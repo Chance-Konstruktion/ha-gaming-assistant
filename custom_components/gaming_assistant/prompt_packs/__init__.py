@@ -36,93 +36,108 @@ _VERSION_PATTERN = re.compile(r"^\d+\.\d+(?:\.\d+)?$")
 
 
 def validate_pack(data: dict) -> list[str]:
-    """Validate a prompt pack dict against the manifest schema.
+    """Validate a prompt pack dict against the bundled manifest schema.
 
-    Returns a list of human-readable error strings. An empty list means
-    the pack is valid. The validation is deliberately lightweight – it
-    mirrors the bundled manifest.json without pulling in jsonschema.
+    Returns human-readable errors. Required-field defects make the pack
+    unusable; optional-field defects remain advisory in the loader.
     """
-    errors: list[str] = []
-
     if not isinstance(data, dict):
         return ["pack must be a JSON object"]
 
-    # Required fields
-    for field in ("id", "name", "keywords", "system_prompt"):
+    errors: list[str] = []
+    required = ("id", "name", "keywords", "system_prompt")
+    for field in required:
         if field not in data:
             errors.append(f"missing required field '{field}'")
 
-    pack_id = data.get("id")
-    if isinstance(pack_id, str) and not _ID_PATTERN.match(pack_id):
-        errors.append(f"'id' must match {_ID_PATTERN.pattern}, got '{pack_id}'")
+    if "id" in data:
+        pack_id = data["id"]
+        if not isinstance(pack_id, str):
+            errors.append("'id' must be a string")
+        elif not _ID_PATTERN.fullmatch(pack_id):
+            errors.append(f"'id' must match {_ID_PATTERN.pattern}, got '{pack_id}'")
+
+    for field in ("name", "system_prompt"):
+        if field in data:
+            value = data[field]
+            if not isinstance(value, str) or not value.strip():
+                errors.append(f"'{field}' must be a non-empty string")
 
     if "version" in data:
         version = data["version"]
-        if not isinstance(version, str) or not _VERSION_PATTERN.match(version):
+        if not isinstance(version, str) or not _VERSION_PATTERN.fullmatch(version):
             errors.append(
                 f"'version' must look like '1.0' or '1.2.3', got {version!r}"
             )
 
-    keywords = data.get("keywords")
-    if keywords is not None:
+    if "keywords" in data:
+        keywords = data["keywords"]
         if not isinstance(keywords, list) or not keywords:
             errors.append("'keywords' must be a non-empty array of strings")
-        elif any(not isinstance(k, str) or not k for k in keywords):
+        elif any(not isinstance(k, str) or not k.strip() for k in keywords):
             errors.append("all entries of 'keywords' must be non-empty strings")
 
-    spoiler_defaults = data.get("spoiler_defaults")
-    if spoiler_defaults is not None:
+    if "spoiler_defaults" in data:
+        spoiler_defaults = data["spoiler_defaults"]
         if not isinstance(spoiler_defaults, dict):
             errors.append("'spoiler_defaults' must be an object")
         else:
             for cat, level in spoiler_defaults.items():
-                if level not in _SPOILER_LEVELS:
+                if not isinstance(level, str) or level not in _SPOILER_LEVELS:
                     errors.append(
                         f"'spoiler_defaults.{cat}' must be one of {sorted(_SPOILER_LEVELS)}, "
                         f"got {level!r}"
                     )
 
-    constraints = data.get("constraints")
-    if constraints is not None:
+    if "constraints" in data:
+        constraints = data["constraints"]
         if not isinstance(constraints, dict):
             errors.append("'constraints' must be an object")
         else:
-            modes = constraints.get("supported_modes")
-            if modes is not None:
+            if "supported_modes" in constraints:
+                modes = constraints["supported_modes"]
                 if not isinstance(modes, list) or any(
-                    m not in _ASSISTANT_MODES for m in modes
+                    not isinstance(mode, str) or mode not in _ASSISTANT_MODES
+                    for mode in modes
                 ):
                     errors.append(
                         "'constraints.supported_modes' entries must be one of "
                         f"{sorted(_ASSISTANT_MODES)}"
                     )
-            min_params = constraints.get("min_model_params_b")
-            if min_params is not None and not isinstance(
-                min_params, (int, float)
-            ):
-                errors.append("'constraints.min_model_params_b' must be a number")
+            if "min_model_params_b" in constraints:
+                min_params = constraints["min_model_params_b"]
+                if (
+                    isinstance(min_params, bool)
+                    or not isinstance(min_params, (int, float))
+                    or min_params < 0
+                ):
+                    errors.append("'constraints.min_model_params_b' must be a non-negative number")
 
-    examples = data.get("examples")
-    if examples is not None:
+    if "examples" in data:
+        examples = data["examples"]
         if not isinstance(examples, list):
             errors.append("'examples' must be an array")
         else:
-            for i, ex in enumerate(examples):
-                if not isinstance(ex, dict) or "situation" not in ex or "tip" not in ex:
+            for i, example in enumerate(examples):
+                if (
+                    not isinstance(example, dict)
+                    or not isinstance(example.get("situation"), str)
+                    or not example["situation"].strip()
+                    or not isinstance(example.get("tip"), str)
+                    or not example["tip"].strip()
+                ):
                     errors.append(
-                        f"'examples[{i}]' must be an object with 'situation' and 'tip'"
+                        f"'examples[{i}]' must be an object with non-empty string 'situation' and 'tip'"
                     )
 
     return errors
 
 
 def required_field_errors(data: dict) -> list[str]:
-    """The subset of validation issues that make a pack *unusable*.
+    """Return validation errors that make a pack unusable.
 
-    A pack with valid required fields (id, name, keywords, system_prompt) is
-    always loadable. Problems with optional fields (version, spoiler_defaults,
-    constraints, examples) are advisory — they must never drop the whole pack,
-    or one stray field silently removes a perfectly good pack from the library.
+    Optional-field issues remain advisory so one malformed optional field
+    does not silently remove an otherwise usable pack from the library.
     """
     if not isinstance(data, dict):
         return ["pack must be a JSON object"]
@@ -132,15 +147,24 @@ def required_field_errors(data: dict) -> list[str]:
         if field not in data:
             errors.append(f"missing required field '{field}'")
 
-    pack_id = data.get("id")
-    if isinstance(pack_id, str) and not _ID_PATTERN.match(pack_id):
-        errors.append(f"'id' must match {_ID_PATTERN.pattern}, got '{pack_id}'")
+    if "id" in data:
+        pack_id = data["id"]
+        if not isinstance(pack_id, str):
+            errors.append("'id' must be a string")
+        elif not _ID_PATTERN.fullmatch(pack_id):
+            errors.append(f"'id' must match {_ID_PATTERN.pattern}, got '{pack_id}'")
 
-    keywords = data.get("keywords")
-    if keywords is not None:
+    for field in ("name", "system_prompt"):
+        if field in data:
+            value = data[field]
+            if not isinstance(value, str) or not value.strip():
+                errors.append(f"'{field}' must be a non-empty string")
+
+    if "keywords" in data:
+        keywords = data["keywords"]
         if not isinstance(keywords, list) or not keywords:
             errors.append("'keywords' must be a non-empty array of strings")
-        elif any(not isinstance(k, str) or not k for k in keywords):
+        elif any(not isinstance(k, str) or not k.strip() for k in keywords):
             errors.append("all entries of 'keywords' must be non-empty strings")
 
     return errors
@@ -290,10 +314,13 @@ class PromptPackLoader:
         return self.load_all()
 
 
-def _read_remote_manifest(zf: zipfile.ZipFile) -> dict[str, str] | None:
-    """Return the {relative_pack_path: sha256} map from the repo's checksum
-    manifest (repo-root ``checksums.json``), or ``None`` if it is absent or
-    malformed.
+def _read_remote_manifest(
+    zf: zipfile.ZipFile,
+) -> tuple[bool, dict[str, str] | None]:
+    """Return (present, hashes) for the archive's checksum manifest.
+
+    A missing manifest is distinct from a present but malformed manifest:
+    only the former is eligible for the legacy unverified-download fallback.
     """
     for info in zf.infolist():
         if info.is_dir():
@@ -304,10 +331,21 @@ def _read_remote_manifest(zf: zipfile.ZipFile) -> dict[str, str] | None:
             try:
                 data = json.loads(zf.read(info.filename))
             except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
-                return None
-            packs = data.get("packs") if isinstance(data, dict) else None
-            return packs if isinstance(packs, dict) else None
-    return None
+                return True, None
+            if not isinstance(data, dict) or data.get("algorithm") != "sha256":
+                return True, None
+            packs = data.get("packs")
+            if not isinstance(packs, dict) or not packs:
+                return True, None
+            if any(
+                not isinstance(path, str)
+                or not isinstance(digest, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", digest)
+                for path, digest in packs.items()
+            ):
+                return True, None
+            return True, packs
+    return False, None
 
 
 def extract_prompt_packs(zip_bytes: bytes, cache_dir: Path) -> int:
@@ -324,7 +362,12 @@ def extract_prompt_packs(zip_bytes: bytes, cache_dir: Path) -> int:
     count = 0
     rejected = 0
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
-        manifest = _read_remote_manifest(zf)
+        manifest_present, manifest = _read_remote_manifest(zf)
+        if manifest_present and manifest is None:
+            _LOGGER.error(
+                "Rejecting prompt pack archive: invalid %s", _REMOTE_MANIFEST_NAME
+            )
+            return 0
         if manifest is None:
             _LOGGER.warning(
                 "No %s in download — writing packs unverified", _REMOTE_MANIFEST_NAME
@@ -340,9 +383,20 @@ def extract_prompt_packs(zip_bytes: bytes, cache_dir: Path) -> int:
                 continue
             # Relative path after packs/, e.g. "base/elden_ring.json"
             rel_parts = parts[packs_idx + 1:]
-            if not rel_parts or rel_parts[-1].startswith("_"):
+            if (
+                not rel_parts
+                or rel_parts[-1].startswith("_")
+                or any(part in {"", ".", ".."} for part in rel_parts)
+                or any("\\" in part for part in rel_parts)
+            ):
+                _LOGGER.warning("Skipping unsafe prompt pack path in archive: %s", info.filename)
+                rejected += 1
                 continue
             rel_path = Path(*rel_parts)
+            if rel_path.is_absolute():
+                _LOGGER.warning("Skipping absolute prompt pack path in archive: %s", info.filename)
+                rejected += 1
+                continue
             rel_key = rel_path.as_posix()
             raw = zf.read(info.filename)
 

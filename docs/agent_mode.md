@@ -34,7 +34,8 @@ others.
 | **Rate limiting** | Actions are throttled so a runaway pipeline cannot flood inputs. |
 | **Dead-man switch** | Agent Mode **auto-disables after repeated failures**, so a broken pipeline never keeps the AI "driving". |
 | **Audit** | Every decision (published or rejected) lands on `sensor.gaming_assistant_agent_action` and the `gaming_assistant_agent_action` event. |
-| **Optional confirmation** | Off by default. When on, each action waits as *pending* until you confirm or reject it, and lapses after 30 s. See below. |
+| **Optional confirmation** | Off by default. When on, local LLM actions wait as *pending* until you confirm/reject and lapse after 30 s. Direct MCP actions are refused while confirmation is on. |
+| **Exclusive controller** | The optional MCP bridge switches Agent Mode to *external control*, suppressing the local LLM action generator so two agents cannot fight over one gamepad. |
 
 ### Executor side (`agent_executor.py`)
 
@@ -44,7 +45,41 @@ others.
 | **Dry-run** | `--dry-run` (and the automatic fallback when `vgamepad` isn't installed) validates and logs actions **without sending input**. Always start here. |
 | **Audit log** | Every action — accepted, rejected, or skipped — is appended as one JSON line to `--audit-log`. |
 | **Emergency stop** | Publish `stop` to `gaming_assistant/command` to instantly pause and release all inputs; `start` resumes. |
-| **Fail-safe release** | Inputs are released on disconnect and on shutdown, so nothing ever stays stuck "held down". |
+| **Fail-safe release** | Inputs are released on disconnect and shutdown. Held buttons/sticks are also neutralized by the executor watchdog if no fresh control arrives within 1.5 seconds by default. |
+| **Action TTL + deduplication** | HA action envelopes carry a session ID, unique command ID and short expiry. The executor rejects expired and duplicate commands. Legacy messages without metadata remain supported. |
+| **Execution receipt** | The executor publishes a result for every action to `gaming_assistant/{client_id}/action_result`; HA correlates receipts and exposes the last result on the Agent Action sensor. A publish is not proof of execution. |
+
+---
+
+## Action delivery and timeout semantics
+
+Home Assistant gives each action a command ID, HA-session ID and a two-second
+publish-time expiry. The executor validates the envelope again, keeps a bounded
+cache of recent command IDs to avoid replaying QoS 1 duplicates, and returns a
+receipt on `gaming_assistant/{client_id}/action_result`. Receipts are correlated
+to commands from the active HA session; unknown or stale receipts are ignored.
+When Player 2 is enabled/disabled or ownership changes between the local LLM and
+an external controller, HA rotates the session ID and sends a session-tagged
+reset. The executor neutralizes the controller and rejects delayed actions from
+the previous session. Legacy action messages without envelope metadata remain
+supported until the executor receives its first session-aware action/reset; after
+that, actions without a matching active session are rejected. The MCP/service
+boundary also rejects unknown allowlist buttons rather than silently widening
+the allowed set.
+The latest receipt is available as `last_execution_result` on
+`sensor.gaming_assistant_agent_action` and through the
+`gaming_assistant_agent_action_result` event.
+
+A `press_button` or non-neutral `move_stick` action is a held input. If no fresh
+control renews it within 1.5 seconds (configurable through the executor's
+`hold_timeout_s` argument when used as a library), a watchdog resets the virtual
+controller and records `watchdog_reset` in the audit log. Sending `reset` to
+`gaming_assistant/command` clears all inputs without pausing the executor; the HA
+Agent Mode switch does this when disabling Player 2. The existing `stop` command
+remains a pause/emergency stop and `start` resumes it.
+
+For the ChatGPT/MCP bridge and its stricter one-shot service, see
+[`docs/chatgpt_mcp.md`](chatgpt_mcp.md).
 
 ---
 

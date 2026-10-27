@@ -4,6 +4,36 @@ All notable changes to the Gaming Assistant for Home Assistant.
 
 ## [Unreleased]
 
+### Added
+
+- **Optional ChatGPT/MCP bridge** (`worker/mcp_server.py`). A compatible MCP
+  client can list game clients, retrieve a recent screenshot with its timestamp,
+  inspect Player-2 execution receipts, and request one allowlisted gamepad action.
+  The bridge defaults to stdio; HTTP binds to loopback and requires a separately
+  secured HTTPS/authenticated proxy or tunnel for remote access. Dependencies are
+  isolated in `worker/requirements-mcp.txt` and setup is documented in
+  `docs/chatgpt_mcp.md`.
+- **Correlated Player-2 action receipts.** Published actions carry a command ID,
+  HA-session ID and short expiry. The executor returns results on
+  `gaming_assistant/{client_id}/action_result`; Home Assistant validates the
+  receipt correlation and exposes the latest result on the Agent Action sensor.
+- **Exclusive external controller mode.** When MCP is in control, the local LLM
+  action generator is suppressed so two agents do not compete over a gamepad.
+  The one-shot service validates the action schema, active client, fresh frame,
+  current allowlist and manual-confirmation setting before publishing. Ownership changes
+  rotate the controller session and send a reset so delayed commands from the previous
+  controller are rejected. Unknown allowlist buttons fail closed rather than being ignored.
+
+### Fixed
+
+- **Stale and repeated gamepad inputs.** The executor rejects expired and duplicate
+  commands, neutralizes held buttons/sticks after 1.5 seconds without fresh control,
+  publishes per-action results, and receives an explicit reset when Agent Mode is
+  disabled. MCP actions cannot bypass the existing per-action confirmation setting.
+- **Misreported action publication.** Home Assistant now distinguishes a failed
+  MQTT publish from a published action rather than counting publish failures as
+  successful Player-2 decisions.
+
 ### Changed
 
 - **The sidebar panel looks like part of Home Assistant.** It is now built
