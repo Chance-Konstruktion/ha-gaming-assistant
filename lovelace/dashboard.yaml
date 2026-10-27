@@ -71,8 +71,8 @@ cards:
 
   # -- Tip History -----------------------------------------------------------
   # Each tip is clearly separated with a horizontal rule and numbered.
-  # Wrapped in a scrollable container via card_mod (if installed) or
-  # limited to last 10 tips to keep the dashboard readable.
+  # recent_tips is limited to the last 5 entries by the integration.
+  # card-mod adds scrolling when installed; the history limit keeps this readable.
   - type: markdown
     content: |
       ### Recent Tips
