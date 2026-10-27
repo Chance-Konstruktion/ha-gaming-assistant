@@ -290,10 +290,13 @@ class PromptPackLoader:
         return self.load_all()
 
 
-def _read_remote_manifest(zf: zipfile.ZipFile) -> dict[str, str] | None:
-    """Return the {relative_pack_path: sha256} map from the repo's checksum
-    manifest (repo-root ``checksums.json``), or ``None`` if it is absent or
-    malformed.
+def _read_remote_manifest(
+    zf: zipfile.ZipFile,
+) -> tuple[bool, dict[str, str] | None]:
+    """Return (present, hashes) for the archive's checksum manifest.
+
+    A missing manifest is distinct from a present but malformed manifest:
+    only the former is eligible for the legacy unverified-download fallback.
     """
     for info in zf.infolist():
         if info.is_dir():
@@ -304,10 +307,21 @@ def _read_remote_manifest(zf: zipfile.ZipFile) -> dict[str, str] | None:
             try:
                 data = json.loads(zf.read(info.filename))
             except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
-                return None
-            packs = data.get("packs") if isinstance(data, dict) else None
-            return packs if isinstance(packs, dict) else None
-    return None
+                return True, None
+            if not isinstance(data, dict) or data.get("algorithm") != "sha256":
+                return True, None
+            packs = data.get("packs")
+            if not isinstance(packs, dict) or not packs:
+                return True, None
+            if any(
+                not isinstance(path, str)
+                or not isinstance(digest, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", digest)
+                for path, digest in packs.items()
+            ):
+                return True, None
+            return True, packs
+    return False, None
 
 
 def extract_prompt_packs(zip_bytes: bytes, cache_dir: Path) -> int:
@@ -324,7 +338,12 @@ def extract_prompt_packs(zip_bytes: bytes, cache_dir: Path) -> int:
     count = 0
     rejected = 0
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
-        manifest = _read_remote_manifest(zf)
+        manifest_present, manifest = _read_remote_manifest(zf)
+        if manifest_present and manifest is None:
+            _LOGGER.error(
+                "Rejecting prompt pack archive: invalid %s", _REMOTE_MANIFEST_NAME
+            )
+            return 0
         if manifest is None:
             _LOGGER.warning(
                 "No %s in download — writing packs unverified", _REMOTE_MANIFEST_NAME
@@ -340,9 +359,20 @@ def extract_prompt_packs(zip_bytes: bytes, cache_dir: Path) -> int:
                 continue
             # Relative path after packs/, e.g. "base/elden_ring.json"
             rel_parts = parts[packs_idx + 1:]
-            if not rel_parts or rel_parts[-1].startswith("_"):
+            if (
+                not rel_parts
+                or rel_parts[-1].startswith("_")
+                or any(part in {"", ".", ".."} for part in rel_parts)
+                or any("\\" in part for part in rel_parts)
+            ):
+                _LOGGER.warning("Skipping unsafe prompt pack path in archive: %s", info.filename)
+                rejected += 1
                 continue
             rel_path = Path(*rel_parts)
+            if rel_path.is_absolute():
+                _LOGGER.warning("Skipping absolute prompt pack path in archive: %s", info.filename)
+                rejected += 1
+                continue
             rel_key = rel_path.as_posix()
             raw = zf.read(info.filename)
 
