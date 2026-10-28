@@ -13,7 +13,9 @@ CONF_TIMEOUT = "analysis_timeout"
 CONF_CAMERA_ENTITY = "camera_entity"
 
 DEFAULT_OLLAMA_HOST = "http://localhost:11434"
-DEFAULT_MODEL = "qwen2.5vl"
+# The generic fallback is an Ollama model; cloud providers must use their preset.
+DEFAULT_OLLAMA_MODEL = "qwen2.5vl"
+DEFAULT_MODEL = DEFAULT_OLLAMA_MODEL
 DEFAULT_INTERVAL = 10
 DEFAULT_TIMEOUT = 60
 

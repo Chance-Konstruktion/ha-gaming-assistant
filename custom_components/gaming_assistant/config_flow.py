@@ -250,7 +250,7 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="model",
             data_schema=_schema_model_step(
-                self._models, DEFAULT_MODEL, DEFAULT_INTERVAL
+                self._models, self._model, self._interval, self._timeout
             ),
         )
 
