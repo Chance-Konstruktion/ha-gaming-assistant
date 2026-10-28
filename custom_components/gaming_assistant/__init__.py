@@ -121,7 +121,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             Path(hass.config.config_dir) / "gaming_assistant" / "prompt_packs"
         )
         try:
-            if await download_prompt_packs(packs_cache, hass.async_add_executor_job)
+            if await download_prompt_packs(packs_cache, hass.async_add_executor_job):
                 await hass.async_add_executor_job(coordinator.pack_loader.reload)
                 _LOGGER.info("Prompt packs updated from GitHub")
         except Exception:  # noqa: BLE001
