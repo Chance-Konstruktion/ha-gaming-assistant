@@ -383,7 +383,8 @@ class ImageProcessor:
         Used by Agent Mode (Player 2). ``controls`` describes the game's
         button layout as the client reported it. Returns a sanitized action
         dict, or ``None`` if the model declined (``no_op``) or its output
-        failed schema/whitelist validation. Never raises on bad model output.
+        failed schema/whitelist validation. Provider transport errors intentionally
+        propagate so Agent Mode can count them as failures instead of healthy no-ops.
         """
         state_context = ""
         if self._game_state and game:

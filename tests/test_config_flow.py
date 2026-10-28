@@ -107,6 +107,7 @@ from custom_components.gaming_assistant.config_flow import (
     GamingAssistantConfigFlow,
     _fetch_ollama_models_async,
     _schema_model_step,
+    _validate_provider_connection_async,
 )
 
 
@@ -190,6 +191,46 @@ class TestConfigFlowHelpers(unittest.TestCase):
         with patch("aiohttp.ClientSession", return_value=mock_session):
             result = _run(_fetch_ollama_models_async("http://localhost:11434"))
             self.assertIsNone(result)
+
+    def test_validate_provider_connection_rejects_empty_model_list(self):
+        backend = MagicMock()
+        backend.list_models = AsyncMock(return_value=[])
+        backend.close = AsyncMock()
+
+        with patch.dict(
+            _validate_provider_connection_async.__globals__,
+            {"create_backend": MagicMock(return_value=backend)},
+        ):
+            result = _run(
+                _validate_provider_connection_async(
+                    "openai", "https://api.openai.com", "test-key", "gpt-4o"
+                )
+            )
+
+        self.assertEqual(result, (False, [], "cannot_connect"))
+        backend.close.assert_awaited_once()
+
+    def test_validate_provider_connection_reports_invalid_auth(self):
+        backend_error = _validate_provider_connection_async.__globals__["LLMBackendError"]
+
+        backend = MagicMock()
+        backend.list_models = AsyncMock(
+            side_effect=backend_error("unauthorized", status_code=401)
+        )
+        backend.close = AsyncMock()
+
+        with patch.dict(
+            _validate_provider_connection_async.__globals__,
+            {"create_backend": MagicMock(return_value=backend)},
+        ):
+            result = _run(
+                _validate_provider_connection_async(
+                    "openai", "https://api.openai.com", "bad-key", "gpt-4o"
+                )
+            )
+
+        self.assertEqual(result, (False, [], "invalid_auth"))
+        backend.close.assert_awaited_once()
 
     def test_get_entities_by_domain_filters_disabled(self):
         flow = GamingAssistantConfigFlow()

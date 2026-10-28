@@ -28,6 +28,7 @@ from custom_components.gaming_assistant.image_processor import ImageProcessor
 from custom_components.gaming_assistant.history import HistoryManager
 from custom_components.gaming_assistant.spoiler import SpoilerManager
 from custom_components.gaming_assistant.const import OLLAMA_TIMEOUT
+from custom_components.gaming_assistant.llm_backend import LLMBackendError
 
 
 def _run(coro):
@@ -115,7 +116,7 @@ class TestImageProcessorErrorHandling(unittest.TestCase):
             spoiler_manager=spoiler,
         )
 
-    def test_connection_error_returns_empty(self):
+    def test_connection_error_propagates(self):
         proc = self._make_processor()
 
         mock_session = AsyncMock(spec=aiohttp.ClientSession)
@@ -130,8 +131,8 @@ class TestImageProcessorErrorHandling(unittest.TestCase):
         mock_session.post = MagicMock(return_value=mock_ctx)
         proc.backend._session = mock_session
 
-        result = _run(proc._call_ollama("prompt", "img"))
-        self.assertEqual(result, "")
+        with self.assertRaises(LLMBackendError):
+            _run(proc._call_ollama("prompt", "img"))
 
     def test_timeout_retries_then_fails(self):
         proc = self._make_processor()
@@ -148,8 +149,12 @@ class TestImageProcessorErrorHandling(unittest.TestCase):
         mock_session.post = MagicMock(return_value=mock_ctx)
         proc.backend._session = mock_session
 
-        result = _run(proc._call_ollama("prompt", "img"))
-        self.assertEqual(result, "")
+        with patch(
+            "custom_components.gaming_assistant.llm_backend.asyncio.sleep",
+            new_callable=AsyncMock,
+        ):
+            with self.assertRaises(LLMBackendError):
+                _run(proc._call_ollama("prompt", "img"))
 
 
 class TestImageProcessorBackendSwap(unittest.TestCase):
