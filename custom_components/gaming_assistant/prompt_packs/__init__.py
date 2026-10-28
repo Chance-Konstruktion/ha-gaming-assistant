@@ -1,12 +1,14 @@
 """Game-specific prompt pack loader with auto-download support."""
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import logging
 import hashlib
 import re
 import zipfile
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 import aiohttp
@@ -428,7 +430,10 @@ def extract_prompt_packs(zip_bytes: bytes, cache_dir: Path) -> int:
     return count
 
 
-async def download_prompt_packs(cache_dir: Path) -> bool:
+async def download_prompt_packs(
+    cache_dir: Path,
+    async_add_executor_job: Callable[..., Awaitable[int]] | None = None,
+) -> bool:
     """Download latest prompt packs from GitHub to cache directory.
 
     Returns True on success, False on failure.
@@ -447,7 +452,16 @@ async def download_prompt_packs(cache_dir: Path) -> bool:
                     return False
                 data = await resp.read()
 
-        return extract_prompt_packs(data, cache_dir) > 0
+        # ZIP parsing, hashing, decompression and writes are synchronous CPU/I/O.
+        # Use Home Assistant's executor when available; keep standalone callers
+        # non-blocking as well.
+        if async_add_executor_job is None:
+            extracted = await asyncio.to_thread(extract_prompt_packs, data, cache_dir)
+        else:
+            extracted = await async_add_executor_job(
+                extract_prompt_packs, data, cache_dir
+            )
+        return extracted > 0
 
     except (aiohttp.ClientError, zipfile.BadZipFile, OSError) as err:
         _LOGGER.error("Failed to download prompt packs: %s", err)

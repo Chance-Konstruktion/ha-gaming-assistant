@@ -1,5 +1,6 @@
 """Validation tests for prompt pack loader and JSON structure."""
 
+import asyncio
 import importlib
 import json
 import unittest
@@ -8,6 +9,7 @@ import zipfile
 import tempfile
 import hashlib
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 PACK_DIR = Path(__file__).parent.parent / "custom_components" / "gaming_assistant" / "prompt_packs"
@@ -366,6 +368,32 @@ class TestDownloadConfig(unittest.TestCase):
         self.assertTrue(hasattr(mod, "PROMPTS_REPO_REF"))
         # The download URL is built from the pinnable ref.
         self.assertIn(mod.PROMPTS_REPO_REF + ".zip", mod.PROMPTS_REPO_URL)
+
+    def test_extraction_uses_home_assistant_executor(self):
+        mod = _import_prompt_packs()
+        with tempfile.TemporaryDirectory() as tmp:
+            cache_dir = Path(tmp)
+            response = AsyncMock()
+            response.status = 200
+            response.read = AsyncMock(return_value=b"zip-data")
+            response_context = AsyncMock()
+            response_context.__aenter__ = AsyncMock(return_value=response)
+            response_context.__aexit__ = AsyncMock(return_value=False)
+
+            session = AsyncMock()
+            session.get = MagicMock(return_value=response_context)
+            session.__aenter__ = AsyncMock(return_value=session)
+            session.__aexit__ = AsyncMock(return_value=False)
+            executor = AsyncMock(return_value=1)
+
+            with patch.object(mod.aiohttp, "ClientSession", return_value=session):
+                with patch.object(mod, "extract_prompt_packs") as extract:
+                    downloaded = asyncio.run(
+                        mod.download_prompt_packs(cache_dir, executor)
+                    )
+
+            self.assertTrue(downloaded)
+            executor.assert_awaited_once_with(extract, b"zip-data", cache_dir)
 
 
 def _make_repo_zip(files: dict[str, bytes]) -> bytes:

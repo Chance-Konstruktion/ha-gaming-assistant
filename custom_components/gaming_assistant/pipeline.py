@@ -336,6 +336,8 @@ class AnalysisPipeline:
             return
 
         if not action:
+            # Reaching this branch means generation returned a real response;
+            # provider transport failures propagate to the error handler above.
             coord._agent_governor.record_no_op(ts)
             coord._notify_update()
             return

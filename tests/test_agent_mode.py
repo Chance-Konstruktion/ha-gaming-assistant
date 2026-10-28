@@ -34,6 +34,7 @@ for mod in _HA_MODULES:
 
 from custom_components.gaming_assistant.history import HistoryManager
 from custom_components.gaming_assistant.image_processor import ImageProcessor
+from custom_components.gaming_assistant.llm_backend import LLMBackendError
 from custom_components.gaming_assistant.spoiler import SpoilerManager
 
 
@@ -85,6 +86,12 @@ class TestGenerateAction(unittest.TestCase):
     def test_no_op_returns_none(self):
         proc = self._make_processor('{"action": "no_op", "reason": "nothing"}')
         self.assertIsNone(_run(proc.generate_action(b"frame", "Doom")))
+
+    def test_backend_failure_propagates_instead_of_becoming_no_op(self):
+        proc = self._make_processor("")
+        proc._backend.generate.side_effect = LLMBackendError("provider unavailable")
+        with self.assertRaises(LLMBackendError):
+            _run(proc.generate_action(b"frame", "Doom"))
 
     def test_whitelist_rejection_returns_none(self):
         proc = self._make_processor('{"action": "tap_button", "button": "START"}')
