@@ -125,6 +125,23 @@ class TestConfigFlowHelpers(unittest.TestCase):
         model_validator = schema.schema[model_key]
         self.assertIn("qwen2.5vl", model_validator.container)
 
+    def test_model_step_preserves_selected_provider_defaults(self):
+        flow = GamingAssistantConfigFlow()
+        flow._models = ["gpt-4o"]
+        flow._model = "gpt-4o"
+        flow._interval = 30
+        flow._timeout = 120
+        flow.async_show_form = MagicMock(return_value={"step_id": "model"})
+
+        result = _run(flow.async_step_model())
+
+        self.assertEqual(result["step_id"], "model")
+        schema = flow.async_show_form.call_args.kwargs["data_schema"]
+        defaults = {key.schema: key.default for key in schema.schema}
+        self.assertEqual(defaults["model"], "gpt-4o")
+        self.assertEqual(defaults["interval"], 30)
+        self.assertEqual(defaults["analysis_timeout"], 120)
+
     def test_fetch_ollama_models_success(self):
         mock_resp = AsyncMock()
         mock_resp.raise_for_status = MagicMock()
