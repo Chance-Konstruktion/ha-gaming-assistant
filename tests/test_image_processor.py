@@ -3,7 +3,7 @@
 import asyncio
 import sys
 import unittest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
 
@@ -180,14 +180,17 @@ class TestImageProcessorBackendSwap(unittest.TestCase):
         from custom_components.gaming_assistant.llm_backend import OpenAICompatibleBackend
         proc = self._make_processor()
 
+        old_backend = proc.backend
+        old_backend.close = AsyncMock()
         new_backend = OpenAICompatibleBackend(
             host="https://api.openai.com",
             model="gpt-4o",
             api_key="test-key",
         )
-        proc.backend = new_backend
+        _run(proc.async_set_backend(new_backend))
         self.assertEqual(proc.backend.backend_type, "openai")
         self.assertEqual(proc.backend.model, "gpt-4o")
+        old_backend.close.assert_awaited_once()
 
 
 class TestPerceptualHash(unittest.TestCase):

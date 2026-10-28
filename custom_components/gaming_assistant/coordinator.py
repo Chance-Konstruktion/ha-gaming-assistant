@@ -679,7 +679,7 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
         """
         if not model:
             return
-        self._llm_backend = create_backend(
+        new_backend = create_backend(
             provider=self._provider,
             host=self.config.get(CONF_OLLAMA_HOST, "http://localhost:11434"),
             model=model,
@@ -687,7 +687,8 @@ class GamingAssistantCoordinator(DataUpdateCoordinator):
             api_key=self.config.get(CONF_LLM_API_KEY, ""),
             allow_images=self.config.get(CONF_LLM_ALLOW_IMAGES, True),
         )
-        self._image_processor.backend = self._llm_backend
+        self._llm_backend = new_backend
+        await self._image_processor.async_set_backend(new_backend)
         self._image_processor._model = model
         self.config[CONF_MODEL] = model
         self.async_set_updated_data(self._build_data())

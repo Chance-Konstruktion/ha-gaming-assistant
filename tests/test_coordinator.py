@@ -40,6 +40,11 @@ class TestCoordinatorContracts(unittest.TestCase):
         # Inactivity handling now lives in the ClientRegistry collaborator.
         self.assertIn("async def _handle_inactive", self.registry_src)
 
+    def test_model_switch_awaits_previous_backend_cleanup(self):
+        self.assertIn(
+            "await self._image_processor.async_set_backend(new_backend)", self.src
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
