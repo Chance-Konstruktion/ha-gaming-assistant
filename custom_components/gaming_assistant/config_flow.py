@@ -40,7 +40,7 @@ from .const import (
     DOMAIN,
     SPOILER_LEVELS,
 )
-from .llm_backend import PROVIDER_PRESETS, create_backend
+from .llm_backend import LLMBackendError, PROVIDER_PRESETS, create_backend
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -95,8 +95,13 @@ async def _validate_provider_connection_async(
         models = await backend.list_models()
         if models:
             return True, models, ""
-        # Some backends may not expose model listing; connection still considered okay
-        return True, FALLBACK_MODELS, ""
+        # The configured providers expose model listing; an empty result means
+        # the endpoint could not verify a working provider connection.
+        return False, [], "cannot_connect"
+    except LLMBackendError as err:
+        if err.status_code == 401:
+            return False, [], "invalid_auth"
+        return False, [], "cannot_connect"
     except aiohttp.ClientConnectionError:
         return False, [], "cannot_connect"
     except TimeoutError:
@@ -250,7 +255,7 @@ class GamingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="model",
             data_schema=_schema_model_step(
-                self._models, DEFAULT_MODEL, DEFAULT_INTERVAL
+                self._models, self._model, self._interval, self._timeout
             ),
         )
 

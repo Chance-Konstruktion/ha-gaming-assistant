@@ -3,7 +3,7 @@
 import asyncio
 import sys
 import unittest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
 
@@ -28,6 +28,7 @@ from custom_components.gaming_assistant.image_processor import ImageProcessor
 from custom_components.gaming_assistant.history import HistoryManager
 from custom_components.gaming_assistant.spoiler import SpoilerManager
 from custom_components.gaming_assistant.const import OLLAMA_TIMEOUT
+from custom_components.gaming_assistant.llm_backend import LLMBackendError
 
 
 def _run(coro):
@@ -115,7 +116,7 @@ class TestImageProcessorErrorHandling(unittest.TestCase):
             spoiler_manager=spoiler,
         )
 
-    def test_connection_error_returns_empty(self):
+    def test_connection_error_propagates(self):
         proc = self._make_processor()
 
         mock_session = AsyncMock(spec=aiohttp.ClientSession)
@@ -130,8 +131,8 @@ class TestImageProcessorErrorHandling(unittest.TestCase):
         mock_session.post = MagicMock(return_value=mock_ctx)
         proc.backend._session = mock_session
 
-        result = _run(proc._call_ollama("prompt", "img"))
-        self.assertEqual(result, "")
+        with self.assertRaises(LLMBackendError):
+            _run(proc._call_ollama("prompt", "img"))
 
     def test_timeout_retries_then_fails(self):
         proc = self._make_processor()
@@ -148,8 +149,12 @@ class TestImageProcessorErrorHandling(unittest.TestCase):
         mock_session.post = MagicMock(return_value=mock_ctx)
         proc.backend._session = mock_session
 
-        result = _run(proc._call_ollama("prompt", "img"))
-        self.assertEqual(result, "")
+        with patch(
+            "custom_components.gaming_assistant.llm_backend.asyncio.sleep",
+            new_callable=AsyncMock,
+        ):
+            with self.assertRaises(LLMBackendError):
+                _run(proc._call_ollama("prompt", "img"))
 
 
 class TestImageProcessorBackendSwap(unittest.TestCase):
@@ -175,14 +180,17 @@ class TestImageProcessorBackendSwap(unittest.TestCase):
         from custom_components.gaming_assistant.llm_backend import OpenAICompatibleBackend
         proc = self._make_processor()
 
+        old_backend = proc.backend
+        old_backend.close = AsyncMock()
         new_backend = OpenAICompatibleBackend(
             host="https://api.openai.com",
             model="gpt-4o",
             api_key="test-key",
         )
-        proc.backend = new_backend
+        _run(proc.async_set_backend(new_backend))
         self.assertEqual(proc.backend.backend_type, "openai")
         self.assertEqual(proc.backend.model, "gpt-4o")
+        old_backend.close.assert_awaited_once()
 
 
 class TestPerceptualHash(unittest.TestCase):

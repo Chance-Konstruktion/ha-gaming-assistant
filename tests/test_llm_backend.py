@@ -25,6 +25,7 @@ for mod in _HA_MODULES:
     sys.modules.setdefault(mod, MagicMock())
 
 from custom_components.gaming_assistant.llm_backend import (
+    LLMBackendError,
     LLMResponse,
     OllamaBackend,
     OpenAICompatibleBackend,
@@ -119,8 +120,8 @@ class TestOllamaBackend(unittest.TestCase):
         mock_session.post = MagicMock(return_value=mock_ctx)
         backend._session = mock_session
 
-        result = _run(backend.generate("prompt", "img"))
-        self.assertEqual(result.text, "")
+        with self.assertRaises(LLMBackendError):
+            _run(backend.generate("prompt", "img"))
 
     def test_list_models(self):
         backend = OllamaBackend(host="http://localhost:11434", model="llava")

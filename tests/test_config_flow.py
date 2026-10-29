@@ -107,6 +107,7 @@ from custom_components.gaming_assistant.config_flow import (
     GamingAssistantConfigFlow,
     _fetch_ollama_models_async,
     _schema_model_step,
+    _validate_provider_connection_async,
 )
 
 
@@ -124,6 +125,23 @@ class TestConfigFlowHelpers(unittest.TestCase):
         model_key = next(k for k in schema.schema if getattr(k, "schema", "") == "model")
         model_validator = schema.schema[model_key]
         self.assertIn("qwen2.5vl", model_validator.container)
+
+    def test_model_step_preserves_selected_provider_defaults(self):
+        flow = GamingAssistantConfigFlow()
+        flow._models = ["gpt-4o"]
+        flow._model = "gpt-4o"
+        flow._interval = 30
+        flow._timeout = 120
+        flow.async_show_form = MagicMock(return_value={"step_id": "model"})
+
+        result = _run(flow.async_step_model())
+
+        self.assertEqual(result["step_id"], "model")
+        schema = flow.async_show_form.call_args.kwargs["data_schema"]
+        defaults = {key.schema: key.default for key in schema.schema}
+        self.assertEqual(defaults["model"], "gpt-4o")
+        self.assertEqual(defaults["interval"], 30)
+        self.assertEqual(defaults["analysis_timeout"], 120)
 
     def test_fetch_ollama_models_success(self):
         mock_resp = AsyncMock()
@@ -173,6 +191,46 @@ class TestConfigFlowHelpers(unittest.TestCase):
         with patch("aiohttp.ClientSession", return_value=mock_session):
             result = _run(_fetch_ollama_models_async("http://localhost:11434"))
             self.assertIsNone(result)
+
+    def test_validate_provider_connection_rejects_empty_model_list(self):
+        backend = MagicMock()
+        backend.list_models = AsyncMock(return_value=[])
+        backend.close = AsyncMock()
+
+        with patch.dict(
+            _validate_provider_connection_async.__globals__,
+            {"create_backend": MagicMock(return_value=backend)},
+        ):
+            result = _run(
+                _validate_provider_connection_async(
+                    "openai", "https://api.openai.com", "test-key", "gpt-4o"
+                )
+            )
+
+        self.assertEqual(result, (False, [], "cannot_connect"))
+        backend.close.assert_awaited_once()
+
+    def test_validate_provider_connection_reports_invalid_auth(self):
+        backend_error = _validate_provider_connection_async.__globals__["LLMBackendError"]
+
+        backend = MagicMock()
+        backend.list_models = AsyncMock(
+            side_effect=backend_error("unauthorized", status_code=401)
+        )
+        backend.close = AsyncMock()
+
+        with patch.dict(
+            _validate_provider_connection_async.__globals__,
+            {"create_backend": MagicMock(return_value=backend)},
+        ):
+            result = _run(
+                _validate_provider_connection_async(
+                    "openai", "https://api.openai.com", "bad-key", "gpt-4o"
+                )
+            )
+
+        self.assertEqual(result, (False, [], "invalid_auth"))
+        backend.close.assert_awaited_once()
 
     def test_get_entities_by_domain_filters_disabled(self):
         flow = GamingAssistantConfigFlow()

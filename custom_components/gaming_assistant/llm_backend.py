@@ -34,6 +34,14 @@ DEFAULT_RATE_LIMIT_RPM = 30
 _REDACTED = "**REDACTED**"
 
 
+class LLMBackendError(OSError):
+    """A provider request failed before a usable model response was received."""
+
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
 def _safe_host(host: str) -> str:
     """Return host string safe for logging (no embedded credentials)."""
     if "@" in host:
@@ -232,7 +240,7 @@ class OllamaBackend(LLMBackend):
                         model=self.model,
                         raw=data,
                     )
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as err:
                 delay = DEFAULT_RETRY_DELAY * (2 ** attempt)
                 _LOGGER.warning(
                     "Ollama timeout (attempt %d/%d), retrying in %ds",
@@ -242,15 +250,25 @@ class OllamaBackend(LLMBackend):
                 )
                 if attempt < DEFAULT_RETRY_ATTEMPTS - 1:
                     await asyncio.sleep(delay)
-            except aiohttp.ClientConnectionError:
+                else:
+                    raise LLMBackendError(
+                        f"Ollama request timed out after {DEFAULT_RETRY_ATTEMPTS} attempts"
+                    ) from err
+            except aiohttp.ClientConnectionError as err:
                 _LOGGER.error("Cannot reach Ollama at %s", _safe_host(self.host))
-                return LLMResponse(text="")
+                raise LLMBackendError(
+                    f"Cannot reach Ollama at {_safe_host(self.host)}"
+                ) from err
             except aiohttp.ClientResponseError as err:
                 _LOGGER.error("Ollama HTTP error %d: %s", err.status, err.message)
-                return LLMResponse(text="")
+                raise LLMBackendError(
+                    f"Ollama HTTP error {err.status}: {err.message}",
+                    status_code=err.status,
+                ) from err
 
-        _LOGGER.error("Ollama request failed after %d retries", DEFAULT_RETRY_ATTEMPTS)
-        return LLMResponse(text="")
+        raise LLMBackendError(
+            f"Ollama request failed after {DEFAULT_RETRY_ATTEMPTS} attempts"
+        )
 
 
 class OpenAICompatibleBackend(LLMBackend):
@@ -294,17 +312,24 @@ class OpenAICompatibleBackend(LLMBackend):
                 resp.raise_for_status()
                 data = await resp.json()
                 return sorted(m["id"] for m in data.get("data", []))
-        except aiohttp.ClientConnectionError:
+        except aiohttp.ClientConnectionError as err:
             _LOGGER.warning(
                 "Could not connect to API at %s", _safe_host(self.host)
             )
-            return []
-        except asyncio.TimeoutError:
+            raise LLMBackendError(
+                f"Could not connect to API at {_safe_host(self.host)}"
+            ) from err
+        except asyncio.TimeoutError as err:
             _LOGGER.warning("Timeout fetching models from %s", _safe_host(self.host))
-            return []
+            raise LLMBackendError(
+                f"Timeout fetching models from {_safe_host(self.host)}"
+            ) from err
         except aiohttp.ClientResponseError as err:
             _LOGGER.warning("Model list failed (HTTP %d): %s", err.status, err.message)
-            return []
+            raise LLMBackendError(
+                f"Model list failed (HTTP {err.status}): {err.message}",
+                status_code=err.status,
+            ) from err
 
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
@@ -379,7 +404,7 @@ class OpenAICompatibleBackend(LLMBackend):
                         },
                         raw=data,
                     )
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as err:
                 delay = DEFAULT_RETRY_DELAY * (2 ** attempt)
                 _LOGGER.warning(
                     "OpenAI-compatible API timeout (attempt %d/%d), retrying in %ds",
@@ -389,17 +414,27 @@ class OpenAICompatibleBackend(LLMBackend):
                 )
                 if attempt < DEFAULT_RETRY_ATTEMPTS - 1:
                     await asyncio.sleep(delay)
-            except aiohttp.ClientConnectionError:
+                else:
+                    raise LLMBackendError(
+                        f"API request timed out after {DEFAULT_RETRY_ATTEMPTS} attempts"
+                    ) from err
+            except aiohttp.ClientConnectionError as err:
                 _LOGGER.error(
                     "Cannot reach API at %s", _safe_host(self.host)
                 )
-                return LLMResponse(text="")
+                raise LLMBackendError(
+                    f"Cannot reach API at {_safe_host(self.host)}"
+                ) from err
             except aiohttp.ClientResponseError as err:
                 _LOGGER.error("API HTTP error %d: %s", err.status, err.message)
-                return LLMResponse(text="")
+                raise LLMBackendError(
+                    f"API HTTP error {err.status}: {err.message}",
+                    status_code=err.status,
+                ) from err
 
-        _LOGGER.error("API request failed after %d retries", DEFAULT_RETRY_ATTEMPTS)
-        return LLMResponse(text="")
+        raise LLMBackendError(
+            f"API request failed after {DEFAULT_RETRY_ATTEMPTS} attempts"
+        )
 
 
 # -- Factory -----------------------------------------------------------------

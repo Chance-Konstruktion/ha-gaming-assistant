@@ -237,12 +237,49 @@ class ImageProcessor:
         """Return the current LLM backend."""
         return self._backend
 
+    def _replace_backend(self, value: LLMBackend) -> LLMBackend | None:
+        """Install a backend and return the previous instance, if any."""
+        previous = self._backend
+        if previous is value:
+            return None
+        self._backend = value
+        self._cache.clear()
+        _LOGGER.info(
+            "LLM backend changed to: %s (%s)", value.backend_type, value.model
+        )
+        return previous
+
+    async def _close_replaced_backend(self, backend: LLMBackend) -> None:
+        """Release a replaced backend without letting cleanup mask a model switch."""
+        try:
+            await backend.close()
+        except Exception as err:  # noqa: BLE001 - keep the new backend usable
+            _LOGGER.warning("Could not close replaced LLM backend: %s", err)
+
+    async def async_set_backend(self, value: LLMBackend) -> None:
+        """Swap the backend and wait for the previous HTTP session to close."""
+        previous = self._replace_backend(value)
+        if previous is not None:
+            await self._close_replaced_backend(previous)
+
     @backend.setter
     def backend(self, value: LLMBackend) -> None:
-        """Swap the LLM backend at runtime."""
-        self._backend = value
-        self._cache.clear()  # Invalidate cache when backend changes
-        _LOGGER.info("LLM backend changed to: %s (%s)", value.backend_type, value.model)
+        """Swap the backend; async callers should use async_set_backend."""
+        previous = self._replace_backend(value)
+        if previous is None:
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # There is no way to await close() from this compatibility setter.
+            session = getattr(previous, "_session", None)
+            if session is not None and not session.closed:
+                _LOGGER.warning(
+                    "Backend replaced synchronously with an open session; "
+                    "use async_set_backend() to close it safely"
+                )
+            return
+        loop.create_task(self._close_replaced_backend(previous))
 
     async def process(
         self,
@@ -383,7 +420,8 @@ class ImageProcessor:
         Used by Agent Mode (Player 2). ``controls`` describes the game's
         button layout as the client reported it. Returns a sanitized action
         dict, or ``None`` if the model declined (``no_op``) or its output
-        failed schema/whitelist validation. Never raises on bad model output.
+        failed schema/whitelist validation. Provider transport errors intentionally
+        propagate so Agent Mode can count them as failures instead of healthy no-ops.
         """
         state_context = ""
         if self._game_state and game:
