@@ -21,6 +21,13 @@ policy and validation boundary; the Windows/Linux gaming PC continues to run
 | `send_game_action` | Request one validated action against a recent snapshot and wait briefly for a receipt. |
 | `stop_game_agent` | Disable Player 2 and request neutral controller inputs. |
 
+## Agent skill
+
+[`skills/ha-gaming-assistant/SKILL.md`](../skills/ha-gaming-assistant/SKILL.md)
+tells an agent (Claude Code and other hosts that read `SKILL.md`) when to use
+these tools and in which order. For Claude Code, copy the folder to
+`~/.claude/skills/` or `.claude/skills/` in your project.
+
 ## Install and run locally
 
 Use a dedicated virtual environment on a machine that can reach Home Assistant.
